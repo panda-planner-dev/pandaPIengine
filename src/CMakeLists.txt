@@ -18,9 +18,7 @@ file(GLOB main_SRC "*.h" "*.cpp")
  
 # create the executable
 add_executable (pandaPIplanner ${main_SRC})
-target_compile_options(pandaPIplanner PUBLIC -Wall -Wextra
--Wno-unused-parameter -Wno-sign-compare -pedantic
--Werror=implicit-function-declaration "$<$<CONFIG:DEBUG>:-Og;-ggdb3>"
+target_compile_options(pandaPIplanner PUBLIC -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -pedantic "$<$<CONFIG:DEBUG>:-Og;-ggdb3>"
 "$<$<CONFIG:RELEASE>:-O3>")
 target_link_options(pandaPIplanner PUBLIC "$<$<CONFIG:RELEASE>:-flto>")
 #target_compile_features(pandaPIplanner PUBLIC cxx_std_17)
