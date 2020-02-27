@@ -2,8 +2,12 @@
 #define OPTIMIZEUNTILTIMELIMIT false
 #endif
 
+#if (HEURISTIC == DOFREEILP || HEURISTIC == DOFREELP)
+#define DOFREE
+#endif
+
 #ifdef DOFREE
-#define CHECKAFTER 50
+#define CHECKAFTER 5
 #define MAINTAINREACHABILITY
 #define ALLTASKS // it is needed for all tasks
 #define TRACKTASKSINTN

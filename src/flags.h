@@ -77,18 +77,14 @@
 
 #define DOFTASKREACHABILITY // store the hierarchical task reachability in the ILP to make  it easier to solve
 #define DOFREE
+#define DOFMODE DOFRECREATE
 #define CHECKAFTER 50 // nodes after which the timelimit is checked
 #define MAINTAINREACHABILITY
 #define ALLTASKS // it is needed for all tasks
 #ifndef OPTIMIZEUNTILTIMELIMIT
-#define OPTIMIZEUNTILTIMELIMIT false
-#endif
-
-#ifdef DOFREE
-#define CHECKAFTER 50
-#define MAINTAINREACHABILITY
-#define ALLTASKS // it is needed for all tasks
 #define TRACKTASKSINTN
+
+#define OPTIMIZEUNTILTIMELIMIT false
 #endif
 
 #ifndef CHECKAFTER
