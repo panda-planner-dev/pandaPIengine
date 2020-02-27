@@ -53,18 +53,15 @@
 // select a state representation
 #define STATEREP SRCOPY // choose from [state-representation]
 
+//#define OPTIMIZEUNTILTIMELIMIT true
+
+
 // type of search
 #define SEARCHTYPE HEURISTICSEARCH // choose from [search-type]
 
 // options for heuristic search
 #define ASTAR
 #define GASTARWEIGHT 2
-
-#define PRGEFFECTLESS // always progress effectless actions
-
-#define ONEMODAC
-//#define ONEMODMETH
-
 // select a heuristic function
 #define HEURISTIC RCFF
 
@@ -72,6 +69,9 @@
 #define CHECKAFTER 5000 // nodes after which the timelimit is checked
 #define MAINTAINREACHABILITY
 #define ONLYACTIONS // it is only needed for actions
+#ifndef OPTIMIZEUNTILTIMELIMIT
+#define OPTIMIZEUNTILTIMELIMIT false
+#endif
 
 #ifndef CHECKAFTER
 #define CHECKAFTER 5000 // nodes after which the timelimit is checked
