@@ -36,17 +36,20 @@ int main(int argc, char *argv[]) {
 #ifndef NDEBUG
 	cout << "You have compiled the search engine without setting the NDEBUG flag. This will make it slow and should only be done for debug." << endl;
 #endif
+	srand(42);
+	//srand(atoi(argv[4]));
 
+	string s, s2, s3;
 	if (argc == 1) {
-		cout << "Please pass at least one argument, the problem";
-		return -1;
+		cout << "No file name passed. Reading input from stdin";
+		s = "stdin";
+		s2 = s3 = "";
+	} else {
+		s = argv[1];
+		s2 = (argc > 2) ? argv[2] : "";
+		s3 = (argc > 3) ? argv[3] : "";
 	}
 
-	//srand(atoi(argv[4]));
-	srand(42);
-	string s = argv[1];
-	string s2 = (argc > 2) ? argv[2] : "";
-	string s3 = (argc > 3) ? argv[3] : "";
 
 /*
  * Read model
