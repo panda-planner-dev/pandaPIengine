@@ -10,7 +10,10 @@ endif()
 
 project(pandaPIPlanner)
 
-list(APPEND compiler_flags -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -pedantic "$<$<CONFIG:DEBUG>:-Og;-ggdb3>" "$<$<CONFIG:RELEASE>:-O2>")
+## required for IBM's CPLEX in order to force it to use newer names for the std headers
+add_definitions(-DIL_STD)
+list(APPEND compiler_flags -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -pedantic "$<$<CONFIG:DEBUG>:-Og;-ggdb3>"
+"$<$<CONFIG:RELEASE>:-O2>")
 list(APPEND linker_flags "$<$<CONFIG:RELEASE>:-flto;-static;-static-libgcc>")
 
 
@@ -33,3 +36,11 @@ target_link_libraries(pandaPIplanner PUBLIC heuristics)
 target_link_libraries(pandaPIplanner PUBLIC hrc)
 target_link_libraries(pandaPIplanner PUBLIC hlm)
 target_link_libraries(pandaPIplanner PUBLIC intDataStructures)
+
+# if the user has specified a cplex installation he surely wants to use it
+if (CPLEX_SOURCE_DIR)
+	target_link_libraries(pandaPIplanner PUBLIC ilpheuristics)
+endif (CPLEX_SOURCE_DIR)
+
+
+
