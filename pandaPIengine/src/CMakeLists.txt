@@ -1,0 +1,29 @@
+cmake_minimum_required(VERSION 2.8)
+
+### if no build type is set, it is "Release"
+if (NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
+endif()
+
+
+project(pandaPIPlanner)
+
+include_directories("heuristics")
+include_directories("intDataStructures")
+include_directories("search")
+add_subdirectory(heuristics)
+add_subdirectory(intDataStructures)
+
+file(GLOB main_SRC "*.h" "*.cpp")
+ 
+# create the executable
+add_executable (pandaPIplanner ${main_SRC})
+target_compile_options(pandaPIplanner PUBLIC -Wall -Wextra
+-Wno-unused-parameter -Wno-sign-compare -pedantic
+-Werror=implicit-function-declaration "$<$<CONFIG:DEBUG>:-Og;-ggdb3>"
+"$<$<CONFIG:RELEASE>:-O3>")
+target_link_options(pandaPIplanner PUBLIC "$<$<CONFIG:RELEASE>:-flto>")
+#target_compile_features(pandaPIplanner PUBLIC cxx_std_17)
+
+target_link_libraries(pandaPIplanner PUBLIC heuristics)
+target_link_libraries(pandaPIplanner PUBLIC intDataStructures)
