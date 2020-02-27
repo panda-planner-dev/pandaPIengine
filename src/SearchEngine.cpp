@@ -33,27 +33,25 @@ using namespace std;
 using namespace progression;
 
 int main(int argc, char *argv[]) {
-	srand(42);
-	string s;
-	string s2;
-	string s3;
-
-	cout << "Reading HTN model..." << endl;
-	if(argc >= 3){
-		s = argv[1];
-		s2 = argv[2];
-	} else {
-		s = "add local path here";
-		s2 = "add local path here";
-	}
 #ifndef NDEBUG
 	cout << "You have compiled the search engine without setting the NDEBUG flag. This will make it slow and should only be done for debug." << endl;
 #endif
 
+	if (argc == 1) {
+		cout << "Please pass at least one argument, the problem";
+		return -1;
+	}
+
+	//srand(atoi(argv[4]));
+	srand(42);
+	string s = argv[1];
+	string s2 = (argc > 2) ? argv[2] : "";
+	string s3 = (argc > 3) ? argv[3] : "";
+
 /*
  * Read model
  */
-	cout << "Reading HTN model..." << endl;
+	cerr << "Reading HTN model from file \"" << s << "\" ... " << endl;
 	Model* htn = new Model();
 	htn->read(s);
 	assert(htn->isHtnModel);
@@ -83,8 +81,17 @@ int main(int argc, char *argv[]) {
 #endif
 #ifdef RCHEURISTIC
 	cout << "Heuristic: RC encoding" << endl;
-	Model* heuristicModel = new Model();
-	heuristicModel->read(s2);
+	Model* heuristicModel;
+	if (s2.size() == 0){
+		cout << "No RC model specified. Computing ... " << endl;
+		RCModelFactory* factory = new RCModelFactory(htn);
+		heuristicModel = factory->getRCmodelSTRIPS();
+		delete factory;
+	} else {
+		heuristicModel = new Model();
+		heuristicModel->read(s2);
+	}
+
 #if HEURISTIC == RCFF
 	search.hF = new hhRC(htn, new hsAddFF(heuristicModel));
 	search.hF->sasH->heuristic = sasFF;
