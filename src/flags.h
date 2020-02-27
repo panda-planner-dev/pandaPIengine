@@ -70,14 +70,25 @@
 //#define ONEMODMETH
 
 // select a heuristic function
-#define HEURISTIC RCFF
+#define HEURISTIC DOFREEILP
 
-#define RCHEURISTIC
-#define CHECKAFTER 5000 // nodes after which the timelimit is checked
+#define TREATSCCS // prevent disconnected components
+#define INITSCCS
+
+#define DOFTASKREACHABILITY // store the hierarchical task reachability in the ILP to make  it easier to solve
+#define DOFREE
+#define CHECKAFTER 50 // nodes after which the timelimit is checked
 #define MAINTAINREACHABILITY
-#define ONLYACTIONS // it is only needed for actions
+#define ALLTASKS // it is needed for all tasks
 #ifndef OPTIMIZEUNTILTIMELIMIT
 #define OPTIMIZEUNTILTIMELIMIT false
+#endif
+
+#ifdef DOFREE
+#define CHECKAFTER 50
+#define MAINTAINREACHABILITY
+#define ALLTASKS // it is needed for all tasks
+#define TRACKTASKSINTN
 #endif
 
 #ifndef CHECKAFTER
