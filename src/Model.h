@@ -42,8 +42,8 @@ private:
 	void printAction(int i);
 	void printMethods();
 	void printMethod(int i);
-	void readClassical(std::ifstream& domainFile);
-	void readHierarchical(std::ifstream& domainFile);
+	void readClassical(std::istream& domainFile);
+	void readHierarchical(std::istream& domainFile);
 	void generateVectorRepresentation();
 
 	void tarjan(int v);

@@ -16,6 +16,8 @@
 #include <cassert>
 #include <list>
 #include <algorithm>
+#include <cerrno>
+#include <cstring>
 #include <sys/time.h>
 #include "intDataStructures/IntPairHeap.h"
 
@@ -1424,7 +1426,7 @@ void Model::generateMethodRepresentation() {
 	}
 }
 
-void Model::readClassical(ifstream& domainFile) {
+void Model::readClassical(istream& domainFile) {
 	string line;
 	getline(domainFile, line);
 	stringstream* sStream;
@@ -1593,7 +1595,7 @@ void Model::readClassical(ifstream& domainFile) {
 	}
 }
 
-void Model::readHierarchical(ifstream& domainFile) {
+void Model::readHierarchical(istream& domainFile) {
 	stringstream* sStream;
 	string line;
 	// tasks
@@ -1833,11 +1835,24 @@ void Model::generateVectorRepresentation() {
 
 void Model::read(string f) {
 	const char *cstr = f.c_str();
-	ifstream domainFile(cstr);
+	
+	std::istream * inputStream;
+	if (f == "stdin"){
+		inputStream = &std::cin;
+	} else {
+		ifstream * fileInput  = new ifstream(f);
+		if (!fileInput->good()) {
+			std::cerr << "Unable to open input file " << f << ": " << strerror (errno) << std::endl;
+			exit(1);
+		}
+
+		inputStream = fileInput;
+	}	
+	
 	string line;
-	getline(domainFile, line);
-	readClassical(domainFile);
-	readHierarchical(domainFile);
+	getline(*inputStream, line);
+	readClassical(*inputStream);
+	readHierarchical(*inputStream);
 	printSummary();
 	if (isHtnModel) {
 		generateMethodRepresentation();
@@ -1845,7 +1860,9 @@ void Model::read(string f) {
 #if (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
 	generateVectorRepresentation();
 #endif
-	domainFile.close();
+	if (f != "stdin"){
+		((ifstream*) inputStream)->close();
+	}
 
 // for debug:
 #if DLEVEL == 5
