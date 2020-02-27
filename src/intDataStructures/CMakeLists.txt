@@ -1,6 +1,6 @@
 file(GLOB intDataStructures_SRC "*.h" "*.cpp")
 
 add_library(intDataStructures ${intDataStructures_SRC})
-target_compile_options(intDataStructures PUBLIC -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -pedantic "$<$<CONFIG:DEBUG>:-Og;-ggdb3>" "$<$<CONFIG:RELEASE>:-O2>")
-target_link_options(intDataStructures PUBLIC "$<$<CONFIG:RELEASE>:-flto>")
+target_compile_options(intDataStructures PUBLIC ${compiler_flags})
+target_link_options(intDataStructures PUBLIC ${linker_flags})
 

@@ -10,6 +10,10 @@ endif()
 
 project(pandaPIPlanner)
 
+list(APPEND compiler_flags -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -pedantic "$<$<CONFIG:DEBUG>:-Og;-ggdb3>" "$<$<CONFIG:RELEASE>:-O2>")
+list(APPEND linker_flags "$<$<CONFIG:RELEASE>:-flto;-static;-static-libgcc>")
+
+
 include_directories("search")
 include_directories("heuristics")
 include_directories("intDataStructures")
@@ -21,10 +25,8 @@ file(GLOB main_SRC "*.h" "*.cpp")
  
 # create the executable
 add_executable (pandaPIplanner ${main_SRC})
-target_compile_options(pandaPIplanner PUBLIC -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -pedantic "$<$<CONFIG:DEBUG>:-Og;-ggdb3>"
-"$<$<CONFIG:RELEASE>:-O2>")
-target_link_options(pandaPIplanner PUBLIC "$<$<CONFIG:RELEASE>:-flto;-static;-static-libgcc>")
-#target_compile_features(pandaPIplanner PUBLIC cxx_std_17)
+target_compile_options(pandaPIplanner PUBLIC ${compiler_flags})
+target_link_options(pandaPIplanner PUBLIC ${linker_flags})
 
 target_link_libraries(pandaPIplanner PUBLIC search)
 target_link_libraries(pandaPIplanner PUBLIC heuristics)
