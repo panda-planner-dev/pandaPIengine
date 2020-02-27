@@ -10,9 +10,10 @@ endif()
 
 project(pandaPIPlanner)
 
+include_directories("search")
 include_directories("heuristics")
 include_directories("intDataStructures")
-include_directories("search")
+add_subdirectory(search)
 add_subdirectory(heuristics)
 add_subdirectory(intDataStructures)
 
@@ -25,5 +26,8 @@ target_compile_options(pandaPIplanner PUBLIC -Wall -Wextra -Wno-unused-parameter
 target_link_options(pandaPIplanner PUBLIC "$<$<CONFIG:RELEASE>:-flto;-static;-static-libgcc>")
 #target_compile_features(pandaPIplanner PUBLIC cxx_std_17)
 
+target_link_libraries(pandaPIplanner PUBLIC search)
 target_link_libraries(pandaPIplanner PUBLIC heuristics)
+target_link_libraries(pandaPIplanner PUBLIC hrc)
+target_link_libraries(pandaPIplanner PUBLIC hlm)
 target_link_libraries(pandaPIplanner PUBLIC intDataStructures)

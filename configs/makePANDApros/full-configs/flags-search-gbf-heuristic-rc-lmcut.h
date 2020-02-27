@@ -53,6 +53,9 @@
 // select a state representation
 #define STATEREP SRCOPY // choose from [state-representation]
 
+//#define OPTIMIZEUNTILTIMELIMIT true
+
+
 // type of search
 #define SEARCHTYPE HEURISTICSEARCH
 
@@ -64,6 +67,9 @@
 #define CHECKAFTER 5000 // nodes after which the timelimit is checked
 #define MAINTAINREACHABILITY
 #define ONLYACTIONS // it is only needed for actions
+#ifndef OPTIMIZEUNTILTIMELIMIT
+#define OPTIMIZEUNTILTIMELIMIT false
+#endif
 
 #ifndef CHECKAFTER
 #define CHECKAFTER 5000 // nodes after which the timelimit is checked
