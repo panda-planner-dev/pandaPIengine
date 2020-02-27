@@ -95,6 +95,7 @@ searchNode::~searchNode() {
 #if STATEREP == SRLIST
 	delete[] state;
 #endif
+}
 
 ////////////////////////////////
 // CmpNodePtrs
