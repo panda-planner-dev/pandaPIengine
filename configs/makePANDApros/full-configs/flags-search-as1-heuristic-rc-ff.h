@@ -20,6 +20,10 @@
 #define RCFF 2      // relaxed composition heuristic with the FF heuristic
 #define RCADD 3     // relaxed composition heuristic with the add heuristic
 #define RCLMC 4     // relaxed composition heuristic with the LM-Cut heuristic
+#define DOFREEILP 5 // delete and ordering free heuristic (exact ilp calculation)
+#define DOFREELP 6  // delete and ordering free heuristic (approximate lp calculation)
+#define LMCLOCAL 7
+#define LMCANDOR 8
 
 // [state-representation]
 #define SRCOPY 0  // copy bit vector that represents state
@@ -52,9 +56,6 @@
 
 // select a state representation
 #define STATEREP SRCOPY // choose from [state-representation]
-
-//#define OPTIMIZEUNTILTIMELIMIT true
-
 
 // type of search
 #define SEARCHTYPE HEURISTICSEARCH // choose from [search-type]

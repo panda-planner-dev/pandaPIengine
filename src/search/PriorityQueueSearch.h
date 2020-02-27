@@ -10,6 +10,9 @@
 #include "../ProgressionNetwork.h"
 #include "../heuristics/hhZero.h"
 #include "../heuristics/rcHeuristics/hhRC.h"
+#ifdef DOFREE
+#include "../heuristics/dofHeuristics/hhDOfree.h"
+#endif
 #ifdef LMCOUNTHEURISTIC
 #include "../heuristics/landmarks/hhLMCount.h"
 #endif
@@ -27,6 +30,9 @@ public:
 #endif
 #ifdef RCHEURISTIC
 	hhRC *hF;
+#endif
+#ifdef DOFREE
+	hhDOfree *hF;
 #endif
 #ifdef LMCOUNTHEURISTIC
 	hhLMCount *hF;

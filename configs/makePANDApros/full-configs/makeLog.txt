@@ -1,4 +1,37 @@
 *
+* search-as1-heuristic-dor-ilp
+*
+*
+* search-as1-heuristic-dor-lp
+*
+*
+* search-as1-heuristic-dor-tr-ilp
+*
+*
+* search-as1-heuristic-dor-tr-lp
+*
+*
+* search-as1-heuristic-dor-tr-uc-ilp
+*
+*
+* search-as1-heuristic-dor-tr-uc-lp
+*
+*
+* search-as1-heuristic-dor-uc-ilp
+*
+*
+* search-as1-heuristic-dor-uc-lp
+*
+*
+* search-as1-heuristic-lmc-andor-lms
+*
+*
+* search-as1-heuristic-lmc-andor-lms-ra
+*
+*
+* search-as1-heuristic-lmc-local-lms
+*
+*
 * search-as1-heuristic-rc-add
 *
 *
@@ -6,6 +39,39 @@
 *
 *
 * search-as1-heuristic-rc-lmcut
+*
+*
+* search-as1-onemod-heuristic-dor-ilp
+*
+*
+* search-as1-onemod-heuristic-dor-lp
+*
+*
+* search-as1-onemod-heuristic-dor-tr-ilp
+*
+*
+* search-as1-onemod-heuristic-dor-tr-lp
+*
+*
+* search-as1-onemod-heuristic-dor-tr-uc-ilp
+*
+*
+* search-as1-onemod-heuristic-dor-tr-uc-lp
+*
+*
+* search-as1-onemod-heuristic-dor-uc-ilp
+*
+*
+* search-as1-onemod-heuristic-dor-uc-lp
+*
+*
+* search-as1-onemod-heuristic-lmc-andor-lms
+*
+*
+* search-as1-onemod-heuristic-lmc-andor-lms-ra
+*
+*
+* search-as1-onemod-heuristic-lmc-local-lms
 *
 *
 * search-as1-onemod-heuristic-rc-add
@@ -17,6 +83,39 @@
 * search-as1-onemod-heuristic-rc-lmcut
 *
 *
+* search-as2-heuristic-dor-ilp
+*
+*
+* search-as2-heuristic-dor-lp
+*
+*
+* search-as2-heuristic-dor-tr-ilp
+*
+*
+* search-as2-heuristic-dor-tr-lp
+*
+*
+* search-as2-heuristic-dor-tr-uc-ilp
+*
+*
+* search-as2-heuristic-dor-tr-uc-lp
+*
+*
+* search-as2-heuristic-dor-uc-ilp
+*
+*
+* search-as2-heuristic-dor-uc-lp
+*
+*
+* search-as2-heuristic-lmc-andor-lms
+*
+*
+* search-as2-heuristic-lmc-andor-lms-ra
+*
+*
+* search-as2-heuristic-lmc-local-lms
+*
+*
 * search-as2-heuristic-rc-add
 *
 *
@@ -24,6 +123,39 @@
 *
 *
 * search-as2-heuristic-rc-lmcut
+*
+*
+* search-as2-onemod-heuristic-dor-ilp
+*
+*
+* search-as2-onemod-heuristic-dor-lp
+*
+*
+* search-as2-onemod-heuristic-dor-tr-ilp
+*
+*
+* search-as2-onemod-heuristic-dor-tr-lp
+*
+*
+* search-as2-onemod-heuristic-dor-tr-uc-ilp
+*
+*
+* search-as2-onemod-heuristic-dor-tr-uc-lp
+*
+*
+* search-as2-onemod-heuristic-dor-uc-ilp
+*
+*
+* search-as2-onemod-heuristic-dor-uc-lp
+*
+*
+* search-as2-onemod-heuristic-lmc-andor-lms
+*
+*
+* search-as2-onemod-heuristic-lmc-andor-lms-ra
+*
+*
+* search-as2-onemod-heuristic-lmc-local-lms
 *
 *
 * search-as2-onemod-heuristic-rc-add
@@ -35,6 +167,39 @@
 * search-as2-onemod-heuristic-rc-lmcut
 *
 *
+* search-gbf-heuristic-dor-ilp
+*
+*
+* search-gbf-heuristic-dor-lp
+*
+*
+* search-gbf-heuristic-dor-tr-ilp
+*
+*
+* search-gbf-heuristic-dor-tr-lp
+*
+*
+* search-gbf-heuristic-dor-tr-uc-ilp
+*
+*
+* search-gbf-heuristic-dor-tr-uc-lp
+*
+*
+* search-gbf-heuristic-dor-uc-ilp
+*
+*
+* search-gbf-heuristic-dor-uc-lp
+*
+*
+* search-gbf-heuristic-lmc-andor-lms
+*
+*
+* search-gbf-heuristic-lmc-andor-lms-ra
+*
+*
+* search-gbf-heuristic-lmc-local-lms
+*
+*
 * search-gbf-heuristic-rc-add
 *
 *
@@ -42,6 +207,39 @@
 *
 *
 * search-gbf-heuristic-rc-lmcut
+*
+*
+* search-gbf-onemod-heuristic-dor-ilp
+*
+*
+* search-gbf-onemod-heuristic-dor-lp
+*
+*
+* search-gbf-onemod-heuristic-dor-tr-ilp
+*
+*
+* search-gbf-onemod-heuristic-dor-tr-lp
+*
+*
+* search-gbf-onemod-heuristic-dor-tr-uc-ilp
+*
+*
+* search-gbf-onemod-heuristic-dor-tr-uc-lp
+*
+*
+* search-gbf-onemod-heuristic-dor-uc-ilp
+*
+*
+* search-gbf-onemod-heuristic-dor-uc-lp
+*
+*
+* search-gbf-onemod-heuristic-lmc-andor-lms
+*
+*
+* search-gbf-onemod-heuristic-lmc-andor-lms-ra
+*
+*
+* search-gbf-onemod-heuristic-lmc-local-lms
 *
 *
 * search-gbf-onemod-heuristic-rc-add

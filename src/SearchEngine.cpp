@@ -28,6 +28,8 @@
 #include "intDataStructures/bIntSet.h"
 
 #include "heuristics/rcHeuristics/RCModelFactory.h"
+#include "heuristics/landmarks/lmExtraction/LmFdConnector.h"
+#include "heuristics/landmarks/hhLMCount.h"
 
 using namespace std;
 using namespace progression;
@@ -107,6 +109,18 @@ int main(int argc, char *argv[]) {
 	search.hF = new hhRC(htn, new hsFilter(heuristicModel));
 	cout << "- Inner heuristic: Filter" << endl;
 #endif
+#endif
+#ifdef DOFREE
+	search.hF = new hhDOfree(htn, tnI);
+#endif
+#if (HEURISTIC == LMCLOCAL)
+	search.hF = new hhLMCount(htn, tnI, 0);
+#endif
+#if (HEURISTIC == LMCANDOR)
+	search.hF = new hhLMCount(htn, tnI, 1);
+#endif
+#if (HEURISTIC == LMCFD)
+	search.hF = new hhLMCount(htn, tnI, 2);
 #endif
 /*
  * Start Search
