@@ -52,3 +52,6 @@
 
 // select a state representation
 #define STATEREP SRCOPY // choose from [state-representation]
+
+//#define OPTIMIZEUNTILTIMELIMIT true
+
