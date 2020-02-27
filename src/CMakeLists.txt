@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.13)
 
 ### if no build type is set, it is "Release"
 if (NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
@@ -20,7 +20,7 @@ file(GLOB main_SRC "*.h" "*.cpp")
 add_executable (pandaPIplanner ${main_SRC})
 target_compile_options(pandaPIplanner PUBLIC -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -pedantic "$<$<CONFIG:DEBUG>:-Og;-ggdb3>"
 "$<$<CONFIG:RELEASE>:-O3>")
-target_link_options(pandaPIplanner PUBLIC "$<$<CONFIG:RELEASE>:-flto>")
+target_link_options(pandaPIplanner PUBLIC "$<$<CONFIG:RELEASE>:-flto;-static;-static-libgcc>")
 #target_compile_features(pandaPIplanner PUBLIC cxx_std_17)
 
 target_link_libraries(pandaPIplanner PUBLIC heuristics)
