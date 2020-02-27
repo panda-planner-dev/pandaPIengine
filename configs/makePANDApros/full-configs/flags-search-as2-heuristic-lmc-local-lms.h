@@ -57,6 +57,12 @@
 // select a state representation
 #define STATEREP SRCOPY // choose from [state-representation]
 
+#define DOFRECREATE 1
+#define DOFUPDATE 2
+#define DOFUPDATEWITHREACHABILITY 3
+
+
+
 // type of search
 #define SEARCHTYPE HEURISTICSEARCH // choose from [search-type]
 
@@ -78,17 +84,6 @@
 #define CHECKAFTER 5000 // nodes after which the timelimit is checked
 #ifndef OPTIMIZEUNTILTIMELIMIT
 #define OPTIMIZEUNTILTIMELIMIT false
-#endif
-
-#if (HEURISTIC == DOFREEILP || HEURISTIC == DOFREELP)
-#define DOFREE
-#endif
-
-#ifdef DOFREE
-#define CHECKAFTER 5
-#define MAINTAINREACHABILITY
-#define ALLTASKS // it is needed for all tasks
-#define TRACKTASKSINTN
 #endif
 
 #ifndef CHECKAFTER

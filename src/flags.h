@@ -57,6 +57,12 @@
 // select a state representation
 #define STATEREP SRCOPY // choose from [state-representation]
 
+#define DOFRECREATE 1
+#define DOFUPDATE 2
+#define DOFUPDATEWITHREACHABILITY 3
+
+
+
 // type of search
 #define SEARCHTYPE HEURISTICSEARCH // choose from [search-type]
 
@@ -77,13 +83,11 @@
 
 #define DOFTASKREACHABILITY // store the hierarchical task reachability in the ILP to make  it easier to solve
 #define DOFREE
-#define DOFMODE DOFRECREATE
 #define CHECKAFTER 50 // nodes after which the timelimit is checked
 #define MAINTAINREACHABILITY
 #define ALLTASKS // it is needed for all tasks
-#ifndef OPTIMIZEUNTILTIMELIMIT
 #define TRACKTASKSINTN
-
+#ifndef OPTIMIZEUNTILTIMELIMIT
 #define OPTIMIZEUNTILTIMELIMIT false
 #endif
 

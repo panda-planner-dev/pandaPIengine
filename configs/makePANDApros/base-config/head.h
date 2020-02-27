@@ -56,3 +56,9 @@
 
 // select a state representation
 #define STATEREP SRCOPY // choose from [state-representation]
+
+#define DOFRECREATE 1
+#define DOFUPDATE 2
+#define DOFUPDATEWITHREACHABILITY 3
+
+

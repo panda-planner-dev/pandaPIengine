@@ -10,3 +10,4 @@
 #define CHECKAFTER 50 // nodes after which the timelimit is checked
 #define MAINTAINREACHABILITY
 #define ALLTASKS // it is needed for all tasks
+#define TRACKTASKSINTN
