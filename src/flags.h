@@ -62,6 +62,12 @@
 // options for heuristic search
 #define ASTAR
 #define GASTARWEIGHT 2
+
+#define PRGEFFECTLESS // always progress effectless actions
+
+#define ONEMODAC
+//#define ONEMODMETH
+
 // select a heuristic function
 #define HEURISTIC RCFF
 
