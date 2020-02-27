@@ -3,7 +3,8 @@ file(GLOB ilp_heuristics_SRC "*.h" "*.cpp")
 add_library(ilpheuristics ${ilp_heuristics_SRC})
 target_compile_options(ilpheuristics  PUBLIC ${compiler_flags})
 target_link_options(ilpheuristics  PUBLIC ${linker_flags})
-#target_link_libraries(ilpheuristics heuristics)
+target_link_libraries(ilpheuristics heuristics)
+target_link_libraries(ilpheuristics intDataStructures)
 
 add_library(cplex SHARED IMPORTED) 
 set_target_properties(cplex  PROPERTIES
