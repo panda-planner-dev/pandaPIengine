@@ -34,7 +34,7 @@ void landmark::printLM() {
 		cout << "fact";
 	} else if(this->type == task){
 		cout << "task";
-	} else if(this->type == method){
+	} else if(this->type == METHOD){
 		cout << "meth";
 	}
 	cout << " ";
