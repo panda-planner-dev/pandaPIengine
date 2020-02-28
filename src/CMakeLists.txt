@@ -8,7 +8,7 @@ if (NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
 endif()
 
 
-project(pandaPIPlanner)
+project(pandaPIengine)
 
 list(APPEND compiler_flags -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -pedantic "$<$<CONFIG:DEBUG>:-Og;-ggdb3>" "$<$<CONFIG:RELEASE>:-O2>")
 list(APPEND linker_flags "$<$<CONFIG:RELEASE>:-flto;-static;-static-libgcc>")
@@ -24,12 +24,12 @@ add_subdirectory(intDataStructures)
 file(GLOB main_SRC "*.h" "*.cpp")
  
 # create the executable
-add_executable (pandaPIplanner ${main_SRC})
-target_compile_options(pandaPIplanner PUBLIC ${compiler_flags})
-target_link_options(pandaPIplanner PUBLIC ${linker_flags})
+add_executable (pandaPIengine ${main_SRC})
+target_compile_options(pandaPIengine PUBLIC ${compiler_flags})
+target_link_options(pandaPIengine PUBLIC ${linker_flags})
 
-target_link_libraries(pandaPIplanner PUBLIC search)
-target_link_libraries(pandaPIplanner PUBLIC heuristics)
-target_link_libraries(pandaPIplanner PUBLIC hrc)
-target_link_libraries(pandaPIplanner PUBLIC hlm)
-target_link_libraries(pandaPIplanner PUBLIC intDataStructures)
+target_link_libraries(pandaPIengine PUBLIC search)
+target_link_libraries(pandaPIengine PUBLIC heuristics)
+target_link_libraries(pandaPIengine PUBLIC hrc)
+target_link_libraries(pandaPIengine PUBLIC hlm)
+target_link_libraries(pandaPIengine PUBLIC intDataStructures)
