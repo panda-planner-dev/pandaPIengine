@@ -8,7 +8,7 @@ if (NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
 endif()
 
 
-project(pandaPIPlanner)
+project(pandaPIengine)
 
 ## required for IBM's CPLEX in order to force it to use newer names for the std headers
 add_definitions(-DIL_STD)
@@ -30,6 +30,7 @@ add_subdirectory(intDataStructures)
 file(GLOB main_SRC "*.h" "*.cpp")
  
 # create the executable
+<<<<<<< HEAD
 add_executable (pandaPIplanner ${main_SRC})
 target_compile_options(pandaPIplanner PUBLIC ${compiler_flags})
 target_link_options(pandaPIplanner PUBLIC ${linker_flags})
@@ -46,4 +47,12 @@ if (CPLEX_SOURCE_DIR)
 endif (CPLEX_SOURCE_DIR)
 
 
+add_executable (pandaPIengine ${main_SRC})
+target_compile_options(pandaPIengine PUBLIC ${compiler_flags})
+target_link_options(pandaPIengine PUBLIC ${linker_flags})
 
+target_link_libraries(pandaPIengine PUBLIC search)
+target_link_libraries(pandaPIengine PUBLIC heuristics)
+target_link_libraries(pandaPIengine PUBLIC hrc)
+target_link_libraries(pandaPIengine PUBLIC hlm)
+target_link_libraries(pandaPIengine PUBLIC intDataStructures)

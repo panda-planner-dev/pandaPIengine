@@ -11,7 +11,7 @@
 namespace progression {
 
 enum lmConType {atom, conjunctive, disjunctive};
-enum lmType {fact, method, task};
+enum lmType {fact, METHOD, task};
 
 class landmark {
 public:

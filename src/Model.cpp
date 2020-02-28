@@ -18,6 +18,7 @@
 #include <algorithm>
 #include <cerrno>
 #include <cstring>
+#include <map>
 #include <sys/time.h>
 #include "intDataStructures/IntPairHeap.h"
 
@@ -245,7 +246,9 @@ void Model::updateTaskCounterA(searchNode* n, searchNode* parent, int action) {
 		ni++;
 	}
 
-	/*
+#ifndef NDEBUG
+/*	
+	cout << endl << endl << "TN n:" << n << " Parent " << parent << endl;
 	cout << "applied action " << action << endl;
 	cout << "old ";
 	for(int i = 0;i < parent->numContainedTasks;i++) {
@@ -256,12 +259,119 @@ void Model::updateTaskCounterA(searchNode* n, searchNode* parent, int action) {
 	for(int i = 0;i < n->numContainedTasks;i++) {
 		cout << n->containedTasks[i] << "*" << n->containedTaskCount[i] << " ";
 	}
-	cout << endl << endl;*/
+	cout << endl << endl;
+
+*/
+	// count tasks in this network and compare to the tracked values
+/*	int* counted = new int[this->numTasks];
+	for (int i = 0; i < this->numTasks; i++)
+		counted[i] = 0;
+	set<int> done;
+	vector<planStep*> todoList;
+	for (int i = 0; i < n->numPrimitive; i++)
+		todoList.push_back(n->unconstraintPrimitive[i]);
+	for (int i = 0; i < n->numAbstract; i++)
+		todoList.push_back(n->unconstraintAbstract[i]);
+*/	
+/*	for (int i = 0; i < n->numPrimitive; i++)
+		cout << "UCP: " << n->unconstraintPrimitive[i] << endl;
+	for (int i = 0; i < n->numAbstract; i++)
+		cout << "UCA: " << n->unconstraintAbstract[i] << endl;
+
+	for (int i = 0; i < parent->numPrimitive; i++)
+		cout << "UCP-P: " << parent->unconstraintPrimitive[i] << endl;
+	for (int i = 0; i < parent->numAbstract; i++)
+		cout << "UCA-P: " << parent->unconstraintAbstract[i] << endl;
+*/	
+
+/*	while (!todoList.empty()) {
+		planStep* ps = todoList.back();
+		//cout << "I reach " << ps << " " << ps->task << endl;
+		todoList.pop_back();
+		if (done.count(ps->id)) continue;
+		done.insert(ps->id);
+		counted[ps->task]++;
+		for (int i = 0; i < ps->numSuccessors; i++) {
+			planStep* succ = ps->successorList[i];
+			//cout << "I-S " << succ << " " << ps << endl;
+			const bool included = done.find(succ->id) != done.end();
+			if (!included)
+				todoList.push_back(succ);
+		}
+	}
+*/
+
+/*	// count tasks in this network and compare to the tracked values
+			int* counted2 = new int[this->numTasks];
+			for (int i = 0; i < this->numTasks; i++)
+				counted2[i] = 0;
+			set<int> done2;
+			vector<planStep*> todoList2;
+			for (int i = 0; i < parent->numPrimitive; i++)
+				todoList2.push_back(parent->unconstraintPrimitive[i]);
+			for (int i = 0; i < parent->numAbstract; i++)
+				todoList2.push_back(parent->unconstraintAbstract[i]);
+			while (!todoList2.empty()) {
+				planStep* ps = todoList2.back();
+				cout << "Parent reach " << ps << " " << ps->task << endl;
+				todoList2.pop_back();
+				if (done2.count(ps->id)) continue;
+				done2.insert(ps->id);
+				counted2[ps->task]++;
+				for (int i = 0; i < ps->numSuccessors; i++) {
+					planStep* succ = ps->successorList[i];
+					cout << "P-S " << succ << " " << ps << endl;
+					const bool included = done2.find(succ->id) != done2.end();
+					if (!included)
+						todoList2.push_back(succ);
+				}
+			}
+*/	
+/*	map<int,int> containedTasksUpdated;
+	for (int i = 0; i < n->numContainedTasks; i++)
+		containedTasksUpdated[n->containedTasks[i]] = n->containedTaskCount[i];
+*/
+/*	//for(int i = 0; i < this->numTasks; i++) {
+		//if(counted[i] != containedTasksUpdated [i]) {
+			cout << "TN n:" << n << " Parent " << parent << endl;
+			cout << endl << "Used action: " << " " << action << " " << this->taskNames[action] << endl << endl;
+			for(int j = 0; j < this->numTasks; j++)
+				if((counted[j] + containedTasksUpdated [j]) > 0)
+					cout << j << " " << this->taskNames[j] << " " << counted[j] << " " << containedTasksUpdated [j] << endl;
+
+			cout << endl << "solution:" << endl;
+			solutionStep* s = n->solution;
+			while (s){
+				cout << this->taskNames[s->task] << endl;
+				s = s->prev;
+			}
+
+
+
+
+	
+
+
+			cout << "OLD" << endl;
+			for(int j = 0; j < this->numTasks; j++)
+				if((counted2[j]) > 0)
+					cout << j << " " << this->taskNames[j] << " " << counted2[j] << endl;
+
+
+			//if (this->taskNames[action] == "__method_precondition_m-get_image_data[camera0,high_res,objective1,rover0,waypoint0]") exit(1);
+
+*/
+
+		//}
+//	for(int i = 0; i < this->numTasks; i++) 
+//		assert(counted[i] == containedTasksUpdated[i]);
+
+#endif
 }
 
 void Model::updateTaskCounterM(searchNode* n, searchNode* parent, int m) {
-	/*
-	cout << "applied method " << m << " -> "  << decomposedTask[m] << " " << " (";
+
+	/*cout << "applied method " << m << " -> "  << decomposedTask[m] << " " << " (";
 	for(int i = 0; i < this->numSubTasks[m]; i++)
 		cout << this->subTasks[m][i] << " ";
 	cout << " aka ";
@@ -272,8 +382,8 @@ void Model::updateTaskCounterM(searchNode* n, searchNode* parent, int m) {
 	for(int i = 0;i < parent->numContainedTasks;i++) {
 		cout << parent->containedTasks[i] << "*" << parent->containedTaskCount[i] << " ";
 	}
-	cout << endl;
-*/
+	cout << endl;*/
+
 	int newElements = 0;
 	int low = 0;
 	for(int i = 0; i < this->numDistinctSTs[m]; i++) {
@@ -358,18 +468,27 @@ void Model::updateTaskCounterM(searchNode* n, searchNode* parent, int m) {
 		n->containedTaskCount[index]--;
 		assert(n->containedTaskCount[index] > 0);
 	}
-	/*
-	cout << "new ";
+	
+	/*cout << "new ";
 	for(int i = 0;i < n->numContainedTasks;i++) {
 		cout << n->containedTasks[i] << "*" << n->containedTaskCount[i] << " ";
 	}
 	cout << endl << endl;*/
-}
 
-/*
 #ifndef NDEBUG
+/*	for (int i = 0; i < n->numPrimitive; i++)
+		cout << "UCP: " << n->unconstraintPrimitive[i] << endl;
+	for (int i = 0; i < n->numAbstract; i++)
+		cout << "UCA: " << n->unconstraintAbstract[i] << endl;
+
+	for (int i = 0; i < parent->numPrimitive; i++)
+		cout << "UCP-P: " << parent->unconstraintPrimitive[i] << endl;
+	for (int i = 0; i < parent->numAbstract; i++)
+		cout << "UCA-P: " << parent->unconstraintAbstract[i] << endl;
+*/
+	
 	// count tasks in this network and compare to the tracked values
-	int* counted = new int[this->numTasks];
+/*	int* counted = new int[this->numTasks];
 	for (int i = 0; i < this->numTasks; i++)
 		counted[i] = 0;
 	set<int> done;
@@ -381,6 +500,8 @@ void Model::updateTaskCounterM(searchNode* n, searchNode* parent, int m) {
 	while (!todoList.empty()) {
 		planStep* ps = todoList.back();
 		todoList.pop_back();
+		if (done.count(ps->id)) continue;
+		//cout << "I reach " << ps << " " << ps->task << endl;
 		done.insert(ps->id);
 		counted[ps->task]++;
 		for (int i = 0; i < ps->numSuccessors; i++) {
@@ -391,12 +512,44 @@ void Model::updateTaskCounterM(searchNode* n, searchNode* parent, int m) {
 		}
 	}
 
-	for(int i = 0; i < this->numTasks; i++) {
-		if(counted[i] != n->TNIcount[i]) {
-			cout << endl << "Used method: " << this->methodNames[method] << endl << endl;
+
+
+			// count tasks in this network and compare to the tracked values
+			int* counted2 = new int[this->numTasks];
+			for (int i = 0; i < this->numTasks; i++)
+				counted2[i] = 0;
+			set<int> done2;
+			vector<planStep*> todoList2;
+			for (int i = 0; i < parent->numPrimitive; i++)
+				todoList2.push_back(parent->unconstraintPrimitive[i]);
+			for (int i = 0; i < parent->numAbstract; i++)
+				todoList2.push_back(parent->unconstraintAbstract[i]);
+			while (!todoList2.empty()) {
+				planStep* ps = todoList2.back();
+				todoList2.pop_back();
+		if (done2.count(ps->id)) continue;
+				//cout << "Parent reach " << ps << " " << ps->task << endl;
+				done2.insert(ps->id);
+				counted2[ps->task]++;
+				for (int i = 0; i < ps->numSuccessors; i++) {
+					planStep* succ = ps->successorList[i];
+					const bool included = done2.find(succ->id) != done2.end();
+					if (!included)
+						todoList2.push_back(succ);
+				}
+			}
+
+	map<int,int> containedTasksUpdated;
+	for (int i = 0; i < n->numContainedTasks; i++)
+		containedTasksUpdated[n->containedTasks[i]] = n->containedTaskCount[i];
+*/
+/*	//for(int i = 0; i < this->numTasks; i++) {
+		//if(counted[i] != containedTasksUpdated [i]) {
+			cout << "TN n:" << n << " Parent " << parent << endl;
+			cout << endl << "Used method: " << " " << m << " " << this->methodNames[m] << endl << endl;
 			for(int j = 0; j < this->numTasks; j++)
-				if((counted[j] + n->TNIcount[j]) > 0)
-					cout << this->taskNames[j] << " " << counted[j] << " " << n->TNIcount[j] << endl;
+				if((counted[j] + containedTasksUpdated [j]) > 0)
+					cout << j << " " << this->taskNames[j] << " " << counted[j] << " " << containedTasksUpdated [j] << endl;
 
 			cout << endl << "solution:" << endl;
 			solutionStep* s = n->solution;
@@ -404,12 +557,32 @@ void Model::updateTaskCounterM(searchNode* n, searchNode* parent, int m) {
 				cout << this->taskNames[s->task] << endl;
 				s = s->prev;
 			}
-		}
-		assert(counted[i] == n->TNIcount[i]);
-	}
-	delete[] counted;
-#endif
+
+
+
+	for (int i = 0; i < parent->numPrimitive; i++)
+		cout << "UCP: " << parent->unconstraintPrimitive[i] << endl;
+	for (int i = 0; i < parent->numAbstract; i++)
+		cout << "UCA: " << parent->unconstraintAbstract[i] << endl;
+
+
+			cout << "OLD" << endl;
+			for(int j = 0; j < this->numTasks; j++)
+				if((counted2[j]) > 0)
+					cout << j << " " << this->taskNames[j] << " " << counted2[j] << endl;
+
+
 */
+
+
+		//}
+//	for(int i = 0; i < this->numTasks; i++) 
+//		assert(counted[i] == containedTasksUpdated[i]);
+	//}
+//	delete[] counted;
+	
+#endif
+}
 
 #endif
 
@@ -843,14 +1016,21 @@ searchNode* Model::apply(searchNode* n, int taskNo) {
 	assert(isApplicable(n, progressed->task));
 	// every successor of ps is a first task if and only if it is
 	// not a successor of any task in the firstTasks list.
-	for (int i = 0; i < progressed->numSuccessors; i++)
+	for (int i = 0; i < progressed->numSuccessors; i++){
 		potentiallyFirst.insert(progressed->successorList[i]);
+		for (int j = 0; j < progressed->successorList[i]->numSuccessors; j++) {
+			potentialPredecessors.push_front(
+					progressed->successorList[i]->successorList[j]);
+		}
+		//cout << "PF: " << progressed->successorList[i] << endl;
+	}
 
 	for (int i = 0; i < n->numAbstract; i++) {
 		for (int j = 0; j < n->unconstraintAbstract[i]->numSuccessors; j++) {
 			potentialPredecessors.push_front(
 					n->unconstraintAbstract[i]->successorList[j]);
 		}
+		//cout << "PP: " << n->unconstraintAbstract[i] << endl;
 	}
 	for (int i = 0; i < n->numPrimitive; i++) {
 		if (i != taskNo) {
@@ -859,7 +1039,9 @@ searchNode* Model::apply(searchNode* n, int taskNo) {
 				potentialPredecessors.push_front(
 						n->unconstraintPrimitive[i]->successorList[j]);
 			}
+			//cout << "PP: " << n->unconstraintPrimitive[i] << endl;
 		}
+
 	}
 	while (true) {
 		if (potentiallyFirst.empty()) {
@@ -871,15 +1053,17 @@ searchNode* Model::apply(searchNode* n, int taskNo) {
 		planStep* ps2 = potentialPredecessors.front();
 		potentialPredecessors.pop_front();
 		done.insert(ps2);
+		//cout << "GET " << ps2 << endl;
 		set<planStep*>::iterator iter = potentiallyFirst.find(ps2);
 		if (iter != potentiallyFirst.end()) {
 			potentiallyFirst.erase(iter);
-		} else {
-			for (int i = 0; i < ps2->numSuccessors; i++) {
-				planStep* ps = ps2->successorList[i];
-				if (done.find(ps) == done.end()) {
-					potentialPredecessors.push_front(ps);
-				}
+			//cout << "ERASE " << ps2 << endl;
+		} 
+	
+		for (int i = 0; i < ps2->numSuccessors; i++) {
+			planStep* ps = ps2->successorList[i];
+			if (done.find(ps) == done.end()) {
+				potentialPredecessors.push_front(ps);
 			}
 		}
 	}
@@ -1647,6 +1831,37 @@ void Model::readHierarchical(istream& domainFile) {
 #endif
 		getline(domainFile, line);
 		ordering[i] = readIntList(line, numOrderings[i]);
+		
+		
+		//vector<vector<int>> adj (numSubTasks[i]);
+		//for (int o = 0; o < numOrderings[i]; o+=2)
+		//	adj[ordering[i][o]].push_back(ordering[i][o+1]);
+
+		// transitive reduction (i.e. remove all unnecessary edges)
+		vector<vector<bool>> trans (numSubTasks[i]);
+		for (int x = 0; x < numSubTasks[i]; x++)
+			for (int y = 0; y < numSubTasks[i]; y++) trans[x].push_back(false);
+		
+		for (int o = 0; o < numOrderings[i]; o+=2)
+			trans[ordering[i][o]][ordering[i][o+1]] = true;
+
+		for (int k = 0; k < numSubTasks[i]; k++)
+			for (int x = 0; x < numSubTasks[i]; x++)
+				for (int y = 0; y < numSubTasks[i]; y++)
+					if (trans[x][k] && trans[k][y]) trans[x][y] = false;
+
+		vector<int> ord;
+		for (int x = 0; x < numSubTasks[i]; x++)
+			for (int y = 0; y < numSubTasks[i]; y++)
+				if (trans[x][y])
+					ord.push_back(x), ord.push_back(y);
+
+		ordering[i] = new int[ord.size()];
+		for (int x = 0; x < ord.size(); x++)
+			ordering[i][x] = ord[x];
+		numOrderings[i] = ord.size();
+
+
 #ifndef NDEBUG
 		assert((numOrderings[i] % 2) == 0);
 		for (int j = 0; j < numOrderings[i]; j++) {

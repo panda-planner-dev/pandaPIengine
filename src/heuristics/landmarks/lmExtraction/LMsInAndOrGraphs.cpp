@@ -521,7 +521,7 @@ landmark** LMsInAndOrGraphs::getLMs(){
 		lms[i++] = l;
 	}
 	for(int m : *mlm) {
-		landmark* l = new landmark(atom, method, 1);
+		landmark* l = new landmark(atom, METHOD, 1);
 		l->lm[0] = m;
 		lms[i++] = l;
 	}
