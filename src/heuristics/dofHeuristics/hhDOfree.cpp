@@ -7,6 +7,10 @@
 
 #include "hhDOfree.h"
 
+// default definition of ILP heuristics are not configured. Without this define, other heuristics lead to compile errors
+#define INTVAR  ILOFLOAT
+#define BOOLVAR ILOFLOAT
+
 #if HEURISTIC == DOFREEILP
 #define INTVAR  ILOINT
 #define BOOLVAR ILOBOOL
