@@ -8,6 +8,8 @@
 #ifndef NODELINTSET_H_
 #define NODELINTSET_H_
 
+#include "IntUtil.h"
+
 namespace progression {
 
 class noDelIntSet {
@@ -17,6 +19,8 @@ private:
 	int iterI = -1;
 	int containerSize = -1;
 	int currentSize = -1;
+
+	IntUtil iu;
 
 public:
 	noDelIntSet();
@@ -31,6 +35,7 @@ public:
 	int getNext();
 	bool get(int i);
 	noDelIntSet* clone();
+	void sort();
 
 	noDelIntSet* setUnion(noDelIntSet* second);
 	noDelIntSet* setIntersection(noDelIntSet* second);
