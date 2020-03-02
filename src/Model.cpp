@@ -2671,58 +2671,92 @@ void Model::calcMinimalImpliedX() {
 }
 #endif
 
-void Model::writeToPDDL(string dName, string pName) {
-	  ofstream dfile;
-	  dfile.open (dName);
-	  dfile << "(define (domain rc)" << endl;
-    dfile << "  (:predicates ";
-    for(int i = 0; i < this->numStateBits; i++) {
-        dfile << "(" << su.cleanStr(this->factStrs[i]) << ")" << endl;
-        if(i < this->numStateBits - 1)
-      	  dfile << "               ";
-    }
-    dfile << "  )";
+    void Model::writeToPDDL(string dName, string pName) {
+        ofstream dfile;
+        dfile.open (dName);
+        dfile << "(define (domain rc)" << endl;
+        dfile << "  (:predicates ";
+        for(int i = 0; i < this->numStateBits; i++) {
+            dfile << "(" << su.cleanStr(this->factStrs[i]) << ")" << endl;
+            if(i < this->numStateBits - 1)
+                dfile << "               ";
+        }
+        dfile << "  )" << endl << endl;
 
-    dfile << endl;
-    for(int i = 0; i < this->numActions; i++) {
-  	  dfile << "  (:action " << su.cleanStr(this->taskNames[i]) << endl;
-  	  dfile << "     :parameters ()" << endl;
-  	  dfile << "     :precondition (and " << endl;
-  	  for(int j = 0; j < this->numPrecs[i]; j++) {
-      	  dfile << "         (" << su.cleanStr(this->factStrs[this->precLists[i][j]]) << ")" << endl;
-  	  }
-  	  dfile << "     )" << endl;
-  	  dfile << "     :effect (and " << endl;
-  	  for(int j = 0; j < this->numAdds[i]; j++) {
-  		  dfile << "         (" << su.cleanStr(this->factStrs[this->addLists[i][j]]) << ")" << endl;
-  	  }
-  	  for(int j = 0; j < this->numDels[i]; j++) {
-  		  dfile << "         (not(" << su.cleanStr(this->factStrs[this->delLists[i][j]]) << "))" << endl;
-  	  }
-  	  dfile << "     )" << endl;
-  	  dfile << "  )" << endl;
-  	  if (i < this->numActions - 1)
-  		  dfile << endl;
-    }
-    dfile << ")" << endl;
-	  dfile.close();
+        for(int i = numActions; i < numTasks; i++) {
+            dfile << "  (:task " << su.cleanStr(this->taskNames[i]);
+            dfile << " :parameters ())" << endl;
+        }
+        dfile << endl;
 
-	  ofstream pfile;
-	  pfile.open(pName);
-	  pfile << "(define (problem p)" << endl;
-	  pfile << "   (:domain rc)" << endl;
-	  pfile << "   (:init" << endl;
-	  for(int i = 0; i < this->s0Size; i++) {
-		  pfile << "      (" << su.cleanStr(this->factStrs[this->s0List[i]]) << ")" << endl;
-	  }
-	  pfile << "   )" << endl;
-	  pfile << "   (:goal (and" << endl;
-	  for(int i = 0; i < this->gSize; i++) {
-		  pfile << "      (" << su.cleanStr(this->factStrs[this->gList[i]]) << ")" << endl;
-	  }
-	  pfile << "   ))" << endl;
-	  pfile << ")" << endl;
-	  pfile.close();
-}
+        for(int i = 0; i < numMethods; i++) {
+            dfile << "  (:method " << su.cleanStr(this->methodNames[i]) << endl;
+            dfile << "     :parameters ()" << endl;
+            dfile << "     :task (" << su.cleanStr(this->taskNames[this->decomposedTask[i]]) << ")" << endl;
+            dfile << "     :subtasks (and" << endl;
+            for(int j = 0; j < numSubTasks[i]; j++) {
+                dfile << "        (task" << j << " (" << taskNames[subTasks[i][j]] << "))" << endl;
+            }
+            dfile << "     )" << endl;
+            dfile << "     :ordering (and" << endl;
+
+            int j = 0;
+            while(j < this->numOrderings[i]) {
+                dfile << "        (task" << this->ordering[i][j] << " < task" << this->ordering[i][j + 1] << ")" << endl;
+                j+= 2;
+            }
+            dfile << "     )" << endl;
+
+            dfile << ")" << endl;
+        }
+        dfile << endl;
+
+        for(int i = 0; i < this->numActions; i++) {
+            dfile << "  (:action " << su.cleanStr(this->taskNames[i]) << endl;
+            dfile << "     :parameters ()" << endl;
+            dfile << "     :precondition (and " << endl;
+            for(int j = 0; j < this->numPrecs[i]; j++) {
+                dfile << "         (" << su.cleanStr(this->factStrs[this->precLists[i][j]]) << ")" << endl;
+            }
+            dfile << "     )" << endl;
+            dfile << "     :effect (and " << endl;
+            for(int j = 0; j < this->numAdds[i]; j++) {
+                dfile << "         (" << su.cleanStr(this->factStrs[this->addLists[i][j]]) << ")" << endl;
+            }
+            for(int j = 0; j < this->numDels[i]; j++) {
+                dfile << "         (not(" << su.cleanStr(this->factStrs[this->delLists[i][j]]) << "))" << endl;
+            }
+            dfile << "     )" << endl;
+            dfile << "  )" << endl;
+            if (i < this->numActions - 1)
+                dfile << endl;
+        }
+        dfile << ")" << endl;
+        dfile.close();
+
+        ofstream pfile;
+        pfile.open(pName);
+        pfile << "(define (problem p)" << endl;
+        pfile << "   (:domain rc)" << endl;
+
+        pfile << "   (:htn :parameters ()" << endl;
+        pfile << "      :subtasks (and" << endl;
+        pfile << "         (task0 " << taskNames[this->initialTask] << ")" << endl;
+        pfile << "      )" << endl;
+        pfile << "   )" << endl;
+
+        pfile << "   (:init" << endl;
+        for(int i = 0; i < this->s0Size; i++) {
+            pfile << "      (" << su.cleanStr(this->factStrs[this->s0List[i]]) << ")" << endl;
+        }
+        pfile << "   )" << endl;
+        pfile << "   (:goal (and" << endl;
+        for(int i = 0; i < this->gSize; i++) {
+            pfile << "      (" << su.cleanStr(this->factStrs[this->gList[i]]) << ")" << endl;
+        }
+        pfile << "   ))" << endl;
+        pfile << ")" << endl;
+        pfile.close();
+    }
 }
 /* namespace progression */
