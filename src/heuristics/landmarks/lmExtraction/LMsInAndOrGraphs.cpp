@@ -15,7 +15,7 @@
 namespace progression {
 
 LMsInAndOrGraphs::LMsInAndOrGraphs(Model* htn) {
-	bool loopback = true;
+	bool loopback = false;
 	this->htn = htn;
 
 	if(!loopback)
@@ -98,7 +98,7 @@ LMsInAndOrGraphs::LMsInAndOrGraphs(Model* htn) {
 	mlm = new set<int>;
 	tlm = new set<int>;
 	tasksInTNI = new int[htn->numTasks];
-	prettyPrintGraph();
+	//prettyPrintGraph();
 }
 void LMsInAndOrGraphs::prettyPrintGraph() {
 	cout << "digraph {" << endl;
