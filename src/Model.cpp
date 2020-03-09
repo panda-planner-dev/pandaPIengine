@@ -2739,12 +2739,13 @@ void Model::calcMinimalImpliedX() {
         pfile << "(define (problem p)" << endl;
         pfile << "   (:domain rc)" << endl;
 
-        pfile << "   (:htn :parameters ()" << endl;
-        pfile << "      :subtasks (and" << endl;
-        pfile << "         (task0 " << taskNames[this->initialTask] << ")" << endl;
-        pfile << "      )" << endl;
-        pfile << "   )" << endl;
-
+        if(this->isHtnModel) {
+            pfile << "   (:htn :parameters ()" << endl;
+            pfile << "      :subtasks (and" << endl;
+            pfile << "         (task0 " << taskNames[this->initialTask] << ")" << endl;
+            pfile << "      )" << endl;
+            pfile << "   )" << endl;
+        }
         pfile << "   (:init" << endl;
         for(int i = 0; i < this->s0Size; i++) {
             pfile << "      (" << su.cleanStr(this->factStrs[this->s0List[i]]) << ")" << endl;
