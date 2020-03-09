@@ -25,6 +25,7 @@ public:
 	int* lm = nullptr;
 
 	void printLM();
+    static int coutLM(landmark** lm, lmType type, int size);
 };
 
 } /* namespace progression */
