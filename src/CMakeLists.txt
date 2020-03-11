@@ -19,5 +19,5 @@ target_link_libraries(pandaPIengine PUBLIC hlm)
 target_link_libraries(pandaPIengine PUBLIC intDataStructures)
 # if the user has specified a cplex installation he surely wants to use it
 if (CPLEX_SOURCE_DIR)
-	target_link_libraries(pandaPIplanner PUBLIC ilpheuristics)
+	target_link_libraries(pandaPIengine PUBLIC ilpheuristics)
 endif (CPLEX_SOURCE_DIR)
