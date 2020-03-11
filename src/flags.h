@@ -24,6 +24,12 @@
 #define DOFREELP 6  // delete and ordering free heuristic (approximate lp calculation)
 #define LMCLOCAL 7
 #define LMCANDOR 8
+#define LMCFD 9
+
+#define RCFILTER2 10
+#define RCFF2 11
+#define RCADD2 12
+#define RCLMC2 13
 
 // [state-representation]
 #define SRCOPY 0  // copy bit vector that represents state
@@ -76,17 +82,22 @@
 //#define ONEMODMETH
 
 // select a heuristic function
-#define HEURISTIC DOFREEILP
+#define HEURISTIC RCLMC2
+#define RCHEURISTIC2
+#define CORRECTTASKCOUNT
 
-#define TREATSCCS // prevent disconnected components
-#define INITSCCS
+#ifdef CORRECTTASKCOUNT
+#define CALCMINIMALIMPLIEDCOSTS
+#endif
 
-#define DOFTASKREACHABILITY // store the hierarchical task reachability in the ILP to make  it easier to solve
-#define DOFREE
-#define CHECKAFTER 50 // nodes after which the timelimit is checked
-#define MAINTAINREACHABILITY
-#define ALLTASKS // it is needed for all tasks
+//#define HEURISTIC RCFF
+//#define RCHEURISTIC
+
 #define TRACKTASKSINTN
+
+#define CHECKAFTER 5000 // nodes after which the timelimit is checked
+#define MAINTAINREACHABILITY
+#define ONLYACTIONS // it is only needed for actions
 #ifndef OPTIMIZEUNTILTIMELIMIT
 #define OPTIMIZEUNTILTIMELIMIT false
 #endif

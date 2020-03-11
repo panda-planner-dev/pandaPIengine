@@ -194,4 +194,8 @@ bool noDelIntSet::get(int i) {
 	return boolContainer[i];
 }
 
+    void noDelIntSet::sort() {
+        iu.sort(this->intContainer, 0, currentSize - 1);
+    }
+
 } /* namespace progression */

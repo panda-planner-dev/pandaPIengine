@@ -42,7 +42,7 @@ Model* RCModelFactory::getRCmodelSTRIPS(int costsMethodActions) {
 	for(int i = 0; i < htn->numActions; i++) {
 		rc->numPrecs[i] = htn->numPrecs[i] + 1;
 		rc->precLists[i] = new int[rc->numPrecs[i]];
-		for(int j = 0; j < rc->numPrecs[i] - 1; j++){
+		for(int j = 0; j < rc->numPrecs[i] - 1; j++) {
 			rc->precLists[i][j] = htn->precLists[i][j];
 		}
 		rc->precLists[i][rc->numPrecs[i] - 1] = t2tdr(i);
@@ -68,7 +68,7 @@ Model* RCModelFactory::getRCmodelSTRIPS(int costsMethodActions) {
 		rc->numPrecs[ia] = htn->numDistinctSTs[im];
 		rc->precLists[ia] = new int[rc->numPrecs[ia]];
 		for(int ist = 0; ist < htn->numDistinctSTs[im]; ist++) {
-			int st = htn->subTasks[im][ist];
+		    int st = htn->sortedDistinctSubtasks[im][ist];
 			rc->precLists[ia][ist] = t2bur(st);
 		}
 
@@ -126,8 +126,8 @@ Model* RCModelFactory::getRCmodelSTRIPS(int costsMethodActions) {
 		rc->lastIndex[i] = htn->lastIndex[i];
 	}
 	for(int i = htn->numVars; i < rc->numVars; i++) {
-		rc->lastIndex[i] = rc->firstIndex[i - 1] + 1;
-		rc->lastIndex[i] = rc->firstIndex[i] + 1;
+		rc->firstIndex[i] = rc->lastIndex[i - 1] + 1;
+		rc->lastIndex[i] = rc->firstIndex[i];
 	}
 
 	// set action costs
@@ -139,21 +139,19 @@ Model* RCModelFactory::getRCmodelSTRIPS(int costsMethodActions) {
 		rc->actionCosts[i] = costsMethodActions;
 	}
 
-	rc->numPrecLessActions = htn->numPrecLessActions;
-#ifndef NDEBUG
-	int numPrecLess = 0;
-	for(int i = 0; i < rc->numActions; i++)
-		if(rc->numPrecs[i] == 0)
-			numPrecLess++;
-	assert(numPrecLess == htn->numPrecLessActions);
-#endif
-
+	set<int> precless;
+	for(int i = 0; i < rc->numActions; i++) {
+        if (rc->numPrecs[i] == 0) {
+            precless.insert(i);
+        }
+    }
+    rc->numPrecLessActions = precless.size();
 	rc->precLessActions = new int[rc->numPrecLessActions];
-	for(int i = 0; i < rc->numPrecLessActions; i++) {
-		rc->precLessActions[i] = htn->precLessActions[i];
+	int j = 0;
+	for(int pl : precless) {
+		rc->precLessActions[j++] = pl;
 	}
 
-	rc->numTasks = rc->numActions;
 	rc->isPrimitive = new bool[rc->numActions];
 	for(int i = 0; i < rc->numActions; i++)
 		rc->isPrimitive[i] = true;
@@ -161,7 +159,7 @@ Model* RCModelFactory::getRCmodelSTRIPS(int costsMethodActions) {
 	createInverseMappings(rc);
 
 	set<int> s;
-	for(int i =0; i < htn->s0Size; i++) {
+	for(int i = 0; i < htn->s0Size; i++) {
 		s.insert(htn->s0List[i]);
 	}
 	for(int i = 0; i < htn->numActions; i++) {
@@ -180,6 +178,61 @@ Model* RCModelFactory::getRCmodelSTRIPS(int costsMethodActions) {
 	}
 	rc->gList[rc->gSize - 1] = t2bur(htn->initialTask);
 
+#ifndef NDEBUG
+	for(int i = 0; i < rc->numActions; i++) {
+        set<int> prec;
+        for(int j = 0; j < rc->numPrecs[i]; j++) {
+            prec.insert(rc->precLists[i][j]);
+        }
+        assert(prec.size() == rc->numPrecs[i]); // precondition contained twice?
+
+        set<int> add;
+        for(int j = 0; j < rc->numAdds[i]; j++) {
+            add.insert(rc->addLists[i][j]);
+        }
+        assert(add.size() == rc->numAdds[i]); // add contained twice?
+
+        set<int> del;
+        for(int j = 0; j < rc->numDels[i]; j++) {
+            del.insert(rc->delLists[i][j]);
+        }
+        assert(del.size() == rc->numDels[i]); // del contained twice?
+	}
+
+	// are subtasks represented in preconditions?
+	for(int i = 0; i < htn->numMethods; i++) {
+	    for(int j = 0; j < htn->numSubTasks[i]; j++) {
+	        int f = t2bur(htn->subTasks[i][j]);
+	        bool contained = false;
+	        int mAction = htn->numActions + i;
+	        for(int k = 0; k < rc->numPrecs[mAction]; k++) {
+	            if(rc->precLists[mAction][k] == f) {
+	                contained = true;
+                    break;
+	            }
+	        }
+	        assert(contained); // is subtask contained in the respective action's preconditions?
+	    }
+	}
+
+	// are preconditions represented in subtasks?
+	for(int i = htn->numActions; i < rc->numActions; i++) {
+	    int m = i - htn->numActions;
+	    for(int j = 0; j < rc->numPrecs[i]; j++) {
+	        int f = rc->precLists[i][j];
+	        int task = f - (htn->numStateBits + htn->numActions);
+	        bool contained = false;
+	        for(int k = 0; k < htn->numSubTasks[m]; k++) {
+	            int subtask = htn->subTasks[m][k];
+	            if(subtask == task) {
+	                contained = true;
+                    break;
+	            }
+	        }
+            assert(contained);
+	    }
+	}
+#endif
 	return rc;
 }
 

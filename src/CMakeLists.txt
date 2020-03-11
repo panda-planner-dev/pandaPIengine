@@ -8,8 +8,6 @@ add_subdirectory(intDataStructures)
 file(GLOB main_SRC "*.h" "*.cpp")
  
 # create the executable
-
-
 add_executable (pandaPIengine ${main_SRC})
 target_compile_options(pandaPIengine PUBLIC ${compiler_flags})
 target_link_options(pandaPIengine PUBLIC ${linker_flags})
@@ -23,4 +21,3 @@ target_link_libraries(pandaPIengine PUBLIC intDataStructures)
 if (CPLEX_SOURCE_DIR)
 	target_link_libraries(pandaPIplanner PUBLIC ilpheuristics)
 endif (CPLEX_SOURCE_DIR)
-

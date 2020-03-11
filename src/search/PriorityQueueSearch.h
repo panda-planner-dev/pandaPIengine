@@ -7,6 +7,8 @@
 
 #ifndef PRIORITYQUEUESEARCH_H_
 #define PRIORITYQUEUESEARCH_H_
+
+#include <rcHeuristics/hhRC2.h>
 #include "../ProgressionNetwork.h"
 #include "../heuristics/hhZero.h"
 #include "../heuristics/rcHeuristics/hhRC.h"
@@ -29,7 +31,10 @@ public:
 	hhZero *hF;
 #endif
 #ifdef RCHEURISTIC
-	hhRC *hF;
+        hhRC *hF;
+#endif
+#ifdef RCHEURISTIC2
+        hhRC2 *hF;
 #endif
 #ifdef DOFREE
 	hhDOfree *hF;
