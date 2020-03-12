@@ -33,6 +33,7 @@ private:
 	StringUtil su;
 
 	int* readIntList(string s, int& size);
+	tuple<int*,int*,int**> readConditionalIntList(string s, int& sizeA, int& sizeB, int*& sizeC);
 	void generateMethodRepresentation();
 	pair<planStep**, planStep**> initializeMethod(int method);
 	int psID = 0;
@@ -76,6 +77,16 @@ public:
 	int* lastIndex;
 	string* varNames;
 
+	// additional mutexes
+	int numMutexes;
+	int** mutexes;
+	int* mutexesSize;
+
+	// invariants
+	int numInvariants;
+	int** invariants;
+	int* invariantsSize;
+
 	// action definitions
 	int numActions;
 
@@ -83,6 +94,13 @@ public:
 	int** precLists;
 	int** addLists;
 	int** delLists;
+
+	// dummy for CE
+	int** conditionalAddLists;
+	int** conditionalDelLists;
+	
+	int*** conditionalAddListsCondition;
+	int*** conditionalDelListsCondition;
 #if (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
 	bool* s0Vector;
 	bool** addVectors;
@@ -96,6 +114,12 @@ public:
 	int* numPrecs;
 	int* numAdds;
 	int* numDels;
+	
+	int* numConditionalAdds;
+	int* numConditionalDels;
+	
+	int** numConditionalAddsConditions;
+	int** numConditionalDelsConditions;
 
 	// s0 and goal
 	int* s0List;
