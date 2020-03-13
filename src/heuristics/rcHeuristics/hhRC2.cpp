@@ -72,6 +72,66 @@ void hhRC2::setHeuristicValue(searchNode *n) {
     }
 
     n->heuristicValue = this->sasH->getHeuristicValue(s0set, gset);
+
+#if (HEURISTIC == RCLMC2)
+    // the indices of the methods need to be transformed to fit the scheme of the HTN model (as opposed to the rc model)
+    if (storeCuts) {
+        this->cuts = this->sasH->cuts;
+        for(LMCutLandmark* storedcut : *cuts) {
+            iu.sort(storedcut->lm, 0, storedcut->size - 1);
+            /*for (int i = 0; i < storedcut->size; i++) {
+                if ((i > 0) && (storedcut->lm[i] >= htn->numActions) && (storedcut->lm[i - 1] < htn->numActions))
+                    cout << "| ";
+                cout << storedcut->lm[i] << " ";
+            }
+            cout << "(there are " << htn->numActions << " actions)" << endl;*/
+
+            // looking for index i s.t. lm[i] is a method and lm[i - 1] is an action
+            int leftmostMethod;
+            if(storedcut->lm[0] >= htn->numActions) {
+                leftmostMethod = 0;
+            } else if (storedcut->lm[storedcut->size - 1] < htn->numActions) {
+                leftmostMethod = storedcut->size;
+            } else { // there is a border between actions and methods
+                int rightmostAction = 0;
+                leftmostMethod = storedcut->size - 1;
+                while (rightmostAction != (leftmostMethod - 1)) {
+                    int middle = (rightmostAction + leftmostMethod) / 2;
+                    if (storedcut->lm[middle] < htn->numActions){
+                        rightmostAction = middle;
+                    } else {
+                        leftmostMethod = middle;
+                    }
+                }
+            }
+            storedcut->firstMethod = leftmostMethod;
+            /*if (leftmostMethod > storedcut->size -1)
+                cout << "leftmost method: NO METHOD" << endl;
+            else
+                cout << "leftmost method: " << leftmostMethod << endl;*/
+            for (int i = storedcut->firstMethod; i < storedcut->size; i++) {
+                storedcut->lm[i] -= htn->numActions; // transform index
+            }
+        }
+    }
+
+    /*
+    for(LMCutLandmark* lm :  *cuts) {
+        cout << "cut: {";
+        for (int i = 0; i < lm->size; i++) {
+            if(lm->isAction(i)) {
+                cout << this->htn->taskNames[lm->lm[i]];
+            } else {
+                cout << this->htn->methodNames[lm->lm[i]];
+            }
+            if (i < lm->size - 1) {
+                cout << ", ";
+            }
+        }
+        cout << "}" << endl;
+    }*/
+#endif
+
     n->goalReachable = (n->heuristicValue != UNREACHABLE);
 
 #ifdef CORRECTTASKCOUNT

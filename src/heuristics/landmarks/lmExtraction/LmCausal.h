@@ -27,6 +27,13 @@ namespace progression {
         // generated landmarks
         int numLMs = 0;
         landmark **landmarks;
+
+        int getNumLMs();
+
+        landmark **getLMs();
+
+        void prettyPrintLMs();
+
     private:
         const bool printDebugInfo = false;
         const bool beTotallySilent = false;
@@ -100,6 +107,7 @@ namespace progression {
         int *nodeToSCC = nullptr;
 
         bool copyLms(LmAoNode *pNode, LmAoNode *pNode1);
+
     };
 
 }

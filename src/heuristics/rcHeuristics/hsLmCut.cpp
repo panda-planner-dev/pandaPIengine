@@ -93,12 +93,13 @@ int hsLmCut::getHeuristicValue(bucketSet& s, noDelIntSet& g) {
 	int hLmCut = 0;
 
 	// clean up stored cuts
-	/*
+
 	if(storeCuts) {
-		for(landmark* cut : cuts) {
+		for(LMCutLandmark* cut : *cuts) {
 			delete cut;
 		}
-	}*/
+		cuts->clear();
+	}
 
 	memcpy(costs, m->actionCosts, sizeof(int) * m->numActions);
 
@@ -122,18 +123,18 @@ int hsLmCut::getHeuristicValue(bucketSet& s, noDelIntSet& g) {
 		// calculate costs
 		int minCosts = INT_MAX;
 
-		landmark* storedcut;
+		LMCutLandmark* currendCut;
 		int ci = 0;
-		if(storeCuts) {
-			storedcut = new landmark(disjunctive, task, cut->getSize());
-			cuts.push_back(storedcut);
+		if (storeCuts) {
+            currendCut = new LMCutLandmark(cut->getSize());
+			cuts->push_back(currendCut);
 		}
 		for (int cutted = cut->getFirst(); cutted >= 0; cutted =
 				cut->getNext()) {
 			if (minCosts > costs[cutted])
 				minCosts = costs[cutted];
-			if(storedcut)
-				storedcut->lm[ci++] = cutted;
+			if (storeCuts)
+                currendCut->lm[ci++] = cutted;
 		}
 		assert(minCosts > 0);
 		hLmCut += minCosts;
@@ -141,7 +142,7 @@ int hsLmCut::getHeuristicValue(bucketSet& s, noDelIntSet& g) {
 		// update costs
 		//cout << "cut" << endl;
 		for (int op = cut->getFirst(); op >= 0; op = cut->getNext()) {
-			//cout << "- " << m->taskNames[op] << endl;
+			//cout << "- [" << op << "] " << m->taskNames[op] << endl;
 			costs[op] -= minCosts;
 			assert(costs[op] >= 0);
 			//assert(allPrecsTrue(op));

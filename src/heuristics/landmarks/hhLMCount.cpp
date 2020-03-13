@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <cassert>
 #include <map>
+#include <landmarks/lmExtraction/LmCausal.h>
 #include "hhLMCount.h"
 #include "lmExtraction/LMsInAndOrGraphs.h"
 #include "lmExtraction/LmFdConnector.h"
@@ -91,16 +92,17 @@ hhLMCount::hhLMCount(Model* htn, searchNode *tnI, int typeOfLMs) {
 	map<int, set<int>*> luM;
 	map<int, set<int>*> luF;
 
-	LMsInAndOrGraphs lms (htn);
 	cout << "LM count heuristic" << endl;
 	if (typeOfLMs == this->localLMs) {
 		cout << "- using recursive local landmarks" << endl;
+        LMsInAndOrGraphs lms (htn);
 		lms.generateLocalLMs(htn, tnI);
 		tnI->numLMs = lms.getNumLMs();
 		tnI->lms = lms.getLMs();
 	} else if(typeOfLMs == this->andOrLMs) {
 		cout << "- using AND/OR graph landmark extraction" << endl;
-		lms.generateAndOrLMs(tnI);
+        LmCausal lms (htn);
+        lms.calcLMs(tnI);
 		tnI->numLMs = lms.getNumLMs();
 		tnI->lms = lms.getLMs();
 	} else if(typeOfLMs == this->fdLMs) {
@@ -115,129 +117,11 @@ hhLMCount::hhLMCount(Model* htn, searchNode *tnI, int typeOfLMs) {
 	}
 
 	//prettyPrintLMs(htn,tnI);
-
-	/*
-	cout << "Initial state" << endl;
-	for(int i =0; i < tnI->state.size(); i++) {
-		if(tnI->state[i])
-			cout << htn->factStrs[i] << endl;
-	}*/
-
-	//this->prettyPrintLMs(htn,tnI);
 	this->deleteFulfilledLMs(tnI);
-	//exit(-1);
 
 	tnI->lookForT = createElemToLmMapping(tnI, task);
 	tnI->lookForF = createElemToLmMapping(tnI, fact);
-	tnI->lookForM = createElemToLmMapping(tnI, method);
-
-	this->prettyPrintLMs(htn,tnI);
-	exit(-2);
-
-	/*
-	for(int j = 0; j < tnI->numLMs; j++) {
-		int* l = tnI->allLMs[j];
-		cout << "-- " << l[0] << " " << l[1]  << " " << l[2] << " ";
-		for(int i = 0;  i < l[2]; i++) {
-			cout << l[i + 3] << " ";
-		}
-		cout << endl;
-	}
-
-	cout << endl << "mapping T" << endl;
-	for(int i =0; i < tnI->lookForTnum; i++) {
-		int* l = tnI->lookForT[i];
-		cout << "-- " << l[0] << " " << l[1] << " ";
-		for(int j =0; j < l[1]; j++) {
-			cout << l[j + 2] << " ";
-		}
-		cout << endl;
-	}
-
-	cout << endl << "mapping F" << endl;
-	for(int i =0; i < tnI->lookForFnum; i++) {
-		int* l = tnI->lookForF[i];
-		cout << "-- " << l[0] << " " << l[1] << " ";
-		for(int j =0; j < l[1]; j++) {
-			cout << l[j + 2] << " ";
-		}
-		cout << endl;
-	}
-	*/
-	//exit(17);
-
-	/*
-	cout << "- found " << lms.flm->size() << " fact landmarks" << endl;
-	cout << "- found " << lms.mlm->size() << " method landmarks" << endl;
-	cout << "- found " << lms.tlm->size() << " task landmarks" << endl;
-
-	tnI->numfLMs = lms.flm->size();
-	tnI->nummLMs = lms.mlm->size();
-	tnI->numtLMs = lms.tlm->size();
-
-	tnI->fLMs = new int[tnI->numfLMs];
-	tnI->mLMs = new int[tnI->nummLMs];
-	tnI->tLMs = new int[tnI->numtLMs];
-
-	tnI->reachedfLMs = 0;
-	tnI->reachedmLMs = 0;
-	tnI->reachedtLMs = 0;
-
-	int j = 0;
-	for(set<int>::iterator it = lms.flm->begin(); it != lms.flm->end(); ++it){
-	//for(int i = 0; i < lms.numFLMs; i++) {
-		if(tnI->state[*it]) { // already reached
-			tnI->numfLMs--;
-			tnI->reachedfLMs++;
-		} else {
-			tnI->fLMs[j++] = *it;
-		}
-	}
-
-	j = 0;
-	for(set<int>::iterator it = lms.mlm->begin(); it != lms.mlm->end(); ++it) {
-		tnI->mLMs[j++] = *it;
-	}
-
-	// determine initial tasks (needed to check which landmarks are already reached)
-	int* tasksInTNI = new int[htn->numTasks];
-	for (int i = 0; i < htn->numTasks; i++)
-		tasksInTNI[i] = 0;
-
-	set<int> done;
-	vector<planStep*> todoList;
-	for (int i = 0; i < tnI->numPrimitive; i++)
-		todoList.push_back(tnI->unconstraintPrimitive[i]);
-	for (int i = 0; i < tnI->numAbstract; i++)
-		todoList.push_back(tnI->unconstraintAbstract[i]);
-	while (!todoList.empty()) {
-		planStep* ps = todoList.back();
-		todoList.pop_back();
-		done.insert(ps->id);
-		tasksInTNI[ps->task]++;
-		for (int i = 0; i < ps->numSuccessors; i++) {
-			planStep* succ = ps->successorList[i];
-			bool included = done.find(succ->id) != done.end();
-			if (!included)
-				todoList.push_back(succ);
-		}
-	}
-	j = 0;
-	for(set<int>::iterator it = lms.tlm->begin(); it != lms.tlm->end(); ++it) {
-		int lm = *it;
-		if (tasksInTNI[lm] > 0){
-			tnI->numtLMs--;
-			tnI->reachedtLMs++;
-		} else {
-			tnI->tLMs[j++] = lm;
-		}
-	}
-
-#ifdef LMCANDORRA
-	preProReachable.init(htn->numTasks);
-	this->pg = new planningGraph(htn);
-#endif
-*/
+	tnI->lookForM = createElemToLmMapping(tnI, METHOD);
 }
 
 
@@ -350,7 +234,7 @@ void hhLMCount::prettyPrintLMs(Model* htn, searchNode *n) {
 		} else if(lm->type == task){
 			cout << "task";
 			nameStrs = htn->taskNames;
-		} else if(lm->type == method){
+		} else if(lm->type == METHOD){
 			cout << "meth";
 			nameStrs = htn->methodNames;
 		}

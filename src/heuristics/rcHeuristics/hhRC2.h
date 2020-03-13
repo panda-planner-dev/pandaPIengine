@@ -40,6 +40,10 @@ public:
     virtual ~hhRC2();
     void setHeuristicValue(searchNode *n, searchNode *parent, int action);
     void setHeuristicValue(searchNode *n, searchNode *parent, int absTask, int method);
+
+    const bool storeCuts = true;
+    IntUtil iu;
+    list<LMCutLandmark *>* cuts = new list<LMCutLandmark *>();
 };
 
 

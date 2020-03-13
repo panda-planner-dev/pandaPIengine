@@ -455,20 +455,10 @@ void LMsInAndOrGraphs::generateLocalLMs(Model* htn, searchNode* tnI){
 	tlm->clear();
 	flm->clear();
 	mlm->clear();
-	/*
-	numFLMs = 0;
-	numMLMs = 0;
-	numTLMs = lms->size();
-	fLMs = nullptr;
-	mLMs = nullptr;
-	tLMs = new int[numTLMs];
-	int i =0;
-	*/
-	for (set<int>::iterator it = lms->begin(); it !=lms->end(); ++it) {
-		//tLMs[i++] = *it;
-		tlm->insert(*it);
-	}
 
+	for (int lm : *lms) {
+		tlm->insert(lm);
+	}
 
 	gettimeofday(&tp, NULL);
 	long endT = tp.tv_sec * 1000 + tp.tv_usec / 1000;

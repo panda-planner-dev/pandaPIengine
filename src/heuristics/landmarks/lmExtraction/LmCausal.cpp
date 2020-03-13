@@ -597,7 +597,6 @@ namespace progression {
             }
             cout << ", ";
 
-            /*
             if(isFNode(i)) {
                 cout << "label=\"" << htn->factStrs[nodeToF(i)] <<"\"";
             } else if(isTNode(i)) {
@@ -606,8 +605,8 @@ namespace progression {
                 cout << "label=\"" << htn->methodNames[nodeToM(i)] <<"\"";
             } else {
                 cout << "label=\"\""; // empty
-            }*/
-            cout << "label=\"" << i << "\"";
+            }
+            //cout << "label=\"" << i << "\"";
 
             cout << "]" << endl;
         }
@@ -619,6 +618,14 @@ namespace progression {
         }
 
         cout << "}" << endl;
+    }
+
+    int LmCausal::getNumLMs() {
+        return this->numLMs;
+    }
+
+    landmark **LmCausal::getLMs() {
+        return landmarks;
     }
 
     /*
@@ -640,4 +647,35 @@ namespace progression {
 
         return changed;
     }*/
+
+    void LmCausal::prettyPrintLMs() {
+        for(int i = 0; i < this->numLMs; i++) {
+            landmark* lm = landmarks[i];
+            cout << "- LM ";
+            string* nameStrs;
+            if(lm->type == fact){
+                cout << "fact";
+                nameStrs = htn->factStrs;
+            } else if(lm->type == task){
+                cout << "task";
+                nameStrs = htn->taskNames;
+            } else if(lm->type == METHOD){
+                cout << "meth";
+                nameStrs = htn->methodNames;
+            }
+            cout << " ";
+
+            if(lm->connection == atom){
+                cout << "atom";
+            } else if(lm->connection == conjunctive){
+                cout << "conj";
+            } else if(lm->connection == disjunctive){
+                cout << "disj";
+            }
+            for(int j = 0; j < lm->size; j++) {
+                cout << " " << nameStrs[lm->lm[j]];
+            }
+            cout << endl;
+        }
+    }
 }
