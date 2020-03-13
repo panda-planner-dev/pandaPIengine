@@ -24,7 +24,7 @@ private:
     noDelIntSet intSet;
 	bucketSet s0set;
 
-    void setHeuristicValue(searchNode *n);
+    int setHeuristicValue(searchNode *n);
 public:
 #if (HEURISTIC == RCFF2 || HEURISTIC == RCADD2)
     hsAddFF* sasH;

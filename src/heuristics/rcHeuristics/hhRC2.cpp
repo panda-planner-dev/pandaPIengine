@@ -36,7 +36,8 @@ hhRC2::~hhRC2() {
     delete factory;
 }
 
-void hhRC2::setHeuristicValue(searchNode *n) {
+int hhRC2::setHeuristicValue(searchNode *n) {
+    int hval = 0;
 
     // get facts holding in s0
     s0set.clear();
@@ -71,11 +72,11 @@ void hhRC2::setHeuristicValue(searchNode *n) {
         gset.insert(factory->t2bur(t));
     }
 
-    n->heuristicValue = this->sasH->getHeuristicValue(s0set, gset);
+    hval = this->sasH->getHeuristicValue(s0set, gset);
 
 #if (HEURISTIC == RCLMC2)
     // the indices of the methods need to be transformed to fit the scheme of the HTN model (as opposed to the rc model)
-    if (storeCuts) {
+    if((storeCuts) && (hval != UNREACHABLE)) {
         this->cuts = this->sasH->cuts;
         for(LMCutLandmark* storedcut : *cuts) {
             iu.sort(storedcut->lm, 0, storedcut->size - 1);
@@ -132,25 +133,27 @@ void hhRC2::setHeuristicValue(searchNode *n) {
     }*/
 #endif
 
-    n->goalReachable = (n->heuristicValue != UNREACHABLE);
-
 #ifdef CORRECTTASKCOUNT
-    for(int i = 0; i < n->numContainedTasks; i++) {
-        if(n->containedTaskCount[i] > 1) {
-            int task = n->containedTasks[i];
-            int count = n->containedTaskCount[i];
-            n->heuristicValue += (htn->minImpliedDistance[task] * (count - 1));
+    if (hval != UNREACHABLE) {
+        for (int i = 0; i < n->numContainedTasks; i++) {
+            if (n->containedTaskCount[i] > 1) {
+                int task = n->containedTasks[i];
+                int count = n->containedTaskCount[i];
+                hval += (htn->minImpliedDistance[task] * (count - 1));
+            }
         }
     }
 #endif
-
+    return hval;
 }
 
 void hhRC2::setHeuristicValue(searchNode *n, searchNode *parent, int action) {
-    this->setHeuristicValue(n);
+    n->heuristicValue = this->setHeuristicValue(n);
+    n->goalReachable = (n->heuristicValue != UNREACHABLE);
 }
 
 void hhRC2::setHeuristicValue(searchNode *n, searchNode *parent, int absTask, int method) {
-    this->setHeuristicValue(n);
+    n->heuristicValue = this->setHeuristicValue(n);
+    n->goalReachable = (n->heuristicValue != UNREACHABLE);
 }
 
