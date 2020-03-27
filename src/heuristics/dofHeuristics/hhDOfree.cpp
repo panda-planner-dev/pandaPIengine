@@ -238,8 +238,6 @@ namespace progression {
         cout << "done." << endl;
 #endif
 
-        printHeuristicInformation(htn);
-
 #ifdef DOFINREMENTAL
 
         cplex.setParam(IloCplex::Param::Threads, 1);
@@ -265,11 +263,82 @@ namespace progression {
         this->recreateModel(n); // create ILP model the first time
 #endif
 
-        htn->generateProducerConsumerLists();
+#ifdef DOFADDNCC
 
-#ifdef DOFALLNCC
-        
+        vOfL = new int[htn->numStateBits];
+        for(int i = 0; i < htn->numVars; i++) {
+            for(int j = htn->firstIndex[i]; j <= htn->lastIndex[i]; j++) {
+                vOfL[j] = i;
+            }
+        }
+
+        cout << "  - initializing data structures for net change constraints" << endl;
+        set<int>* tAP = new set<int>[htn->numStateBits];
+        set<int>* tSP = new set<int>[htn->numStateBits];
+        set<int>* tAC = new set<int>[htn->numStateBits];
+        for (int a = 0; a < htn->numActions; a++) {
+            for(int iE = 0; iE < htn->numAdds[a]; iE++) {
+                int eff = htn->addLists[a][iE];
+
+                // try to find other effect that is mutex to eff
+                // find var the effect belongs to
+                int var = -1;
+                for(int i = 0; i < htn->numVars; i++) {
+                    if ((htn->firstIndex[i] <= eff) && (htn->lastIndex[i] >= eff)) {
+                        var = i;
+                        break;
+                    }
+                }
+                assert(var >= 0);
+
+                int prec = -1;
+                for (int i = htn->firstIndex[var]; i <= htn->lastIndex[var]; i++) {
+                    if (iu.containsInt(htn->precLists[a],0,htn->numPrecs[a] - 1, i)) {
+                        prec = i;
+                        break;
+                    }
+                }
+                if (prec >= 0) {
+                    tAP[eff].insert(a);
+                    tAC[prec].insert(a);
+                    //cout << htn->taskNames[a] << " " << htn->factStrs[prec] << " -> " << htn->factStrs[eff] << endl;
+                    continue;
+                }
+                // todo: find other prec that is mutex to eff
+
+                tSP[eff].insert(a);
+                //cout << htn->taskNames[a] << " ??? -> " << htn->factStrs[eff] << endl;
+            }
+        }
+
+        this->numAC = new int[htn->numStateBits];
+        this->numAP = new int[htn->numStateBits];
+        this->numSP = new int[htn->numStateBits];
+        this->acList = new int*[htn->numStateBits];
+        this->apList = new int*[htn->numStateBits];
+        this->spList = new int*[htn->numStateBits];
+        for (int i = 0; i < htn->numStateBits; i++) {
+            numAC[i] = tAC[i].size();
+            acList[i] = new int[tAC[i].size()];
+            int j = 0;
+            for(int a : tAC[i]) acList[i][j++] = a;
+
+            numAP[i] = tAP[i].size();
+            apList[i] = new int[tAP[i].size()];
+            j = 0;
+            for(int a : tAP[i]) apList[i][j++] = a;
+
+            numSP[i] = tSP[i].size();
+            spList[i] = new int[tSP[i].size()];
+            j = 0;
+            for(int a : tSP[i]) spList[i][j++] = a;
+        }
+        delete[] tAC;
+        delete[] tAP;
+        delete[] tSP;
 #endif
+
+        printHeuristicInformation(htn);
     }
 
     void hhDOfree::printHeuristicInformation(Model *htn) {
@@ -926,7 +995,7 @@ void hhDOfree::countTNI(searchNode* n, Model* htn) {
             landmark *lm = andOrLMs[i];
             if (lm->type == fact) {
                 int f = lm->lm[0];
-                // carefull: only add when not contained in initial state
+                // careful: only add when not contained in initial state
                 if ((lm->connection == atom) && (!n->state[f]) && (pg->usefulFactSet.get(f))) {
                     model.add(v[iUF[f]] >= 1);
                 }
@@ -938,7 +1007,7 @@ void hhDOfree::countTNI(searchNode* n, Model* htn) {
                 assert(lm->type == task);
                 if (lm->connection == atom) {
                     int tlm = lm->lm[0];
-                    if(pg->taskReachable(tlm))
+                    if (pg->taskReachable(tlm))
                         model.add(v[iUA[tlm]] >= 1);
                     else
                         cout << "buh!" << endl;
@@ -1015,6 +1084,37 @@ void hhDOfree::countTNI(searchNode* n, Model* htn) {
                 causalLMs->iterate();
             }
         }*/
+#endif
+
+#ifdef DOFADDNCC
+        for(int f = 0; f < htn->numStateBits; f++) {
+            if(!pg->usefulFactSet.get(f))
+                continue;
+            int l;
+            // todo: test if in goal
+            if (n->state[f]) {
+                l = -1;
+            } else {
+                l = 0;
+            }
+            IloExpr ncl(lenv);
+            for(int ia = 0; ia < this->numAP[f]; ia++) {
+                int a = apList[f][ia];
+                if(!pg->taskReachable(a)) continue;
+                ncl = ncl + v[iUA[a]];
+            }
+            for(int ia = 0; ia < this->numSP[f]; ia++) {
+                int a = spList[f][ia];
+                if(!pg->taskReachable(a)) continue;
+                ncl = ncl + v[iUA[a]];
+            }
+            for(int ia = 0; ia < this->numAC[f]; ia++) {
+                int a = acList[f][ia];
+                if(!pg->taskReachable(a)) continue;
+                ncl = ncl - v[iUA[a]];
+            }
+            model.add(ncl >= l);
+        }
 #endif
 
         IloCplex cplex(model);

@@ -147,6 +147,17 @@ namespace progression {
         void printInfo();
 
         void printHeuristicInformation(Model *htn);
+
+        int* numAP;
+        int* numSP;
+        int* numAC;
+        // int* numSC;
+        int** apList;
+        int** spList;
+        int** acList;
+        // int** scList;
+
+        int* vOfL;
     };
 
 } /* namespace progression */
