@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 set(CMAKE_CXX_STANDARD 11)
-set(CPLEX_SOURCE_DIR /home/dh/programme/ibm-cplex)
+# set(CPLEX_SOURCE_DIR /home/dh/programme/ibm-cplex)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 ### if no build type is set, it is "Release"
@@ -31,22 +31,6 @@ add_subdirectory(intDataStructures)
 file(GLOB main_SRC "*.h" "*.cpp")
  
 # create the executable
-add_executable (pandaPIplanner ${main_SRC})
-target_compile_options(pandaPIplanner PUBLIC ${compiler_flags})
-target_link_options(pandaPIplanner PUBLIC ${linker_flags})
-
-target_link_libraries(pandaPIplanner PUBLIC search)
-target_link_libraries(pandaPIplanner PUBLIC heuristics)
-target_link_libraries(pandaPIplanner PUBLIC hrc)
-target_link_libraries(pandaPIplanner PUBLIC hlm)
-target_link_libraries(pandaPIplanner PUBLIC intDataStructures)
-
-# if the user has specified a cplex installation he surely wants to use it
-if (CPLEX_SOURCE_DIR)
-	target_link_libraries(pandaPIplanner PUBLIC ilpheuristics)
-endif (CPLEX_SOURCE_DIR)
-
-
 add_executable (pandaPIengine ${main_SRC})
 target_compile_options(pandaPIengine PUBLIC ${compiler_flags})
 target_link_options(pandaPIengine PUBLIC ${linker_flags})
@@ -56,3 +40,7 @@ target_link_libraries(pandaPIengine PUBLIC heuristics)
 target_link_libraries(pandaPIengine PUBLIC hrc)
 target_link_libraries(pandaPIengine PUBLIC hlm)
 target_link_libraries(pandaPIengine PUBLIC intDataStructures)
+# if the user has specified a cplex installation he surely wants to use it
+if (CPLEX_SOURCE_DIR)
+	target_link_libraries(pandaPIengine PUBLIC ilpheuristics)
+endif (CPLEX_SOURCE_DIR)
