@@ -205,6 +205,16 @@ public:
 	int** reachable = nullptr;
 
 	void writeToPDDL(string dName, string pName);
-};
+
+	void generateProducerConsumerLists();
+	int* numAP;
+    int* numSP;
+    int* numAC;
+    int* numSC;
+    int** apList;
+    int** spList;
+    int** acList;
+    int** scList;
+    };
 }
 #endif /* MODEL_H_ */

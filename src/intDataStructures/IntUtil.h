@@ -19,7 +19,9 @@ public:
 	void sort(int* ints, int minIndex, int maxIndex);
 	int indexOf(int* sortedSet, int low, int high, int value);
 
-	bool containsInt(int* soredList, int lowI, int highI, int value);
+	bool isSorted(int* list, int size);
+
+	bool containsInt(int* sortedList, int lowI, int highI, int value);
 	bool containsKey(int** keySortedMap, int lowI, int highI, int value);
 	int* copyExcluding(int* inList, int size, int exclude);
 

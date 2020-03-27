@@ -25,7 +25,7 @@ namespace progression {
         for (int i = 0; i < htn->numActions; i++) {
             nodes[tNode(i)]->nodeType = AND;
         }
-        for(int i = 0; i < htn->numPrecLessActions; i++) {
+        for (int i = 0; i < htn->numPrecLessActions; i++) {
             int a = htn->precLessActions[i];
             nodes[tNode(a)]->nodeType = INIT;
         }
@@ -88,6 +88,7 @@ namespace progression {
                 nodes[i]->affectedBy[j] = Ninv[i][j];
             }
         }
+        alreadyIn = new bool[numNodes];
 
         this->indices = new int[maxSetSize];
         this->numIndices = 0;
@@ -146,14 +147,11 @@ namespace progression {
         for (int i = 0; i < numNodes; i++) {
             nodes[i]->containsFullSet = true;
             nodes[i]->numLMs = 0;
-        }
-        set<int> revert;
-        bool *alreadyIn = new bool[numNodes];
-        for (int i = 0; i < numNodes; i++) {
             alreadyIn[i] = false;
         }
         heap->clear();
 
+        set<int> revert;
         for (int i = 0; i < htn->numStateBits; i++) {
             if (tn->state[i]) {
                 int nIndex = this->fNode(i);
@@ -163,11 +161,13 @@ namespace progression {
                 revert.insert(nIndex);
             }
         }
-        for(int i = 0; i < htn->numPrecLessActions; i++) {
+        for (int i = 0; i < htn->numPrecLessActions; i++) {
             int a = htn->precLessActions[i];
             int nIndex = this->tNode(a);
-            heap->add(0, nIndex);
-            alreadyIn[nIndex] = true;
+            if (reachable(nIndex)) { // it might not be top down reachable
+                heap->add(0, nIndex);
+                alreadyIn[nIndex] = true;
+            }
         }
 
         while (!heap->isEmpty()) {
@@ -191,8 +191,8 @@ namespace progression {
                 numUpdates++;
                 for (int i = 0; i < n->numAffectedNodes; i++) {
                     int affected = n->affectedNodes[i];
-                    if ((reachable(affected))&& (!alreadyIn[affected])) {
-                    //if (reachable(affected)) {
+                    if ((reachable(affected)) && (!alreadyIn[affected])) {
+                        //if (reachable(affected)) {
                         //int k = 0;
                         //int k = n->getSize();
                         //int k = nodeToSCC[affected];
@@ -217,6 +217,27 @@ namespace progression {
         }
 
         //cout << endl << "tasks in tn" << endl;
+        copyGlobalLMsToResultSet(tn);
+
+        if (!beTotallySilent) {
+            for (int i = unionSet->getFirst(); i >= 0; i = unionSet->getNext()) {
+                if (isTNode(i)) {
+                    cout << "- lm T " << htn->taskNames[nodeToT(i)] << endl;
+                } else if (isFNode(i)) {
+                    cout << "- lm F " << htn->factStrs[nodeToF(i)] << endl;
+                } else {
+                    cout << "- lm M " << htn->methodNames[nodeToM(i)] << endl;
+                }
+            }
+            cout << "Number of nodes " << numNodes << endl;
+            cout << "Number of updates " << numUpdates << endl;
+            cout << "Number of non-updates " << numNonUpdates << endl;
+            cout << "Total " << (numNonUpdates + numUpdates) << endl;
+            cout << "Number of landmarks " << this->numLMs << endl;
+        }
+    }
+
+    void LmCausal::copyGlobalLMsToResultSet(const searchNode *tn) {
         unionSet->clear();
         for (int i = 0; i < tn->numContainedTasks; i++) {
             //cout << "- " << tn->containedTasks[i] << " node" << tNode(tn->containedTasks[i]) << " "
@@ -245,36 +266,20 @@ namespace progression {
         }
 
         numLMs = unionSet->getSize();
-        this->landmarks = new landmark *[numLMs];
+        landmarks = new landmark *[numLMs];
         int iLM = 0;
         for (int i = unionSet->getFirst(); i >= 0; i = unionSet->getNext()) {
             if (isTNode(i)) {
-                this->landmarks[iLM] = new landmark(atom, task, 1);
-                this->landmarks[iLM]->lm[0] = nodeToT(i);
+                landmarks[iLM] = new landmark(atom, task, 1);
+                landmarks[iLM]->lm[0] = nodeToT(i);
             } else if (isFNode(i)) {
-                this->landmarks[iLM] = new landmark(atom, fact, 1);
-                this->landmarks[iLM]->lm[0] = nodeToF(i);
+                landmarks[iLM] = new landmark(atom, fact, 1);
+                landmarks[iLM]->lm[0] = nodeToF(i);
             } else {
-                this->landmarks[iLM] = new landmark(atom, METHOD, 1);
-                this->landmarks[iLM]->lm[0] = nodeToM(i);
+                landmarks[iLM] = new landmark(atom, METHOD, 1);
+                landmarks[iLM]->lm[0] = nodeToM(i);
             }
             iLM++;
-        }
-        if (!beTotallySilent) {
-            for (int i = unionSet->getFirst(); i >= 0; i = unionSet->getNext()) {
-                if (isTNode(i)) {
-                    cout << "- lm T " << htn->taskNames[nodeToT(i)] << endl;
-                } else if (isFNode(i)) {
-                    cout << "- lm F " << htn->factStrs[nodeToF(i)] << endl;
-                } else {
-                    cout << "- lm M " << htn->methodNames[nodeToM(i)] << endl;
-                }
-            }
-            cout << "Number of nodes " << numNodes << endl;
-            cout << "Number of updates " << numUpdates << endl;
-            cout << "Number of non-updates " << numNonUpdates << endl;
-            cout << "Total " << (numNonUpdates + numUpdates) << endl;
-            cout << "Number of landmarks " << this->numLMs << endl;
         }
     }
 
@@ -304,6 +309,40 @@ namespace progression {
             printSetOpInput(update, combine, size, "UNION");
         bool changed = false;
 
+#ifndef NDEBUG
+        // naive calculation for comparison
+        set<int> DEBUGres;
+        bool DEBUGisFullSet = false;
+        int setCount = 0; // number of combined sets
+        for (int i = 0; i < size; i++) {
+            int iNode = combine[i];
+            if (!this->reachable(iNode))
+                continue;
+            setCount++;
+            if (nodes[iNode]->containsFullSet) {
+                DEBUGisFullSet = true;
+                break;
+            } else {
+                for (int i = 0; i < nodes[iNode]->getSize(); i++) {
+                    DEBUGres.insert(nodes[iNode]->lms[i]);
+                }
+            }
+        }
+        DEBUGres.insert(update->ownIndex);
+        bool DEBUGchanged = false;
+        if (DEBUGisFullSet) {
+            DEBUGchanged = !update->containsFullSet;
+        } else {
+            if (update->getSize() != DEBUGres.size()) {
+                DEBUGchanged = true;
+            } else {
+                for (int lm : DEBUGres) {
+                    if (!iu.containsInt(update->lms, 0, update->getSize() - 1, lm))
+                        DEBUGchanged = true;
+                }
+            }
+        }
+#endif
         // is there a full set? -> result is full set
         bool containsFullSet = false;
         this->numIndices = 0;
@@ -365,6 +404,15 @@ namespace progression {
             else
                 cout << "changed = FALSE" << endl;
         }
+
+#ifndef NDEBUG
+        assert(changed == DEBUGchanged);
+        assert(DEBUGisFullSet == update->containsFullSet);
+        if (!update->containsFullSet) {
+            assert(update->getSize() == DEBUGres.size());
+            for (int lm : DEBUGres) assert(iu.containsInt(update->lms, 0, update->getSize() - 1, lm));
+        }
+#endif
         return changed;
     }
 
@@ -384,6 +432,55 @@ namespace progression {
         if (printDebugInfo)
             printSetOpInput(update, combine, size, "INTERSECTION");
         bool changed = false;
+
+#ifndef NDEBUG
+        // naive calculation for comparison
+        set<int> DEBUGres;
+        bool DEBUGisFullSet = true;
+        int setCount = 0; // number of combined sets
+        for (int i = 0; i < size; i++) {
+            int iNode = combine[i];
+            if (!this->reachable(iNode))
+                continue;
+            setCount++;
+            if (nodes[iNode]->containsFullSet)
+                continue; // result remains as it is
+            else {
+                if (DEBUGisFullSet) {
+                    DEBUGisFullSet = false;
+                    for (int i = 0; i < nodes[iNode]->getSize(); i++) {
+                        DEBUGres.insert(nodes[iNode]->lms[i]);
+                    }
+                } else {
+                    set<int> second;
+                    for (int i = 0; i < nodes[iNode]->getSize(); i++) {
+                        int lm = nodes[iNode]->lms[i];
+                        if (DEBUGres.find(lm) != DEBUGres.end())
+                            second.insert(lm);
+                    }
+                    DEBUGres.clear();
+                    for(int lm : second) DEBUGres.insert(lm);
+                }
+            }
+        }
+        if(setCount == 0)
+            DEBUGisFullSet = false;
+
+        DEBUGres.insert(update->ownIndex);
+        bool DEBUGchanged = false;
+        if (DEBUGisFullSet) {
+            DEBUGchanged = !update->containsFullSet;
+        } else {
+            if (update->getSize() != DEBUGres.size()) {
+                DEBUGchanged = true;
+            } else {
+                for (int lm : DEBUGres) {
+                    if (!iu.containsInt(update->lms, 0, update->getSize() - 1, lm))
+                        DEBUGchanged = true;
+                }
+            }
+        }
+#endif
 
         // filter unreachable and sort ascending by set size
         this->setOperationHeap->clear();
@@ -470,6 +567,14 @@ namespace progression {
             else
                 cout << "changed = FALSE" << endl;
         }
+#ifndef NDEBUG
+        assert(changed == DEBUGchanged);
+        assert(DEBUGisFullSet == update->containsFullSet);
+        if (!update->containsFullSet) {
+            assert(update->getSize() == DEBUGres.size());
+            for (int lm : DEBUGres) assert(iu.containsInt(update->lms, 0, update->getSize() - 1, lm));
+        }
+#endif
         return changed;
     }
 
@@ -534,7 +639,7 @@ namespace progression {
         else if (isTNode(nodeIndex)) {
             return pg->taskReachable(nodeToT(nodeIndex));
         } else if (isFNode(nodeIndex)) {
-            return pg->factReachable(nodeToF(nodeIndex));
+            return pg->usefulFactSet.get(nodeToF(nodeIndex));
         } else {
             assert (isMNode(nodeIndex));
             return pg->methodReachable(nodeToM(nodeIndex));
@@ -597,12 +702,12 @@ namespace progression {
             }
             cout << ", ";
 
-            if(isFNode(i)) {
-                cout << "label=\"" << htn->factStrs[nodeToF(i)] <<"\"";
-            } else if(isTNode(i)) {
-                cout << "label=\"" << htn->taskNames[nodeToT(i)] <<"\"";
+            if (isFNode(i)) {
+                cout << "label=\"" << htn->factStrs[nodeToF(i)] << "\"";
+            } else if (isTNode(i)) {
+                cout << "label=\"" << htn->taskNames[nodeToT(i)] << "\"";
             } else if (isMNode(i)) {
-                cout << "label=\"" << htn->methodNames[nodeToM(i)] <<"\"";
+                cout << "label=\"" << htn->methodNames[nodeToM(i)] << "\"";
             } else {
                 cout << "label=\"\""; // empty
             }
@@ -649,33 +754,80 @@ namespace progression {
     }*/
 
     void LmCausal::prettyPrintLMs() {
-        for(int i = 0; i < this->numLMs; i++) {
-            landmark* lm = landmarks[i];
+        for (int i = 0; i < this->numLMs; i++) {
+            landmark *lm = landmarks[i];
             cout << "- LM ";
-            string* nameStrs;
-            if(lm->type == fact){
+            string *nameStrs;
+            if (lm->type == fact) {
                 cout << "fact";
                 nameStrs = htn->factStrs;
-            } else if(lm->type == task){
+            } else if (lm->type == task) {
                 cout << "task";
                 nameStrs = htn->taskNames;
-            } else if(lm->type == METHOD){
+            } else if (lm->type == METHOD) {
                 cout << "meth";
                 nameStrs = htn->methodNames;
             }
             cout << " ";
 
-            if(lm->connection == atom){
+            if (lm->connection == atom) {
                 cout << "atom";
-            } else if(lm->connection == conjunctive){
+            } else if (lm->connection == conjunctive) {
                 cout << "conj";
-            } else if(lm->connection == disjunctive){
+            } else if (lm->connection == disjunctive) {
                 cout << "disj";
             }
-            for(int j = 0; j < lm->size; j++) {
+            for (int j = 0; j < lm->size; j++) {
                 cout << " " << nameStrs[lm->lm[j]];
             }
             cout << endl;
         }
+    }
+
+    void LmCausal::initIterTask(int task) {
+        this->iterN = this->nodes[tNode(task)];
+        this->iterI = 0;
+    }
+
+    void LmCausal::initIterFact(int fact) {
+        this->iterN = this->nodes[fNode(fact)];
+        this->iterI = 0;
+    }
+
+    void LmCausal::initIterMethod(int method) {
+        this->iterN = this->nodes[mNode(method)];
+        this->iterI = 0;
+    }
+
+    int LmCausal::iterGetLm() {
+        int lm = this->iterN->lms[this->iterI];
+        if (isTNode(lm)) {
+            nodeToT(lm);
+        } else if (isFNode(lm)) {
+            nodeToF(lm);
+        } else {
+            nodeToM(lm);
+        }
+    }
+
+    lmType LmCausal::iterGetLmType() {
+        int lm = this->iterN->lms[this->iterI];
+        if (isTNode(lm)) {
+            return task;
+        } else if (isFNode(lm)) {
+            return fact;
+        } else {
+            return METHOD;
+        }
+    }
+
+    bool LmCausal::iterHasNext() {
+        if (this->iterN->containsFullSet)
+            return false;
+        return (this->iterI < this->iterN->getSize());
+    }
+
+    void LmCausal::iterate() {
+        this->iterI++;
     }
 }

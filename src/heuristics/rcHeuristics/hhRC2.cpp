@@ -18,8 +18,12 @@ hhRC2::hhRC2(Model *htnModel) {
 	this->sasH->heuristic = sasAdd;
 #elif HEURISTIC == RCLMC2
     this->sasH = new hsLmCut(heuristicModel);
-#else
+#elif HEURISTIC == RCFILTER2
     this->sasH = new hsFilter(heuristicModel);
+#endif
+
+#ifdef RCLMC2STORELMS
+    this->sasH = new hsLmCut(heuristicModel);
 #endif
 
     htn = htnModel;
@@ -74,11 +78,11 @@ int hhRC2::setHeuristicValue(searchNode *n) {
 
     hval = this->sasH->getHeuristicValue(s0set, gset);
 
-#if (HEURISTIC == RCLMC2)
+#ifdef RCLMC2STORELMS
     // the indices of the methods need to be transformed to fit the scheme of the HTN model (as opposed to the rc model)
     if((storeCuts) && (hval != UNREACHABLE)) {
         this->cuts = this->sasH->cuts;
-        for(LMCutLandmark* storedcut : *cuts) {
+        for (LMCutLandmark* storedcut : *cuts) {
             iu.sort(storedcut->lm, 0, storedcut->size - 1);
             /*for (int i = 0; i < storedcut->size; i++) {
                 if ((i > 0) && (storedcut->lm[i] >= htn->numActions) && (storedcut->lm[i - 1] < htn->numActions))

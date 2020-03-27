@@ -108,6 +108,28 @@ int hsLmCut::getHeuristicValue(bucketSet& s, noDelIntSet& g) {
 		return hMax;
 	//cout << endl << "start" << endl;
 
+	// Ausgabe
+	/*
+	bool factsUsed[m->numStateBits];
+	for (int i = 0; i < m->numStateBits; i++) {
+	    factsUsed[i] = s.get(i);
+	}
+	for (int i = 0; i < this->m->numActions; i++) {
+        if (maxPrec[i] != UNREACHABLE) {
+            factsUsed[i] = true;
+            for(int j =0 ; j < m->numAdds[i]; j++) {
+                int f = m->addLists[i][j];
+                factsUsed[f] = true;
+            }
+        }
+	}
+    for (int i = 0; i < m->numStateBits; i++) {
+        if(factsUsed[i]) {
+            cout << "node" << i << " "
+        }
+    }
+*/
+
 	while (hMax > 0) {
 		goalZone->clear();
 		cut->clear();

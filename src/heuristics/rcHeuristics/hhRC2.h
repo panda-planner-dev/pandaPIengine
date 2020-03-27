@@ -24,14 +24,15 @@ private:
     noDelIntSet intSet;
 	bucketSet s0set;
 
-    int setHeuristicValue(searchNode *n);
 public:
 #if (HEURISTIC == RCFF2 || HEURISTIC == RCADD2)
     hsAddFF* sasH;
-#elif (HEURISTIC == RCLMC2)
-    hsLmCut* sasH;
-#else
+#elif (HEURISTIC == RCFILTER2)
 	hsFilter* sasH;
+#endif
+
+#ifdef RCLMC2STORELMS
+    hsLmCut* sasH;
 #endif
 
     hhRC2(Model* htnModel);
@@ -44,6 +45,8 @@ public:
     const bool storeCuts = true;
     IntUtil iu;
     list<LMCutLandmark *>* cuts = new list<LMCutLandmark *>();
+
+    int setHeuristicValue(searchNode *n);
 };
 
 

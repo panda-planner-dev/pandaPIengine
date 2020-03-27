@@ -75,4 +75,14 @@ int* IntUtil::copyExcluding(int* inList, int size, int exclude) {
 	}
 	return outList;
 }
+
+    bool IntUtil::isSorted(int *list, int size) {
+        if (size <= 1)
+            return true;
+        for(int i = 1; i < size; i++) {
+            if (list[i - 1] > list[i])
+                return false;
+        }
+        return true;
+    }
 } /* namespace progression */

@@ -31,3 +31,5 @@ target_link_libraries(ilpheuristics cplex)
 target_link_libraries(ilpheuristics m)
 target_link_libraries(ilpheuristics pthread)
 target_link_libraries(ilpheuristics dl)
+
+target_link_libraries(ilpheuristics hlm)

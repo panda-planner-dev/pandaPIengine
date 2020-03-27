@@ -34,9 +34,20 @@ namespace progression {
 
         void prettyPrintLMs();
 
+        void initIterTask(int task);
+        void initIterFact(int fact);
+        void initIterMethod(int method);
+
+        int iterGetLm();
+        lmType iterGetLmType();
+        bool iterHasNext();
+        void iterate();
+
     private:
+        IntUtil iu;
+        bool *alreadyIn = nullptr;
         const bool printDebugInfo = false;
-        const bool beTotallySilent = false;
+        const bool beTotallySilent = true;
 
         // actual calculation
         void pCalcLMs(searchNode *n);
@@ -108,6 +119,11 @@ namespace progression {
 
         bool copyLms(LmAoNode *pNode, LmAoNode *pNode1);
 
+        // stuff for iterator
+        LmAoNode* iterN = nullptr;
+        int iterI = -1;
+
+        void copyGlobalLMsToResultSet(const searchNode *tn);
     };
 
 }
