@@ -349,7 +349,6 @@ namespace progression {
 
 
 
-	
 
 
 			cout << "OLD" << endl;
@@ -1643,27 +1642,69 @@ namespace progression {
             getline(domainFile, line);
             sStream = new stringstream(line);
             *sStream >> firstIndex[i];
-            assert(firstIndex[i] < numVars);
+            assert(firstIndex[i] < numStateBits);
             *sStream >> lastIndex[i];
-            assert(lastIndex[i] < numVars);
+            assert(lastIndex[i] < numStateBits);
             *sStream >> varNames[i];
             delete sStream;
         }
         getline(domainFile, line);
         getline(domainFile, line);
+        // read further mutexes
+        getline(domainFile, line);
+        sStream = new stringstream(line);
+        *sStream >> numMutexes;
+        delete sStream;
+        mutexes = new int *[numMutexes];
+        mutexesSize = new int[numMutexes];
+        for (int i = 0; i < numMutexes; i++) {
+            getline(domainFile, line);
+            mutexes[i] = readIntList(line, mutexesSize[i]);
+        }
+        getline(domainFile, line);
+        getline(domainFile, line);
+
+
+        // read further mutexes
+        getline(domainFile, line);
+        sStream = new stringstream(line);
+        *sStream >> numInvariants;
+        delete sStream;
+        invariants = new int *[numInvariants];
+        invariantsSize = new int[numInvariants];
+        for (int i = 0; i < numInvariants; i++) {
+            getline(domainFile, line);
+            invariants[i] = readIntList(line, invariantsSize[i]);
+        }
+        getline(domainFile, line);
+        getline(domainFile, line);
+
+
         // read actions
         getline(domainFile, line);
         sStream = new stringstream(line);
         *sStream >> numActions;
         delete sStream;
-        precLists = new int *[numActions];
         actionCosts = new int[numActions];
-        addLists = new int *[numActions];
-        delLists = new int *[numActions];
+
         numPrecs = new int[numActions];
-        numPrecLessActions = 0;
+        precLists = new int *[numActions];
+
         numAdds = new int[numActions];
         numDels = new int[numActions];
+        addLists = new int *[numActions];
+        delLists = new int *[numActions];
+
+        numConditionalAdds = new int[numActions];
+        numConditionalAddsConditions = new int *[numActions];
+        numConditionalDels = new int[numActions];
+        numConditionalDelsConditions = new int *[numActions];
+        conditionalDelLists = new int *[numActions];
+        conditionalDelListsCondition = new int **[numActions];
+        conditionalAddLists = new int *[numActions];
+        conditionalAddListsCondition = new int **[numActions];
+
+        numPrecLessActions = 0;
         for (int i = 0; i < numActions; i++) {
             getline(domainFile, line);
             sStream = new stringstream(line);
@@ -1675,12 +1716,22 @@ namespace progression {
             if (numPrecs[i] == 0) {
                 numPrecLessActions++;
             }
+
             getline(domainFile, line);
-            addLists[i] = readIntList(line, numAdds[i]);
-            iu.sort(addLists[i], 0, numAdds[i] - 1);
+            std::tuple<int *, int *, int **> adds = readConditionalIntList(line, numAdds[i], numConditionalAdds[i],
+                                                                           numConditionalAddsConditions[i]);
+            addLists[i] = get<0>(adds);
+            conditionalAddLists[i] = get<1>(adds);
+            conditionalAddListsCondition[i] = get<2>(adds);
+
+
             getline(domainFile, line);
-            delLists[i] = readIntList(line, numDels[i]);
-            iu.sort(delLists[i], 0, numDels[i] - 1);
+            std::tuple<int *, int *, int **> dels = readConditionalIntList(line, numDels[i], numConditionalDels[i],
+                                                                           numConditionalDelsConditions[i]);
+            delLists[i] = get<0>(dels);
+            conditionalDelLists[i] = get<1>(dels);
+            conditionalDelListsCondition[i] = get<2>(dels);
+
 #ifndef NDEBUG
             for (int j = 0; j < numPrecs[i]; j++) {
                 assert(precLists[i][j] < numStateBits);
@@ -2094,6 +2145,56 @@ namespace progression {
         printMethods();
 #endif
     }
+
+    tuple<int *, int *, int **> Model::readConditionalIntList(string s, int &sizeA, int &sizeB, int *&sizeC) {
+        stringstream sStream(s);
+        vector<int> v;
+        vector<pair<vector<int>, int>> conds;
+        int x;
+        sStream >> x;
+        while (x >= 0) {
+            vector<int> c;
+            for (int i = 0; i < x; i++) {
+                int y;
+                sStream >> y;
+                c.push_back(y);
+            }
+
+            // read the actual unguarded element
+            sStream >> x;
+
+            if (!c.size())
+                v.push_back(x);
+            else
+                conds.push_back(make_pair(c, x));
+
+            // read the beginning of the next
+            sStream >> x;
+        }
+        sizeA = v.size();
+        sizeB = conds.size();
+
+        int *A = nullptr;
+        int *B = nullptr;
+        int **C = nullptr;
+        if (sizeA) {
+            A = new int[sizeA];
+            for (int i = 0; i < sizeA; i++) A[i] = v[i];
+        }
+
+        if (sizeB) {
+            B = new int[sizeB];
+            C = new int *[sizeB];
+            for (int i = 0; i < sizeB; i++) {
+                B[i] = conds[i].second;
+                C[i] = new int[conds[i].first.size()];
+                for (size_t j = 0; j < conds[i].first.size(); j++) C[i][j] = conds[i].first[j];
+            }
+        }
+
+        return make_tuple(A, B, C);
+    }
+
 
     int *Model::readIntList(string s, int &size) {
         stringstream sStream(s);
