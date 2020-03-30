@@ -131,26 +131,6 @@ namespace progression {
         void setHeuristicValue(searchNode *n, searchNode *parent, int absTask,
                                int method);
 
-#ifdef DOFLMS
-        void findLMs(searchNode *n);
-        void ilpLMs(searchNode *n,
-                int type,
-                int id,
-                int value,
-                set<int>* tLMcandidates,
-                set<int>* tLMs,
-                set<int>* tUNRcandidates,
-                set<int>* tUNRs,
-                set<int>* mLMcandidates,
-                set<int>* mLMs,
-                set<int>* mUNRcandidates,
-                set<int>* mUNRs,
-                set<int>* fLMcandidates,
-                set<int>* fLMs,
-                set<int>* fUNRcandidates,
-                set<int>* fUNRs
-                );
-#endif
     private:
         const int largeC = 100;
 
