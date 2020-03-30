@@ -30,10 +30,25 @@
 
 namespace progression {
 
+    enum csTdg {cTdgFull, cTdgAllowUC, cTdgNone};
+    enum csPg {cPgFull, cPgTimeRelaxed, cPgNone};
+    enum csAndOrLms {cAndOrLmsFull, cAndOrLmsOnlyTnI, cAndOrLmsNone};
+    enum csAddExternalLms {csAddExternalLmsYes, csAddExternalLmsNo};
+    enum csLmcLms {cLmcLmsFull, cLmcLmsNone};
+    enum csNetChange {cNetChangeFull, cNetChangeNone};
+
     class hhDOfree {
         Model *htn;
         //void countTNI(searchNode* n, Model* htn);
         IntUtil iu;
+
+        // heuristic configuration
+        const csTdg cTdg;
+        const csPg cPg;
+        const csAndOrLms cAndOrLms;
+        const csLmcLms cLmcLms;
+        const csAddExternalLms cAddExternalLms;
+        const csNetChange cNetChange;
 
         int *iUF;
         int *iUA;
@@ -53,12 +68,8 @@ namespace progression {
 
         void updatePG(searchNode *n);
 
-#ifdef DOFADDLMCUTLMS
         hhRC2 *hRC = nullptr;
-#endif
-#if (defined(DOFADDANDORLMS) || defined(DOFADDANDORLMSIMPLIED))
         LmCausal *causalLMs = nullptr;
-#endif
 
 
 #ifdef DOFINREMENTAL
@@ -94,23 +105,21 @@ namespace progression {
 
 #endif
 
-#ifdef INITSCCS
         // mappings for the scc reachability, these are static
-        int **sccNumIncommingMethods;
-        int **sccNumInnerFromTo;
-        int **sccNumInnerToFrom;
-        int ***sccNumInnerFromToMethods;
+        int **sccNumIncommingMethods = nullptr;
+        int **sccNumInnerFromTo = nullptr;
+        int **sccNumInnerToFrom = nullptr;
+        int ***sccNumInnerFromToMethods = nullptr;
 
-        int ***sccIncommingMethods; // methods from another scc reaching a certain scc
-        int ***sccInnerFromTo; // maps a tasks to those that it may be decomposed into
-        int ***sccInnerToFrom; // maps a tasks to those that may be decomposed into it
-        int ****sccInnerFromToMethods;
+        int ***sccIncommingMethods = nullptr; // methods from another scc reaching a certain scc
+        int ***sccInnerFromTo = nullptr; // maps a tasks to those that it may be decomposed into
+        int ***sccInnerToFrom = nullptr; // maps a tasks to those that may be decomposed into it
+        int ****sccInnerFromToMethods = nullptr;
 
         // data structures for the indices
-        int *RlayerPrev;
-        int *RlayerCurrent;
-        int **Ivars;
-#endif
+        int *RlayerPrev = nullptr;
+        int *RlayerCurrent = nullptr;
+        int **Ivars = nullptr;
 
     public:
         hhDOfree(Model *htn, searchNode *n);
@@ -144,7 +153,6 @@ namespace progression {
 #endif
     private:
         const int largeC = 100;
-        void printInfo();
 
         void printHeuristicInformation(Model *htn);
 

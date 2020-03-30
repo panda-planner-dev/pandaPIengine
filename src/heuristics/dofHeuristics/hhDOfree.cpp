@@ -37,9 +37,13 @@ namespace progression {
             model(this->lenv), v(this->lenv), cplex(this->model) {
 #else
 
-    hhDOfree::hhDOfree(Model *htn, searchNode *n) {
+    hhDOfree::hhDOfree(Model *htn, searchNode *n) :
+            cTdg(cTdgFull),
+            cPg(cPgFull),
+            cAndOrLms(cAndOrLmsFull),
+            cLmcLms(cLmcLmsFull),
+            cNetChange(cNetChangeFull) {
 #endif
-
         preProReachable.init(htn->numTasks);
         this->pg = new planningGraph(htn);
         this->htn = htn;
@@ -89,154 +93,153 @@ namespace progression {
         this->iTA = new int[htn->numActions]; // time action
         cout << "done." << endl;
 
-#ifdef INITSCCS
-        cout
-                << "- initializing data structures to prevent disconnected components... ";
-        sccNumIncommingMethods = new int *[htn->numSCCs];
-        sccIncommingMethods = new int **[htn->numSCCs];
+        if (this->cTdg == cTdgFull) {
+            cout << "- initializing data structures to prevent disconnected components... ";
+            sccNumIncommingMethods = new int *[htn->numSCCs];
+            sccIncommingMethods = new int **[htn->numSCCs];
 
-        // compute incomming methods for each scc
-        for (int i = 0; i < htn->numCyclicSccs; i++) {
-            int sccTo = htn->sccsCyclic[i];
+            // compute incomming methods for each scc
+            for (int i = 0; i < htn->numCyclicSccs; i++) {
+                int sccTo = htn->sccsCyclic[i];
 
-            sccNumIncommingMethods[sccTo] = new int[htn->sccSize[sccTo]];
-            for (int j = 0; j < htn->sccSize[sccTo]; j++) {
-                sccNumIncommingMethods[sccTo][j] = 0;
-            }
-            sccIncommingMethods[sccTo] = new int *[htn->sccSize[sccTo]];
+                sccNumIncommingMethods[sccTo] = new int[htn->sccSize[sccTo]];
+                for (int j = 0; j < htn->sccSize[sccTo]; j++) {
+                    sccNumIncommingMethods[sccTo][j] = 0;
+                }
+                sccIncommingMethods[sccTo] = new int *[htn->sccSize[sccTo]];
 
-            set<int> incomingMethods[htn->sccSize[sccTo]];
-            for (int j = 0; j < htn->sccGnumPred[sccTo]; j++) {
-                int sccFrom = htn->sccGinverse[sccTo][j];
-                for (int iTFrom = 0; iTFrom < htn->sccSize[sccFrom]; iTFrom++) {
-                    int tFrom = htn->sccToTasks[sccFrom][iTFrom];
-                    for (int iM = 0; iM < htn->numMethodsForTask[tFrom]; iM++) {
-                        int method = htn->taskToMethods[tFrom][iM];
-                        for (int iST = 0; iST < htn->numSubTasks[method]; iST++) {
-                            int subtask = htn->subTasks[method][iST];
-                            for (int iTTo = 0; iTTo < htn->sccSize[sccTo]; iTTo++) {
-                                int tTo = htn->sccToTasks[sccTo][iTTo];
-                                if (subtask == tTo) {
-                                    incomingMethods[iTTo].insert(method);
+                set<int> incomingMethods[htn->sccSize[sccTo]];
+                for (int j = 0; j < htn->sccGnumPred[sccTo]; j++) {
+                    int sccFrom = htn->sccGinverse[sccTo][j];
+                    for (int iTFrom = 0; iTFrom < htn->sccSize[sccFrom]; iTFrom++) {
+                        int tFrom = htn->sccToTasks[sccFrom][iTFrom];
+                        for (int iM = 0; iM < htn->numMethodsForTask[tFrom]; iM++) {
+                            int method = htn->taskToMethods[tFrom][iM];
+                            for (int iST = 0; iST < htn->numSubTasks[method]; iST++) {
+                                int subtask = htn->subTasks[method][iST];
+                                for (int iTTo = 0; iTTo < htn->sccSize[sccTo]; iTTo++) {
+                                    int tTo = htn->sccToTasks[sccTo][iTTo];
+                                    if (subtask == tTo) {
+                                        incomingMethods[iTTo].insert(method);
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            // copy to permanent data structures
-            int sumSizes = 0;
-            for (int k = 0; k < htn->sccSize[sccTo]; k++) {
-                sumSizes += incomingMethods[k].size();
-                int task = htn->sccToTasks[sccTo][k];
-                // cout << htn->taskNames[task] << " reached by ";
-                sccIncommingMethods[sccTo][k] = new int[incomingMethods[k].size()];
-                sccNumIncommingMethods[sccTo][k] = incomingMethods[k].size();
-                int l = 0;
-                for (std::set<int>::iterator it = incomingMethods[k].begin();
-                     it != incomingMethods[k].end(); it++) {
-                    sccIncommingMethods[sccTo][k][l] = *it;
-                    //cout << htn->methodNames[sccIncommingMethods[][task][l]] << " ";
-                    l++;
+                // copy to permanent data structures
+                int sumSizes = 0;
+                for (int k = 0; k < htn->sccSize[sccTo]; k++) {
+                    sumSizes += incomingMethods[k].size();
+                    int task = htn->sccToTasks[sccTo][k];
+                    // cout << htn->taskNames[task] << " reached by ";
+                    sccIncommingMethods[sccTo][k] = new int[incomingMethods[k].size()];
+                    sccNumIncommingMethods[sccTo][k] = incomingMethods[k].size();
+                    int l = 0;
+                    for (std::set<int>::iterator it = incomingMethods[k].begin();
+                         it != incomingMethods[k].end(); it++) {
+                        sccIncommingMethods[sccTo][k][l] = *it;
+                        //cout << htn->methodNames[sccIncommingMethods[][task][l]] << " ";
+                        l++;
+                    }
+                    //cout << endl;
                 }
-                //cout << endl;
+                assert(sumSizes > 0); // some task out of the scc should be reached
             }
-            assert(sumSizes > 0); // some task out of the scc should be reached
-        }
 
-        sccNumInnerFromTo = new int *[htn->numSCCs];
-        sccNumInnerToFrom = new int *[htn->numSCCs];
-        sccNumInnerFromToMethods = new int **[htn->numSCCs];
+            sccNumInnerFromTo = new int *[htn->numSCCs];
+            sccNumInnerToFrom = new int *[htn->numSCCs];
+            sccNumInnerFromToMethods = new int **[htn->numSCCs];
 
-        sccInnerFromTo = new int **[htn->numSCCs];
-        sccInnerToFrom = new int **[htn->numSCCs];
-        sccInnerFromToMethods = new int ***[htn->numSCCs];
+            sccInnerFromTo = new int **[htn->numSCCs];
+            sccInnerToFrom = new int **[htn->numSCCs];
+            sccInnerFromToMethods = new int ***[htn->numSCCs];
 
-        for (int i = 0; i < htn->numCyclicSccs; i++) {
-            int scc = htn->sccsCyclic[i];
+            for (int i = 0; i < htn->numCyclicSccs; i++) {
+                int scc = htn->sccsCyclic[i];
 
-            sccNumInnerFromTo[scc] = new int[htn->sccSize[scc]];
-            sccNumInnerToFrom[scc] = new int[htn->sccSize[scc]];
-            sccNumInnerFromToMethods[scc] = new int *[htn->sccSize[scc]];
+                sccNumInnerFromTo[scc] = new int[htn->sccSize[scc]];
+                sccNumInnerToFrom[scc] = new int[htn->sccSize[scc]];
+                sccNumInnerFromToMethods[scc] = new int *[htn->sccSize[scc]];
 
-            sccInnerFromTo[scc] = new int *[htn->sccSize[scc]];
-            sccInnerToFrom[scc] = new int *[htn->sccSize[scc]];
-            sccInnerFromToMethods[scc] = new int **[htn->sccSize[scc]];
+                sccInnerFromTo[scc] = new int *[htn->sccSize[scc]];
+                sccInnerToFrom[scc] = new int *[htn->sccSize[scc]];
+                sccInnerFromToMethods[scc] = new int **[htn->sccSize[scc]];
 
-            set<int> reachability[htn->sccSize[scc]][htn->sccSize[scc]];
-            set<int> tasksToFrom[htn->sccSize[scc]];
-            set<int> tasksFromTo[htn->sccSize[scc]];
+                set<int> reachability[htn->sccSize[scc]][htn->sccSize[scc]];
+                set<int> tasksToFrom[htn->sccSize[scc]];
+                set<int> tasksFromTo[htn->sccSize[scc]];
 
-            for (int iTo = 0; iTo < htn->sccSize[scc]; iTo++) {
-                int taskTo = htn->sccToTasks[scc][iTo];
-                for (int iFrom = 0; iFrom < htn->sccSize[scc]; iFrom++) {
-                    int taskFrom = htn->sccToTasks[scc][iFrom];
-                    for (int mi = 0; mi < htn->numMethodsForTask[taskFrom]; mi++) {
-                        int m = htn->taskToMethods[taskFrom][mi];
-                        for (int sti = 0; sti < htn->numSubTasks[m]; sti++) {
-                            int subtask = htn->subTasks[m][sti];
-                            if (subtask == taskTo) {
-                                reachability[iFrom][iTo].insert(m);
-                                tasksToFrom[iTo].insert(iFrom);
-                                tasksFromTo[iFrom].insert(iTo);
+                for (int iTo = 0; iTo < htn->sccSize[scc]; iTo++) {
+                    int taskTo = htn->sccToTasks[scc][iTo];
+                    for (int iFrom = 0; iFrom < htn->sccSize[scc]; iFrom++) {
+                        int taskFrom = htn->sccToTasks[scc][iFrom];
+                        for (int mi = 0; mi < htn->numMethodsForTask[taskFrom]; mi++) {
+                            int m = htn->taskToMethods[taskFrom][mi];
+                            for (int sti = 0; sti < htn->numSubTasks[m]; sti++) {
+                                int subtask = htn->subTasks[m][sti];
+                                if (subtask == taskTo) {
+                                    reachability[iFrom][iTo].insert(m);
+                                    tasksToFrom[iTo].insert(iFrom);
+                                    tasksFromTo[iFrom].insert(iTo);
+                                }
                             }
+                        }
+                    }
+                }
+
+                // copy to permanent data structures
+                for (int iF = 0; iF < htn->sccSize[scc]; iF++) {
+                    //int from = htn->sccToTasks[scc][iF];
+
+                    sccInnerFromToMethods[scc][iF] = new int *[htn->sccSize[scc]];
+                    sccNumInnerFromToMethods[scc][iF] = new int[htn->sccSize[scc]];
+
+                    for (int iT = 0; iT < htn->sccSize[scc]; iT++) {
+                        //int to = htn->sccToTasks[scc][iT];
+
+                        sccInnerFromTo[scc][iF] = new int[tasksFromTo[iF].size()];
+                        sccNumInnerFromTo[scc][iF] = tasksFromTo[iF].size();
+                        int l = 0;
+                        for (std::set<int>::iterator it = tasksFromTo[iF].begin();
+                             it != tasksFromTo[iF].end(); it++) {
+                            sccInnerFromTo[scc][iF][l] = *it;
+                            l++;
+                        }
+
+                        sccInnerToFrom[scc][iT] = new int[tasksToFrom[iT].size()];
+                        sccNumInnerToFrom[scc][iT] = tasksToFrom[iT].size();
+                        l = 0;
+                        for (std::set<int>::iterator it = tasksToFrom[iT].begin();
+                             it != tasksToFrom[iT].end(); it++) {
+                            sccInnerToFrom[scc][iT][l] = *it;
+                            l++;
+                        }
+
+                        sccInnerFromToMethods[scc][iF][iT] =
+                                new int[reachability[iF][iT].size()];
+                        sccNumInnerFromToMethods[scc][iF][iT] =
+                                reachability[iF][iT].size();
+                        l = 0;
+                        for (std::set<int>::iterator it = reachability[iF][iT].begin();
+                             it != reachability[iF][iT].end(); it++) {
+                            sccInnerFromToMethods[scc][iF][iT][l] = *it;
+                            //cout << "reaching " << htn->taskNames[to] << " from " << htn->taskNames[from] << " by " << htn->methodNames[sccInnerFromToMethods[from][to][l]] << endl;
+                            l++;
                         }
                     }
                 }
             }
 
-            // copy to permanent data structures
-            for (int iF = 0; iF < htn->sccSize[scc]; iF++) {
-                //int from = htn->sccToTasks[scc][iF];
-
-                sccInnerFromToMethods[scc][iF] = new int *[htn->sccSize[scc]];
-                sccNumInnerFromToMethods[scc][iF] = new int[htn->sccSize[scc]];
-
-                for (int iT = 0; iT < htn->sccSize[scc]; iT++) {
-                    //int to = htn->sccToTasks[scc][iT];
-
-                    sccInnerFromTo[scc][iF] = new int[tasksFromTo[iF].size()];
-                    sccNumInnerFromTo[scc][iF] = tasksFromTo[iF].size();
-                    int l = 0;
-                    for (std::set<int>::iterator it = tasksFromTo[iF].begin();
-                         it != tasksFromTo[iF].end(); it++) {
-                        sccInnerFromTo[scc][iF][l] = *it;
-                        l++;
-                    }
-
-                    sccInnerToFrom[scc][iT] = new int[tasksToFrom[iT].size()];
-                    sccNumInnerToFrom[scc][iT] = tasksToFrom[iT].size();
-                    l = 0;
-                    for (std::set<int>::iterator it = tasksToFrom[iT].begin();
-                         it != tasksToFrom[iT].end(); it++) {
-                        sccInnerToFrom[scc][iT][l] = *it;
-                        l++;
-                    }
-
-                    sccInnerFromToMethods[scc][iF][iT] =
-                            new int[reachability[iF][iT].size()];
-                    sccNumInnerFromToMethods[scc][iF][iT] =
-                            reachability[iF][iT].size();
-                    l = 0;
-                    for (std::set<int>::iterator it = reachability[iF][iT].begin();
-                         it != reachability[iF][iT].end(); it++) {
-                        sccInnerFromToMethods[scc][iF][iT][l] = *it;
-                        //cout << "reaching " << htn->taskNames[to] << " from " << htn->taskNames[from] << " by " << htn->methodNames[sccInnerFromToMethods[from][to][l]] << endl;
-                        l++;
-                    }
-                }
+            RlayerCurrent = new int[htn->sccMaxSize];
+            RlayerPrev = new int[htn->sccMaxSize];
+            Ivars = new int *[htn->sccMaxSize];
+            for (int i = 0; i < htn->sccMaxSize; i++) {
+                Ivars[i] = new int[htn->sccMaxSize];
             }
+            cout << "done." << endl;
         }
-
-        RlayerCurrent = new int[htn->sccMaxSize];
-        RlayerPrev = new int[htn->sccMaxSize];
-        Ivars = new int *[htn->sccMaxSize];
-        for (int i = 0; i < htn->sccMaxSize; i++) {
-            Ivars[i] = new int[htn->sccMaxSize];
-        }
-        cout << "done." << endl;
-#endif
 
 #ifdef DOFINREMENTAL
 
@@ -263,129 +266,92 @@ namespace progression {
         this->recreateModel(n); // create ILP model the first time
 #endif
 
-#ifdef DOFADDNCC
-
-        vOfL = new int[htn->numStateBits];
-        for(int i = 0; i < htn->numVars; i++) {
-            for(int j = htn->firstIndex[i]; j <= htn->lastIndex[i]; j++) {
-                vOfL[j] = i;
+        if (this->cNetChange == cNetChangeFull) {
+            vOfL = new int[htn->numStateBits];
+            for (int i = 0; i < htn->numVars; i++) {
+                for (int j = htn->firstIndex[i]; j <= htn->lastIndex[i]; j++) {
+                    vOfL[j] = i;
+                }
             }
-        }
 
-        cout << "  - initializing data structures for net change constraints" << endl;
-        set<int>* tAP = new set<int>[htn->numStateBits];
-        set<int>* tSP = new set<int>[htn->numStateBits];
-        set<int>* tAC = new set<int>[htn->numStateBits];
-        for (int a = 0; a < htn->numActions; a++) {
-            for(int iE = 0; iE < htn->numAdds[a]; iE++) {
-                int eff = htn->addLists[a][iE];
+            cout << "  - initializing data structures for net change constraints" << endl;
+            set<int> *tAP = new set<int>[htn->numStateBits];
+            set<int> *tSP = new set<int>[htn->numStateBits];
+            set<int> *tAC = new set<int>[htn->numStateBits];
+            for (int a = 0; a < htn->numActions; a++) {
+                for (int iE = 0; iE < htn->numAdds[a]; iE++) {
+                    int eff = htn->addLists[a][iE];
 
-                // try to find other effect that is mutex to eff
-                // find var the effect belongs to
-                int var = -1;
-                for(int i = 0; i < htn->numVars; i++) {
-                    if ((htn->firstIndex[i] <= eff) && (htn->lastIndex[i] >= eff)) {
-                        var = i;
-                        break;
+                    // try to find other effect that is mutex to eff
+                    // find var the effect belongs to
+                    int var = -1;
+                    for (int i = 0; i < htn->numVars; i++) {
+                        if ((htn->firstIndex[i] <= eff) && (htn->lastIndex[i] >= eff)) {
+                            var = i;
+                            break;
+                        }
                     }
-                }
-                assert(var >= 0);
+                    assert(var >= 0);
 
-                int prec = -1;
-                for (int i = htn->firstIndex[var]; i <= htn->lastIndex[var]; i++) {
-                    if (iu.containsInt(htn->precLists[a],0,htn->numPrecs[a] - 1, i)) {
-                        prec = i;
-                        break;
+                    int prec = -1;
+                    for (int i = htn->firstIndex[var]; i <= htn->lastIndex[var]; i++) {
+                        if (iu.containsInt(htn->precLists[a], 0, htn->numPrecs[a] - 1, i)) {
+                            prec = i;
+                            break;
+                        }
                     }
-                }
-                if (prec >= 0) {
-                    tAP[eff].insert(a);
-                    tAC[prec].insert(a);
-                    //cout << htn->taskNames[a] << " " << htn->factStrs[prec] << " -> " << htn->factStrs[eff] << endl;
-                    continue;
-                }
-                // todo: find other prec that is mutex to eff
+                    if (prec >= 0) {
+                        tAP[eff].insert(a);
+                        tAC[prec].insert(a);
+                        //cout << htn->taskNames[a] << " " << htn->factStrs[prec] << " -> " << htn->factStrs[eff] << endl;
+                        continue;
+                    }
+                    // todo: find other prec that is mutex to eff
 
-                tSP[eff].insert(a);
-                //cout << htn->taskNames[a] << " ??? -> " << htn->factStrs[eff] << endl;
+                    tSP[eff].insert(a);
+                    //cout << htn->taskNames[a] << " ??? -> " << htn->factStrs[eff] << endl;
+                }
             }
+
+            this->numAC = new int[htn->numStateBits];
+            this->numAP = new int[htn->numStateBits];
+            this->numSP = new int[htn->numStateBits];
+            this->acList = new int *[htn->numStateBits];
+            this->apList = new int *[htn->numStateBits];
+            this->spList = new int *[htn->numStateBits];
+            for (int i = 0; i < htn->numStateBits; i++) {
+                numAC[i] = tAC[i].size();
+                acList[i] = new int[tAC[i].size()];
+                int j = 0;
+                for (int a : tAC[i]) acList[i][j++] = a;
+
+                numAP[i] = tAP[i].size();
+                apList[i] = new int[tAP[i].size()];
+                j = 0;
+                for (int a : tAP[i]) apList[i][j++] = a;
+
+                numSP[i] = tSP[i].size();
+                spList[i] = new int[tSP[i].size()];
+                j = 0;
+                for (int a : tSP[i]) spList[i][j++] = a;
+            }
+            delete[] tAC;
+            delete[] tAP;
+            delete[] tSP;
         }
-
-        this->numAC = new int[htn->numStateBits];
-        this->numAP = new int[htn->numStateBits];
-        this->numSP = new int[htn->numStateBits];
-        this->acList = new int*[htn->numStateBits];
-        this->apList = new int*[htn->numStateBits];
-        this->spList = new int*[htn->numStateBits];
-        for (int i = 0; i < htn->numStateBits; i++) {
-            numAC[i] = tAC[i].size();
-            acList[i] = new int[tAC[i].size()];
-            int j = 0;
-            for(int a : tAC[i]) acList[i][j++] = a;
-
-            numAP[i] = tAP[i].size();
-            apList[i] = new int[tAP[i].size()];
-            j = 0;
-            for(int a : tAP[i]) apList[i][j++] = a;
-
-            numSP[i] = tSP[i].size();
-            spList[i] = new int[tSP[i].size()];
-            j = 0;
-            for(int a : tSP[i]) spList[i][j++] = a;
+        if (this->cLmcLms == cLmcLmsFull) {
+            hRC = new hhRC2(htn);
         }
-        delete[] tAC;
-        delete[] tAP;
-        delete[] tSP;
-#endif
-
+        if ((this->cAndOrLms == cAndOrLmsFull) || (this->cAndOrLms == cAndOrLmsOnlyTnI)) {
+            causalLMs = new LmCausal(htn);
+        }
         printHeuristicInformation(htn);
     }
 
     void hhDOfree::printHeuristicInformation(Model *htn) {
         string s = "dof";
-#if HEURISTIC == DOFREELP
-        s = s + " lp";
-#elif HEURISTIC == DOFREELP
-        s = s + " ilp";
-#endif
-
-#ifdef TREATSCCS
-        s = s + " disconcycprevented";
-                cout << "- disconnected components are prevented" << endl;
-#else
-        s = s + " disconcycallowed";
-        cout << "- disconnected components may occur" << endl;
-#endif
         cout << "- state is represented by" << endl;
-#ifdef DOFADDPG
-#ifndef DOFTR
-        cout << "  - planning graph" << endl;
-        s = s + " pgfull";
-#else
-        cout << "  - time-relaxed planning graph" << endl;
-                s = s + " pgtimerel";
-#endif
-#endif
 
-#ifdef DOFADDLMCUTLMS
-        cout << "  - LM-Cut landmarks" << endl;
-        hRC = new hhRC2(htn);
-        s = s + " lmlmcut";
-#endif
-
-#ifdef DOFADDANDORLMS
-        cout << "  - AND/OR landmarks for current task network" << endl;
-        causalLMs = new LmCausal(htn);
-        s = s + " lmandor";
-#endif
-
-#ifdef DOFADDANDORLMSIMPLIED
-        cout << "  - all implied AND/OR landmarks" << endl;
-#ifndef DOFADDANDORLMS
-        causalLMs = new LmCausal(htn);
-#endif
-        s = s + " lmandorimplied";
-#endif
         cout << "[HCONF:" << s << "]" << endl;
 #ifdef DOFLMS
         this->findLMs(n);
@@ -399,7 +365,6 @@ for(int i =0; i < n->nummLMs;i++) {
 cout  << "method lm " << htn->methodNames[n->mLMs[i]] << endl;
 }
 #endif
-
     }
 
     hhDOfree::~hhDOfree() {
@@ -529,38 +494,38 @@ cout  << "method lm " << htn->methodNames[n->mLMs[i]] << endl;
 
 /*
 void hhDOfree::countTNI(searchNode* n, Model* htn) {
-	// set the number of tasks in the initial task network
-	n->TNIcount = new int[htn->numTasks];
-	for (int i = 0; i < htn->numTasks; i++)
-		n->TNIcount[i] = 0;
-	set<int> done;
-	vector<planStep*> todoList;
-	for (int i = 0; i < n->numPrimitive; i++)
-		todoList.push_back(n->unconstraintPrimitive[i]);
-	for (int i = 0; i < n->numAbstract; i++)
-		todoList.push_back(n->unconstraintAbstract[i]);
-	while (!todoList.empty()) {
-		planStep* ps = todoList.back();
-		todoList.pop_back();
-		done.insert(ps->id);
-		n->TNIcount[ps->task]++;
-		for (int i = 0; i < ps->numSuccessors; i++) {
-			planStep* succ = ps->successorList[i];
-			const bool included = done.find(succ->id) != done.end();
-			if (!included)
-				todoList.push_back(succ);
-		}
-	}
+    // set the number of tasks in the initial task network
+    n->TNIcount = new int[htn->numTasks];
+    for (int i = 0; i < htn->numTasks; i++)
+        n->TNIcount[i] = 0;
+    set<int> done;
+    vector<planStep*> todoList;
+    for (int i = 0; i < n->numPrimitive; i++)
+        todoList.push_back(n->unconstraintPrimitive[i]);
+    for (int i = 0; i < n->numAbstract; i++)
+        todoList.push_back(n->unconstraintAbstract[i]);
+    while (!todoList.empty()) {
+        planStep* ps = todoList.back();
+        todoList.pop_back();
+        done.insert(ps->id);
+        n->TNIcount[ps->task]++;
+        for (int i = 0; i < ps->numSuccessors; i++) {
+            planStep* succ = ps->successorList[i];
+            const bool included = done.find(succ->id) != done.end();
+            if (!included)
+                todoList.push_back(succ);
+        }
+    }
 }*/
 
     int hhDOfree::recreateModel(searchNode *n) {
 
-#ifdef DOFADDLMCUTLMS
-        int hLMC = this->hRC->setHeuristicValue(n);
-        if (hLMC == UNREACHABLE) {
-            return UNREACHABLE;
+        if (this->cLmcLms == cLmcLmsFull) {
+            int hLMC = this->hRC->setHeuristicValue(n);
+            if (hLMC == UNREACHABLE) {
+                return UNREACHABLE;
+            }
         }
-#endif
 
         this->updatePG(n);
 
@@ -672,27 +637,27 @@ void hhDOfree::countTNI(searchNode* n, Model* htn) {
             }
         }
 
-#ifndef DOFTR
-        for (int i = pg->usefulFactSet.getFirst(); i >= 0;
-             i = pg->usefulFactSet.getNext()) {
-            v.add(IloNumVar(lenv, 0, htn->numActions, INTVAR));
-            iTP[i] = iv;
+        if ((this->cPg == cPgTimeRelaxed) || (this->cPg == cPgFull)) {
+            for (int i = pg->usefulFactSet.getFirst(); i >= 0;
+                 i = pg->usefulFactSet.getNext()) {
+                v.add(IloNumVar(lenv, 0, htn->numActions, INTVAR));
+                iTP[i] = iv;
 #ifdef NAMEMODEL
-            v[iv].setName(("TP" + to_string(i)).c_str());
+                v[iv].setName(("TP" + to_string(i)).c_str());
 #endif
-            iv++;
-        }
-        for (int a = pg->reachableTasksSet.getFirst();
-             (a >= 0) && (a < htn->numActions); a =
-                                                        pg->reachableTasksSet.getNext()) {
-            v.add(IloNumVar(lenv, 0, htn->numActions, INTVAR));
-            iTA[a] = iv;
+                iv++;
+            }
+            for (int a = pg->reachableTasksSet.getFirst();
+                 (a >= 0) && (a < htn->numActions); a =
+                                                            pg->reachableTasksSet.getNext()) {
+                v.add(IloNumVar(lenv, 0, htn->numActions, INTVAR));
+                iTA[a] = iv;
 #ifdef NAMEMODEL
-            v[iv].setName(("TA" + to_string(a)).c_str());
+                v[iv].setName(("TA" + to_string(a)).c_str());
 #endif
-            iv++;
+                iv++;
+            }
         }
-#endif
 
         // create main optimization function
         IloNumExpr mainExp(lenv);
@@ -712,82 +677,82 @@ void hhDOfree::countTNI(searchNode* n, Model* htn) {
 
         model.add(IloMinimize(lenv, mainExp));
 
-#ifdef DOFADDPG
-        // C1
-        for (int i = 0; i < htn->gSize; i++) {
-            if (pg->usefulFactSet.get(htn->gList[i]))
-                model.add(v[iUF[htn->gList[i]]] == 1);
-        }
-
-        for (int a = pg->reachableTasksSet.getFirst();
-             (a >= 0) && (a < htn->numActions); a =
-                                                        pg->reachableTasksSet.getNext()) {
-            // C2
-            for (int i = 0; i < htn->numPrecs[a]; i++) {
-                int prec = htn->precLists[a][i]; // precs are always useful
-                if (pg->usefulFactSet.get(prec))
-                    model.add(100 * v[iUF[prec]] >= v[iUA[a]]); // TODO: how large must the const be?
+        if ((this->cPg == cPgTimeRelaxed) || (this->cPg == cPgFull)) {
+            // C1
+            for (int i = 0; i < htn->gSize; i++) {
+                if (pg->usefulFactSet.get(htn->gList[i]))
+                    model.add(v[iUF[htn->gList[i]]] == 1);
             }
-            // C3
-            for (int iAdd = 0; iAdd < htn->numAdds[a]; iAdd++) {
-                int fAdd = htn->addLists[a][iAdd];
-                if (pg->usefulFactSet.get(fAdd))
-                    model.add(v[iUA[a]] - v[iE[EStartI[a] + iAdd]] >= 0);
-            }
-        }
 
-        // C4
-        for (int f = pg->usefulFactSet.getFirst(); f >= 0;
-             f = pg->usefulFactSet.getNext()) {
-            IloNumExpr c4(lenv);
+            for (int a = pg->reachableTasksSet.getFirst();
+                 (a >= 0) && (a < htn->numActions); a =
+                                                            pg->reachableTasksSet.getNext()) {
+                // C2
+                for (int i = 0; i < htn->numPrecs[a]; i++) {
+                    int prec = htn->precLists[a][i]; // precs are always useful
+                    if (pg->usefulFactSet.get(prec))
+                        model.add(100 * v[iUF[prec]] >= v[iUA[a]]); // TODO: how large must the const be?
+                }
+                // C3
+                for (int iAdd = 0; iAdd < htn->numAdds[a]; iAdd++) {
+                    int fAdd = htn->addLists[a][iAdd];
+                    if (pg->usefulFactSet.get(fAdd))
+                        model.add(v[iUA[a]] - v[iE[EStartI[a] + iAdd]] >= 0);
+                }
+            }
+
+            // C4
+            for (int f = pg->usefulFactSet.getFirst(); f >= 0;
+                 f = pg->usefulFactSet.getNext()) {
+                IloNumExpr c4(lenv);
 
 #ifdef DOFINREMENTAL
-            c4 = c4 + v[iS0[f]];
+                c4 = c4 + v[iS0[f]];
 #endif
 
-            for (int i = 0; i < EInvSize[f]; i++) {
-                int a = iEInvActionIndex[f][i];
-                int iAdd = iEInvEffIndex[f][i];
-                if (pg->taskReachable(a))
-                    c4 = c4 + v[iE[EStartI[a] + iAdd]];
+                for (int i = 0; i < EInvSize[f]; i++) {
+                    int a = iEInvActionIndex[f][i];
+                    int iAdd = iEInvEffIndex[f][i];
+                    if (pg->taskReachable(a))
+                        c4 = c4 + v[iE[EStartI[a] + iAdd]];
+                }
+                model.add(c4 - v[iUF[f]] == 0);
             }
-            model.add(c4 - v[iUF[f]] == 0);
-        }
 
-#ifndef DOFTR
-        // C5
-        for (int a = pg->reachableTasksSet.getFirst();
-             (a >= 0) && (a < htn->numActions); a =
-                                                        pg->reachableTasksSet.getNext()) {
-            if (htn->numPrecs[a] == 0) {
-                continue;
-            }
-            for (int i = 0; i < htn->numPrecs[a]; i++) {
-                int prec = htn->precLists[a][i];
-                if (pg->usefulFactSet.get(prec))
-                    model.add(v[iTA[a]] - v[iTP[prec]] >= 0);
-            }
-        }
+            if (this->cPg == cPgFull) {
+                // C5
+                for (int a = pg->reachableTasksSet.getFirst();
+                     (a >= 0) && (a < htn->numActions); a =
+                                                                pg->reachableTasksSet.getNext()) {
+                    if (htn->numPrecs[a] == 0) {
+                        continue;
+                    }
+                    for (int i = 0; i < htn->numPrecs[a]; i++) {
+                        int prec = htn->precLists[a][i];
+                        if (pg->usefulFactSet.get(prec))
+                            model.add(v[iTA[a]] - v[iTP[prec]] >= 0);
+                    }
+                }
 
-        // C6
-        for (int a = pg->reachableTasksSet.getFirst();
-             (a >= 0) && (a < htn->numActions); a =
-                                                        pg->reachableTasksSet.getNext()) {
-            if (htn->numAdds[a] == 0)
-                continue;
-            for (int iadd = 0; iadd < htn->numAdds[a]; iadd++) {
-                int add = htn->addLists[a][iadd];
-                if (!pg->usefulFactSet.get(add))
-                    continue;
-                model.add(
-                        v[iTA[a]] + 1
-                        <= v[iTP[add]]
-                           + (htn->numActions + 1)
-                             * (1 - v[iE[EStartI[a] + iadd]]));
+                // C6
+                for (int a = pg->reachableTasksSet.getFirst();
+                     (a >= 0) && (a < htn->numActions); a =
+                                                                pg->reachableTasksSet.getNext()) {
+                    if (htn->numAdds[a] == 0)
+                        continue;
+                    for (int iadd = 0; iadd < htn->numAdds[a]; iadd++) {
+                        int add = htn->addLists[a][iadd];
+                        if (!pg->usefulFactSet.get(add))
+                            continue;
+                        model.add(
+                                v[iTA[a]] + 1
+                                <= v[iTP[add]]
+                                   + (htn->numActions + 1)
+                                     * (1 - v[iE[EStartI[a] + iadd]]));
+                    }
+                }
             }
         }
-#endif
-#endif
 
         // HTN stuff
         std::vector<IloExpr> tup(htn->numTasks,
@@ -830,212 +795,213 @@ void hhDOfree::countTNI(searchNode* n, Model* htn) {
             }
         }
 
-        // SCC stuff
-#ifdef TREATSCCS
+        if (this->cTdg == cTdgFull) { // prevent disconnected cycles
+            for (int iSCC = 0; iSCC < htn->numCyclicSccs; iSCC++) {
+                int scc = htn->sccsCyclic[iSCC];
 
-        for (int iSCC = 0; iSCC < htn->numCyclicSccs; iSCC++) {
-            int scc = htn->sccsCyclic[iSCC];
-
-            // initial layer R0
-            // name schema: R-SCC-Time-Task
-            for (int iT = 0; iT < htn->sccSize[scc]; iT++) {
-                int task = htn->sccToTasks[scc][iT];
-                if (!pg->taskReachable(task))
-                    continue;
-                v.add(IloNumVar(lenv, 0, INT_MAX, INTVAR));
-#ifdef NAMEMODEL
-                v[iv].setName(
-                        ("R_" + to_string(scc) + "_0_" + to_string(iT)).c_str());
-#endif
-                RlayerCurrent[iT] = iv++;
-            }
-
-            // C9
-            for (int iTask = 0; iTask < htn->sccSize[scc]; iTask++) {
-                int task = htn->sccToTasks[scc][iTask];
-                if (!pg->taskReachable(task))
-                    continue;
-                IloExpr c9(lenv);
-                int iOfT = iu.indexOf(n->containedTasks, 0, n->numContainedTasks - 1, task);
-                if(iOfT >= 0) {
-                    c9 = c9 + n->containedTaskCount[iOfT];
-                }
-                for (int iMeth = 0; iMeth < sccNumIncommingMethods[scc][iTask];
-                        iMeth++) {
-                    int m = sccIncommingMethods[scc][iTask][iMeth];
-                    if (pg->methodReachable(m))
-                        c9 = c9 + v[iM[m]];
-                }
-                model.add(c9 >= v[RlayerCurrent[iTask]]);
-            }
-
-            for (int iTime = 1; iTime < htn->sccSize[scc]; iTime++) {
-                int* Rtemp = RlayerPrev;
-                RlayerPrev = RlayerCurrent;
-                RlayerCurrent = Rtemp;
-
-                // create variables for ILP (needs to be done first, there may be forward references)
-                for (int iTask = 0; iTask < htn->sccSize[scc]; iTask++) {
-                    int task = htn->sccToTasks[scc][iTask];
+                // initial layer R0
+                // name schema: R-SCC-Time-Task
+                for (int iT = 0; iT < htn->sccSize[scc]; iT++) {
+                    int task = htn->sccToTasks[scc][iT];
                     if (!pg->taskReachable(task))
                         continue;
                     v.add(IloNumVar(lenv, 0, INT_MAX, INTVAR));
 #ifdef NAMEMODEL
                     v[iv].setName(
-                            ("R_" + to_string(scc) + "_" + to_string(iTime) + "_"
-                                    + to_string(iTask)).c_str());
+                            ("R_" + to_string(scc) + "_0_" + to_string(iT)).c_str());
 #endif
-                    RlayerCurrent[iTask] = iv++;
-                    for (int iTask2 = 0; iTask2 < htn->sccSize[scc]; iTask2++) {
-                        int task2 = htn->sccToTasks[scc][iTask2];
-                        if (!pg->taskReachable(task2))
+                    RlayerCurrent[iT] = iv++;
+                }
+
+                // C9
+                for (int iTask = 0; iTask < htn->sccSize[scc]; iTask++) {
+                    int task = htn->sccToTasks[scc][iTask];
+                    if (!pg->taskReachable(task))
+                        continue;
+                    IloExpr c9(lenv);
+                    int iOfT = iu.indexOf(n->containedTasks, 0, n->numContainedTasks - 1, task);
+                    if (iOfT >= 0) {
+                        c9 = c9 + n->containedTaskCount[iOfT];
+                    }
+                    for (int iMeth = 0; iMeth < sccNumIncommingMethods[scc][iTask];
+                         iMeth++) {
+                        int m = sccIncommingMethods[scc][iTask][iMeth];
+                        if (pg->methodReachable(m))
+                            c9 = c9 + v[iM[m]];
+                    }
+                    model.add(c9 >= v[RlayerCurrent[iTask]]);
+                }
+
+                for (int iTime = 1; iTime < htn->sccSize[scc]; iTime++) {
+                    int *Rtemp = RlayerPrev;
+                    RlayerPrev = RlayerCurrent;
+                    RlayerCurrent = Rtemp;
+
+                    // create variables for ILP (needs to be done first, there may be forward references)
+                    for (int iTask = 0; iTask < htn->sccSize[scc]; iTask++) {
+                        int task = htn->sccToTasks[scc][iTask];
+                        if (!pg->taskReachable(task))
                             continue;
                         v.add(IloNumVar(lenv, 0, INT_MAX, INTVAR));
 #ifdef NAMEMODEL
                         v[iv].setName(
-                                ("I_" + to_string(scc) + "_" + to_string(iTime)
-                                        + "_" + to_string(iTask) + "_"
-                                        + to_string(iTask2)).c_str());
+                                ("R_" + to_string(scc) + "_" + to_string(iTime) + "_"
+                                 + to_string(iTask)).c_str());
 #endif
-                        Ivars[iTask][iTask2] = iv++;
+                        RlayerCurrent[iTask] = iv++;
+                        for (int iTask2 = 0; iTask2 < htn->sccSize[scc]; iTask2++) {
+                            int task2 = htn->sccToTasks[scc][iTask2];
+                            if (!pg->taskReachable(task2))
+                                continue;
+                            v.add(IloNumVar(lenv, 0, INT_MAX, INTVAR));
+#ifdef NAMEMODEL
+                            v[iv].setName(
+                                    ("I_" + to_string(scc) + "_" + to_string(iTime)
+                                     + "_" + to_string(iTask) + "_"
+                                     + to_string(iTask2)).c_str());
+#endif
+                            Ivars[iTask][iTask2] = iv++;
+                        }
+                    }
+
+                    // create constraints C10, C11 and C12
+                    for (int iTask = 0; iTask < htn->sccSize[scc]; iTask++) { // t in the paper
+                        // C10
+                        int task = htn->sccToTasks[scc][iTask];
+                        if (!pg->taskReachable(task))
+                            continue;
+                        IloExpr c10(lenv);
+                        c10 = c10 + v[RlayerPrev[iTask]];
+
+                        for (int k = 0; k < sccNumInnerToFrom[scc][iTask]; k++) {
+                            int iTask2 = sccInnerToFrom[scc][iTask][k];
+                            int task2 = htn->sccToTasks[scc][iTask2];
+                            if (!pg->taskReachable(task2))
+                                continue;
+                            c10 = c10 + v[Ivars[iTask2][iTask]];
+                        }
+                        model.add(v[RlayerCurrent[iTask]] <= c10);
+
+                        for (int iTask2 = 0; iTask2 < htn->sccSize[scc]; iTask2++) { // t' in the paper
+                            int task2 = htn->sccToTasks[scc][iTask2];
+                            if (!pg->taskReachable(task2))
+                                continue;
+
+                            // C11
+                            model.add(v[Ivars[iTask2][iTask]] <= v[RlayerPrev[iTask2]]);
+
+                            // C12
+                            IloExpr c12(lenv);
+                            c12 = c12 + 0;
+                            for (int k = 0;
+                                 k < sccNumInnerFromToMethods[scc][iTask2][iTask];
+                                 k++) {
+                                int m = sccInnerFromToMethods[scc][iTask2][iTask][k];
+                                if (!pg->methodReachable(m))
+                                    continue;
+                                c12 = c12 + v[iM[m]];
+                            }
+                            model.add(v[Ivars[iTask2][iTask]] <= c12);
+                        }
                     }
                 }
 
-                // create constraints C10, C11 and C12
-                for (int iTask = 0; iTask < htn->sccSize[scc]; iTask++) { // t in the paper
-                    // C10
+                // C13
+                for (int iTask = 0; iTask < htn->sccSize[scc]; iTask++) {
                     int task = htn->sccToTasks[scc][iTask];
                     if (!pg->taskReachable(task))
                         continue;
-                    IloExpr c10(lenv);
-                    c10 = c10 + v[RlayerPrev[iTask]];
-
-                    for (int k = 0; k < sccNumInnerToFrom[scc][iTask]; k++) {
-                        int iTask2 = sccInnerToFrom[scc][iTask][k];
-                        int task2 = htn->sccToTasks[scc][iTask2];
-                        if (!pg->taskReachable(task2))
-                            continue;
-                        c10 = c10 + v[Ivars[iTask2][iTask]];
-                    }
-                    model.add(v[RlayerCurrent[iTask]] <= c10);
-
-                    for (int iTask2 = 0; iTask2 < htn->sccSize[scc]; iTask2++) { // t' in the paper
-                        int task2 = htn->sccToTasks[scc][iTask2];
-                        if (!pg->taskReachable(task2))
-                            continue;
-
-                        // C11
-                        model.add(v[Ivars[iTask2][iTask]] <= v[RlayerPrev[iTask2]]);
-
-                        // C12
-                        IloExpr c12(lenv);
-                        c12 = c12 + 0;
-                        for (int k = 0;
-                                k < sccNumInnerFromToMethods[scc][iTask2][iTask];
-                                k++) {
-                            int m = sccInnerFromToMethods[scc][iTask2][iTask][k];
-                            if (!pg->methodReachable(m))
-                                continue;
-                            c12 = c12 + v[iM[m]];
-                        }
-                        model.add(v[Ivars[iTask2][iTask]] <= c12);
-                    }
+                    model.add(
+                            v[iUA[task]] <= v[RlayerCurrent[iTask]] * 100); // todo: what is a sufficiently high number?
                 }
             }
+        } // end of prevent disconnected cycles
 
-            // C13
-            for (int iTask = 0; iTask < htn->sccSize[scc]; iTask++) {
-                int task = htn->sccToTasks[scc][iTask];
-                if (!pg->taskReachable(task))
-                    continue;
-                model.add(v[iUA[task]] <= v[RlayerCurrent[iTask]] * 100); // todo: what is a sufficiently high number?
-            }
-        }
-#endif
-
+        if (this->cAddExternalLms == csAddExternalLmsYes) {
 #ifdef DOFLMS
-        for(int iLM = 0; iLM < n->numtLMs; iLM ++) {
-            int lm = n->tLMs[iLM];
-            model.add(v[iUA[lm]] >= 1);
-        }
-        for(int iLM = 0; iLM < n->nummLMs; iLM ++) {
-            int lm = n->mLMs[iLM];
-            model.add(v[iM[lm]] >= 1);
-        }
-        for(int iLM = 0; iLM < n->numfLMs; iLM ++) {
-            int lm = n->fLMs[iLM];
-            model.add(v[iUF[lm]] >= 1);
-        }
+            for(int iLM = 0; iLM < n->numtLMs; iLM ++) {
+                int lm = n->tLMs[iLM];
+                model.add(v[iUA[lm]] >= 1);
+            }
+            for(int iLM = 0; iLM < n->nummLMs; iLM ++) {
+                int lm = n->mLMs[iLM];
+                model.add(v[iM[lm]] >= 1);
+            }
+            for(int iLM = 0; iLM < n->numfLMs; iLM ++) {
+                int lm = n->fLMs[iLM];
+                model.add(v[iUF[lm]] >= 1);
+            }
 #endif
+        }
 
         int res = -1;
 #if (DOFMODE == DOFRECREATE)
 
-#ifdef DOFADDLMCUTLMS
-        // add lm cut landmarks
-        for (LMCutLandmark *storedcut : *this->hRC->cuts) {
-            IloExpr lm(lenv);
-            for (int i = 0; i < storedcut->size; i++) {
-                if (storedcut->isAction(i)) {
-                    int a = storedcut->lm[i];
-                    lm = lm + v[iUA[a]];
-                } else {
-                    int m = storedcut->lm[i];
-                    lm = lm + v[iM[m]];
-                }
-            }
-            model.add(lm >= 1);
-        }
-#endif
-
-#ifdef DOFADDANDORLMS
-        causalLMs->calcLMs(n, pg);
-        landmark **andOrLMs = causalLMs->getLMs();
-        for (int i = 0; i < causalLMs->getNumLMs(); i++) {
-            landmark *lm = andOrLMs[i];
-            if (lm->type == fact) {
-                int f = lm->lm[0];
-                // careful: only add when not contained in initial state
-                if ((lm->connection == atom) && (!n->state[f]) && (pg->usefulFactSet.get(f))) {
-                    model.add(v[iUF[f]] >= 1);
-                }
-            } else if (lm->type == METHOD) {
-                if (lm->connection == atom) {
-                    model.add(v[iM[lm->lm[0]]] >= 1);
-                }
-            } else {
-                assert(lm->type == task);
-                if (lm->connection == atom) {
-                    int tlm = lm->lm[0];
-                    if (pg->taskReachable(tlm))
-                        model.add(v[iUA[tlm]] >= 1);
-                    else
-                        cout << "buh!" << endl;
-                }
-            }
-        }
-#endif
-
-#ifdef DOFADDANDORLMSIMPLIED
-#ifndef DOFADDANDORLMS
-        causalLMs->calcLMs(n, pg);
-#endif
-        for(int i = 0; i < n->numContainedTasks; i++) {
-            int t = n->containedTasks[i];
-/*            assert(pg->taskReachable(t));
-        }
-        for (int t = pg->reachableTasksSet.getFirst(); t >= 0; t = pg->reachableTasksSet.getNext()) {*/
-            causalLMs->initIterTask(t);
-            while (causalLMs->iterHasNext()) {
-                int lm = causalLMs->iterGetLm();
-                lmType type = causalLMs->iterGetLmType();
-                if (type == task) {
-                    //assert(pg->taskReachable(lm));
-                    if(pg->taskReachable(lm)) {
-                        //model.add(v[iUA[lm]] * largeC >= v[iUA[t]]);
-                        model.add(v[iUA[lm]] >= 1);
+        if (this->cLmcLms == cLmcLmsFull) {
+            // add lm cut landmarks
+            for (LMCutLandmark *storedcut : *this->hRC->cuts) {
+                IloExpr lm(lenv);
+                for (int i = 0; i < storedcut->size; i++) {
+                    if (storedcut->isAction(i)) {
+                        int a = storedcut->lm[i];
+                        if (!pg->taskReachable(a))
+                            continue;
+                        lm = lm + v[iUA[a]];
+                    } else {
+                        int m = storedcut->lm[i];
+                        if (!pg->methodReachable(m))
+                            continue;
+                        lm = lm + v[iM[m]];
                     }
-                } /*else if (type == fact) {
+                }
+                model.add(lm >= 1);
+            }
+        }
+
+        if (this->cAndOrLms == cAndOrLmsOnlyTnI) {
+            causalLMs->calcLMs(n, pg);
+            landmark **andOrLMs = causalLMs->getLMs();
+            for (int i = 0; i < causalLMs->getNumLMs(); i++) {
+                landmark *lm = andOrLMs[i];
+                if (lm->type == fact) {
+                    int f = lm->lm[0];
+                    // careful: only add when not contained in initial state
+                    if ((lm->connection == atom) && (!n->state[f]) && (pg->usefulFactSet.get(f))) {
+                        model.add(v[iUF[f]] >= 1);
+                    }
+                } else if (lm->type == METHOD) {
+                    if (lm->connection == atom) {
+                        model.add(v[iM[lm->lm[0]]] >= 1);
+                    }
+                } else {
+                    assert(lm->type == task);
+                    if (lm->connection == atom) {
+                        int tlm = lm->lm[0];
+                        if (pg->taskReachable(tlm))
+                            model.add(v[iUA[tlm]] >= 1);
+                        else
+                            cout << "buh!" << endl;
+                    }
+                }
+            }
+        } else if (this->cAndOrLms == cAndOrLmsFull) {// add all implications
+            causalLMs->calcLMs(n, pg);
+            for (int i = 0; i < n->numContainedTasks; i++) {
+                int t = n->containedTasks[i];
+/*            assert(pg->taskReachable(t));
+    }
+    for (int t = pg->reachableTasksSet.getFirst(); t >= 0; t = pg->reachableTasksSet.getNext()) {*/
+                causalLMs->initIterTask(t);
+                while (causalLMs->iterHasNext()) {
+                    int lm = causalLMs->iterGetLm();
+                    lmType type = causalLMs->iterGetLmType();
+                    if (type == task) {
+                        //assert(pg->taskReachable(lm));
+                        if (pg->taskReachable(lm)) {
+                            //model.add(v[iUA[lm]] * largeC >= v[iUA[t]]);
+                            model.add(v[iUA[lm]] >= 1);
+                        }
+                    } /*else if (type == fact) {
                     if ((!n->state[lm]) && (pg->usefulFactSet.get(lm)))
                         model.add(v[iUF[lm]] * largeC >= v[iUA[t]]);
                 } else {
@@ -1043,9 +1009,9 @@ void hhDOfree::countTNI(searchNode* n, Model* htn) {
                     if (pg->methodReachable(lm))
                         model.add(v[iM[lm]] * largeC >= v[iUA[t]]);
                 }*/
-                causalLMs->iterate();
-            }
-        }/*
+                    causalLMs->iterate();
+                }
+            }/*
         for (int m = pg->reachableMethodsSet.getFirst(); m >= 0; m = pg->reachableMethodsSet.getNext()) {
             causalLMs->initIterMethod(m);
             while (causalLMs->iterHasNext()) {
@@ -1084,38 +1050,38 @@ void hhDOfree::countTNI(searchNode* n, Model* htn) {
                 causalLMs->iterate();
             }
         }*/
-#endif
-
-#ifdef DOFADDNCC
-        for(int f = 0; f < htn->numStateBits; f++) {
-            if(!pg->usefulFactSet.get(f))
-                continue;
-            int l;
-            // todo: test if in goal
-            if (n->state[f]) {
-                l = -1;
-            } else {
-                l = 0;
-            }
-            IloExpr ncl(lenv);
-            for(int ia = 0; ia < this->numAP[f]; ia++) {
-                int a = apList[f][ia];
-                if(!pg->taskReachable(a)) continue;
-                ncl = ncl + v[iUA[a]];
-            }
-            for(int ia = 0; ia < this->numSP[f]; ia++) {
-                int a = spList[f][ia];
-                if(!pg->taskReachable(a)) continue;
-                ncl = ncl + v[iUA[a]];
-            }
-            for(int ia = 0; ia < this->numAC[f]; ia++) {
-                int a = acList[f][ia];
-                if(!pg->taskReachable(a)) continue;
-                ncl = ncl - v[iUA[a]];
-            }
-            model.add(ncl >= l);
         }
-#endif
+
+        if (this->cNetChange == cNetChangeFull) {
+            for (int f = 0; f < htn->numStateBits; f++) {
+                if (!pg->usefulFactSet.get(f))
+                    continue;
+                int l;
+                // todo: test if in goal
+                if (n->state[f]) {
+                    l = -1;
+                } else {
+                    l = 0;
+                }
+                IloExpr ncl(lenv);
+                for (int ia = 0; ia < this->numAP[f]; ia++) {
+                    int a = apList[f][ia];
+                    if (!pg->taskReachable(a)) continue;
+                    ncl = ncl + v[iUA[a]];
+                }
+                for (int ia = 0; ia < this->numSP[f]; ia++) {
+                    int a = spList[f][ia];
+                    if (!pg->taskReachable(a)) continue;
+                    ncl = ncl + v[iUA[a]];
+                }
+                for (int ia = 0; ia < this->numAC[f]; ia++) {
+                    int a = acList[f][ia];
+                    if (!pg->taskReachable(a)) continue;
+                    ncl = ncl - v[iUA[a]];
+                }
+                model.add(ncl >= l);
+            }
+        }
 
         IloCplex cplex(model);
         //cplex.exportModel("/home/dh/Schreibtisch/temp/model-01.lp");
@@ -1123,8 +1089,7 @@ void hhDOfree::countTNI(searchNode* n, Model* htn) {
         cplex.setParam(IloCplex::Param::Threads, 1);
         //cplex.setParam(IloCplex::Param::TimeLimit, TIMELIMIT / CHECKAFTER);
         //cplex.setParam(IloCplex::MIPEmphasis, CPX_MIPEMPHASIS_FEASIBILITY); // focus on feasability
-        cplex.setParam(IloCplex::MIPEmphasis,
-                       IloCplex::MIPEmphasisType::MIPEmphasisFeasibility); // focus on feasability
+        //cplex.setParam(IloCplex::MIPEmphasis, IloCplex::MIPEmphasisType::MIPEmphasisFeasibility); // focus on feasability
         //cplex.setParam(IloCplex::IntSolLim, 1); // stop after first integer solution
 
         cplex.setOut(lenv.getNullStream());
@@ -1136,6 +1101,13 @@ void hhDOfree::countTNI(searchNode* n, Model* htn) {
             /*} else if (cplex.getStatus() == IloAlgorithm::Status::Unknown) {
              cout << "value: time-limit" << endl;
              res = 0;*/
+            for (int i = 0; i < htn->numTasks; i++) {
+                double d = cplex.getValue(v[iUA[i]]);
+                if (d > 0.000001) {
+                    cout << htn->taskNames[i] << " == " << d << endl;
+                }
+            }
+
         } else {
             res = UNREACHABLE;
         }
@@ -1143,42 +1115,6 @@ void hhDOfree::countTNI(searchNode* n, Model* htn) {
         lenv.end();
 #endif
         return res;
-    }
-
-    void hhDOfree::printInfo() {
-        cout << "Using Delete and Ordering Relaxed heuristic [heu=DOR]." << endl;
-#if HEURISTIC == DOFREEILP
-        cout << "- using NP-hard calculation [heupar=ilp]" << endl;
-#elif HEURISTIC == DOFREELP
-        cout << "- using relaxed P calculation [heupar=lp]" << endl;
-#endif
-
-#if (DOFMODE == DOFRECREATE)
-        cout << "- model is recreated in every search node (adding reachability information) [heupar=recreate]" << endl;
-#elif (DOFMODE == DOFUPDATE)
-        cout << "- model is updated (without adding reachability information) [heupar=updatenori]" << endl;
-#elif (DOFMODE == DOFUPDATEWITHREACHABILITY)
-        cout << "- model is updated (adding reachability information) [heupar=updatenori]" << endl;
-#endif
-
-#ifdef TREATSCCS
-        cout << "- preventing disconnected components is enabled [heupar=pdcOn]"
-                << endl;
-#else
-        cout << "- preventing disconnected components is disabled [heupar=pdcOff]" << endl;
-#endif
-
-#ifdef DOFTR
-        cout << "- planning graph is time relaxed (omitting C5 and C6) [heupar=pgtrOn]" << endl;
-#else
-        cout << "- planning graph is NOT time relaxed [heupar=pgtrOff]" << endl;
-#endif
-
-#ifdef DOFLMS
-        cout << "- adding landmarks to (I)LP model [heupar=lmOn]" << endl;
-#else
-        cout << "- landmarks are NOT added to (I)LP model [heupar=lmOff]" << endl;
-#endif
     }
 
 #ifdef DOFLMS
