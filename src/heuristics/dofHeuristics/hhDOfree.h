@@ -23,11 +23,6 @@
 #include "../landmarks/lmExtraction/LmCausal.h"
 #include "../../intDataStructures/IntUtil.h"
 
-// how to create the model? default -> recreate
-#ifndef DOFMODE
-#define DOFMODE DOFRECREATE
-#endif
-
 namespace progression {
 
     enum csTdg {cTdgFull, cTdgAllowUC, cTdgNone};
@@ -70,40 +65,6 @@ namespace progression {
 
         hhRC2 *hRC = nullptr;
         LmCausal *causalLMs = nullptr;
-
-
-#ifdef DOFINREMENTAL
-
-        bool* ILPcurrentFactReachability;
-        IloExtractable* factReachability;
-
-        bool* ILPcurrentTaskReachability;
-        IloExtractable* taskReachability;
-
-        // variable indices like above
-        int* iS0;
-        int* iTNI;
-
-        // cplex stuff
-        IloEnv lenv;
-        IloModel model;
-        IloNumVarArray v;
-        IloCplex cplex;
-
-        // formulae setting the values
-        IloExtractable* initialState;
-        IloExtractable* setStateBits;
-        IloExtractable* initialTasks;
-
-        // how it is set in the current model
-        int* ILPcurrentS0;
-        int* ILPcurrentTNI;
-
-        void updateS0(searchNode *n);
-        void updateTNI(searchNode *n);
-        void updateRechability(searchNode *n);
-
-#endif
 
         // mappings for the scc reachability, these are static
         int **sccNumIncommingMethods = nullptr;

@@ -23,27 +23,19 @@
 #define BOOLVAR ILOFLOAT
 #endif
 
-#define MYVAR ILOINT
-
 //#define OUTPUTLPMODEL
 #define NAMEMODEL // assign human-readable names to each ILP variable
 
 #ifdef DOFREE
 namespace progression {
 
-
-#ifdef DOFINREMENTAL
-    hhDOfree::hhDOfree(Model* htn, searchNode *n) :
-            model(this->lenv), v(this->lenv), cplex(this->model) {
-#else
-
     hhDOfree::hhDOfree(Model *htn, searchNode *n) :
             cTdg(cTdgFull),
             cPg(cPgFull),
             cAndOrLms(cAndOrLmsFull),
             cLmcLms(cLmcLmsFull),
-            cNetChange(cNetChangeFull) {
-#endif
+            cNetChange(cNetChangeFull),
+            cAddExternalLms(csAddExternalLmsNo) {
         preProReachable.init(htn->numTasks);
         this->pg = new planningGraph(htn);
         this->htn = htn;
@@ -241,31 +233,6 @@ namespace progression {
             cout << "done." << endl;
         }
 
-#ifdef DOFINREMENTAL
-
-        cplex.setParam(IloCplex::Param::Threads, 1);
-        cplex.setParam(IloCplex::Param::TimeLimit, TIMELIMIT);
-        cplex.setOut(lenv.getNullStream());
-        cplex.setWarning(lenv.getNullStream());
-
-        iS0 = new int[htn->numStateBits];
-        ILPcurrentS0 = new int[htn->numStateBits];
-        initialState = new IloExtractable[htn->numStateBits];
-        setStateBits = new IloExtractable[htn->numStateBits];
-
-        iTNI = new int[htn->numTasks];
-        ILPcurrentTNI = new int[htn->numTasks];
-        initialTasks = new IloExtractable[htn->numTasks];
-
-        ILPcurrentFactReachability = new bool[htn->numStateBits];
-        factReachability = new IloExtractable[htn->numStateBits];
-
-        ILPcurrentTaskReachability = new bool[htn->numTasks];
-        taskReachability = new IloExtractable[htn->numTasks];
-
-        this->recreateModel(n); // create ILP model the first time
-#endif
-
         if (this->cNetChange == cNetChangeFull) {
             vOfL = new int[htn->numStateBits];
             for (int i = 0; i < htn->numVars; i++) {
@@ -354,7 +321,7 @@ namespace progression {
 
         cout << "[HCONF:" << s << "]" << endl;
         if (this->cAddExternalLms == csAddExternalLmsYes) {
-#ifdef DOFLMS
+#ifdef TRACKLMSFULL
             this->findLMs(n);
     for(int i =0; i < n->numfLMs;i++) {
     cout << "fact lm " << htn->factStrs[n->fLMs[i]] << endl;
@@ -387,90 +354,12 @@ namespace progression {
         delete pg;
     }
 
-#if (DOFMODE == DOFRECREATE)
-
     void hhDOfree::setHeuristicValue(searchNode *n, searchNode *parent,
                                      int action) {
         int h = this->recreateModel(n);
         n->goalReachable = (h != UNREACHABLE);
         n->heuristicValue = h;
     }
-
-#elif ((DOFMODE == DOFUPDATE) || (DOFMODE == DOFUPDATEWITHREACHABILITY))
-
-    void hhDOfree::setHeuristicValue(searchNode *n, searchNode *parent,
-            int action) {
-        updateS0(n);
-        updateTNI(n);
-
-#if (DOFMODE == DOFUPDATEWITHREACHABILITY)
-        updateRechability(n);
-#endif
-        if (cplex.solve()) {
-            n->heuristicValue = cplex.getObjValue();
-        } else {
-            n->heuristicValue = UNREACHABLE;
-        }
-        n->goalReachable = (n->heuristicValue != UNREACHABLE);
-    }
-
-    void hhDOfree::updateS0(searchNode *n) {
-        for (int f = 0; f < htn->numStateBits; f++) {
-            if (n->state[f] != ILPcurrentS0[f]) {
-                ILPcurrentS0[f] = n->state[f];
-                model.remove(this->initialState[f]);
-
-                this->initialState[f] = (v[iS0[f]] == n->state[f]); // todo: do I need to delete something?
-                model.add(this->initialState[f]);
-
-                if (n->state[f]) { // was unset before, is now set -> need to add a constraint
-                    model.add(this->setStateBits[f]);
-                } else { // is now false, was set before -> there should be no constraint
-                    model.remove(this->setStateBits[f]);
-                }
-            }
-        }
-    }
-
-    void hhDOfree::updateTNI(searchNode *n) {
-        // set the tasks in the initial task network
-        for (int i = 0; i < htn->numTasks; i++) {
-            if (this->ILPcurrentTNI[i] != n->TNIcount[i]) {
-                model.remove(this->initialTasks[i]);
-                ILPcurrentTNI[i] = n->TNIcount[i];
-                this->initialTasks[i] = (v[iTNI[i]] == ILPcurrentTNI[i]);
-                model.add(this->initialTasks[i]);
-            }
-        }
-    }
-
-    void hhDOfree::updateRechability(searchNode *n) {
-        // calculate hierarchical planning graph
-        this->updatePG(n);
-
-        // add fact reachability to ILP
-        for (int i = 0; i < htn->numStateBits; i++) {
-            if (pg->factReachable(i) && (ILPcurrentFactReachability[i] == false)) {
-                model.remove(this->factReachability[i]);
-                ILPcurrentFactReachability[i] = true;
-            } else if (!pg->factReachable(i) && ILPcurrentFactReachability[i] == true) {
-                model.add(this->factReachability[i]);
-                ILPcurrentFactReachability[i] = false;
-            }
-        }
-        // add task reachability to ILP
-        for (int i = 0; i < htn->numTasks; i++) {
-            if (pg->taskReachable(i) && (ILPcurrentTaskReachability[i] == false)) {
-                model.remove(this->taskReachability[i]);
-                ILPcurrentTaskReachability[i] = true;
-            } else if (!pg->taskReachable(i)
-                    && (ILPcurrentTaskReachability[i] == true)) {
-                model.add(this->taskReachability[i]);
-                ILPcurrentTaskReachability[i] = false;
-            }
-        }
-    }
-#endif
 
     void hhDOfree::updatePG(searchNode *n) {
         // collect preprocessed reachability
@@ -493,32 +382,6 @@ namespace progression {
                                      int method) {
         this->setHeuristicValue(n, parent, -1);
     }
-
-/*
-void hhDOfree::countTNI(searchNode* n, Model* htn) {
-    // set the number of tasks in the initial task network
-    n->TNIcount = new int[htn->numTasks];
-    for (int i = 0; i < htn->numTasks; i++)
-        n->TNIcount[i] = 0;
-    set<int> done;
-    vector<planStep*> todoList;
-    for (int i = 0; i < n->numPrimitive; i++)
-        todoList.push_back(n->unconstraintPrimitive[i]);
-    for (int i = 0; i < n->numAbstract; i++)
-        todoList.push_back(n->unconstraintAbstract[i]);
-    while (!todoList.empty()) {
-        planStep* ps = todoList.back();
-        todoList.pop_back();
-        done.insert(ps->id);
-        n->TNIcount[ps->task]++;
-        for (int i = 0; i < ps->numSuccessors; i++) {
-            planStep* succ = ps->successorList[i];
-            const bool included = done.find(succ->id) != done.end();
-            if (!included)
-                todoList.push_back(succ);
-        }
-    }
-}*/
 
     int hhDOfree::recreateModel(searchNode *n) {
 
@@ -551,65 +414,29 @@ void hhDOfree::countTNI(searchNode* n, Model* htn) {
             return 0;
         }
 
-#if (DOFMODE == DOFRECREATE)
         IloEnv lenv;
         IloNumVarArray v(lenv); //  all variables
         IloModel model(lenv);
-#endif
 
         int iv = 0;
-#ifndef DOFINREMENTAL
         // useful facts contains only a subset of all reachable
         for (int i = pg->usefulFactSet.getFirst(); i >= 0;
              i = pg->usefulFactSet.getNext()) {
-#else
-            for (int i = 0; i < this->htn->numStateBits; i++) {
-                if (!pg->factReachable(i))
-                    continue;
-                v.add(IloNumVar(lenv, 0, 1, BOOLVAR));
-                iS0[i] = iv;
-                v[iv].setName(("S0" + to_string(i)).c_str());
-                iv++;
-                // add constraints
-                this->ILPcurrentS0[i] = n->state[i];
-                this->initialState[i] = (v[iS0[i]] == n->state[i]);
-                model.add(this->initialState[i]);
-#endif
             v.add(IloNumVar(lenv, 0, 1, BOOLVAR));
             iUF[i] = iv;
 #ifdef NAMEMODEL
             v[iv].setName(("UF" + to_string(i)).c_str());
 #endif
 
-#if (DOFMODE == DOFUPDATEWITHREACHABILITY)
-            factReachability[i] = (v[iUF[i]] == 0); // only added when unreachable -> therefore set of 0
-            ILPcurrentFactReachability[i] = true;
-#endif
             iv++;
-#ifdef DOFINREMENTAL
-            this->setStateBits[i] = (v[iUF[i]] == 1);
-            if (n->state[i]) { // only added when set -> therefore set to 1
-                model.add(this->setStateBits[i]);
-            }
-#endif
         }
 
         for (int i = pg->reachableTasksSet.getFirst(); i >= 0;
              i = pg->reachableTasksSet.getNext()) {
-#ifdef DOFINREMENTAL
-            v.add(IloNumVar(lenv, 0, INT_MAX, INTVAR));
-            iTNI[i] = iv;
-            v[iv].setName(("TNI" + to_string(i)).c_str());
-            iv++;
-#endif
             v.add(IloNumVar(lenv, 0, INT_MAX, INTVAR));
             iUA[i] = iv;
 #ifdef NAMEMODEL
             v[iv].setName(("UA" + to_string(i)).c_str());
-#endif
-#ifdef DOFINREMENTAL
-            this->taskReachability[i] = (v[iUA[i]] == 0); // only added when unreachable
-            this->ILPcurrentTaskReachability[i] = true;
 #endif
             iv++;
         }
@@ -708,10 +535,6 @@ void hhDOfree::countTNI(searchNode* n, Model* htn) {
                  f = pg->usefulFactSet.getNext()) {
                 IloNumExpr c4(lenv);
 
-#ifdef DOFINREMENTAL
-                c4 = c4 + v[iS0[f]];
-#endif
-
                 for (int i = 0; i < EInvSize[f]; i++) {
                     int a = iEInvActionIndex[f][i];
                     int iAdd = iEInvEffIndex[f][i];
@@ -757,8 +580,7 @@ void hhDOfree::countTNI(searchNode* n, Model* htn) {
         }
 
         // HTN stuff
-        std::vector<IloExpr> tup(htn->numTasks,
-                                 IloExpr(lenv)); // every task has been produced by some method or been in tnI
+        std::vector<IloExpr> tup(htn->numTasks, IloExpr(lenv)); // every task has been produced by some method or been in tnI
 
         for (int m = pg->reachableMethodsSet.getFirst(); m >= 0;
              m = pg->reachableMethodsSet.getNext()) {
@@ -770,13 +592,6 @@ void hhDOfree::countTNI(searchNode* n, Model* htn) {
 
         for (int i = pg->reachableTasksSet.getFirst(); i >= 0;
              i = pg->reachableTasksSet.getNext()) {
-#ifdef DOFINREMENTAL
-            // add and set variable
-            model.add(tup[i] + v[iTNI[i]] == v[iUA[i]]);
-            ILPcurrentTNI[i] = n->TNIcount[i];
-            initialTasks[i] = (v[iTNI[i]] == ILPcurrentTNI[i]);
-            model.add(initialTasks[i]);
-#else
             int iOfT = iu.indexOf(n->containedTasks, 0, n->numContainedTasks - 1, i);
             if (iOfT >= 0) {
                 model.add(tup[i] + n->containedTaskCount[iOfT] == v[iUA[i]]);
@@ -784,7 +599,6 @@ void hhDOfree::countTNI(searchNode* n, Model* htn) {
                 model.add(tup[i] + 0 == v[iUA[i]]);
             }
             //model.add(tup[i] + n->TNIcount[i] == v[iUA[i]]); // set directly
-#endif
             if (i >= htn->numActions) {
                 IloExpr x(lenv);
                 for (int iMeth = 0; iMeth < htn->numMethodsForTask[i]; iMeth++) {
@@ -920,7 +734,7 @@ void hhDOfree::countTNI(searchNode* n, Model* htn) {
         } // end of prevent disconnected cycles
 
         if (this->cAddExternalLms == csAddExternalLmsYes) {
-#ifdef DOFLMS
+#ifdef TRACKLMSFULL
             for(int iLM = 0; iLM < n->numtLMs; iLM ++) {
                 int lm = n->tLMs[iLM];
                 model.add(v[iUA[lm]] >= 1);
@@ -937,8 +751,6 @@ void hhDOfree::countTNI(searchNode* n, Model* htn) {
         }
 
         int res = -1;
-#if (DOFMODE == DOFRECREATE)
-
         if (this->cLmcLms == cLmcLmsFull) {
             // add lm cut landmarks
             for (LMCutLandmark *storedcut : *this->hRC->cuts) {
@@ -1103,19 +915,19 @@ void hhDOfree::countTNI(searchNode* n, Model* htn) {
             /*} else if (cplex.getStatus() == IloAlgorithm::Status::Unknown) {
              cout << "value: time-limit" << endl;
              res = 0;*/
+            /*
             for (int i = 0; i < htn->numTasks; i++) {
                 double d = cplex.getValue(v[iUA[i]]);
                 if (d > 0.000001) {
                     cout << htn->taskNames[i] << " == " << d << endl;
                 }
             }
-
+            */
         } else {
             res = UNREACHABLE;
         }
 
         lenv.end();
-#endif
         return res;
     }
 } /* namespace progression */
