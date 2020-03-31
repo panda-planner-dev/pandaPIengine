@@ -75,6 +75,8 @@ namespace progression {
     public:
         Model();
 
+        string filename = "";
+
         virtual ~Model();
 
         void read(string f);

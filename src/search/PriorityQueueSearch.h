@@ -37,7 +37,8 @@ public:
         hhRC2 *hF;
 #endif
 #ifdef DOFREE
-	hhDOfree *hF;
+        //hhDOfree <IloNumVar::Int, IloNumVar::Bool>*hF;
+        hhDOfree <IloNumVar::Float, IloNumVar::Float>*hF;
 #endif
 #ifdef LMCOUNTHEURISTIC
 	hhLMCount *hF;

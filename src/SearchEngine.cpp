@@ -65,6 +65,7 @@ int main(int argc, char *argv[]) {
  */
 	cout << "Reading HTN model from file \"" << s << "\" ... " << endl;
 	Model* htn = new Model();
+	htn->filename = s;
 	htn->read(s);
     //string dOut = "/media/dh/Volume/repositories/neue-repos/publications/2020-HTNWS-Landmarks/stuff/exampleproblems/transport/tranport01-unpruned-domain.hddl";
     //string pOut = "/media/dh/Volume/repositories/neue-repos/publications/2020-HTNWS-Landmarks/stuff/exampleproblems/transport/tranport01-unpruned-problem.hddl";
@@ -247,7 +248,8 @@ int main(int argc, char *argv[]) {
 #endif
 #endif
 #ifdef DOFREE
-	search.hF = new hhDOfree(htn, tnI);
+    search.hF = new hhDOfree<IloNumVar::Float, IloNumVar::Float>(htn, tnI);
+    //search.hF = new hhDOfree<IloNumVar::Int, IloNumVar::Bool>(htn, tnI);
 #endif
 #if (HEURISTIC == LMCLOCAL)
 	search.hF = new hhLMCount(htn, tnI, 0);
