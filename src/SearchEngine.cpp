@@ -248,7 +248,7 @@ int main(int argc, char *argv[]) {
 #endif
 #endif
 #ifdef DOFREE
-    search.hF = new hhDOfree<IloNumVar::Float, IloNumVar::Float>(htn, tnI);
+    search.hF = new hhDOfree(htn, tnI, IloNumVar::Float, IloNumVar::Float, cTdgAllowUC, cPgFull, cAndOrLmsOnlyTnI, cLmcLmsFull, cNetChangeFull, cAddExternalLmsNo);
     //search.hF = new hhDOfree<IloNumVar::Int, IloNumVar::Bool>(htn, tnI);
 #endif
 #if (HEURISTIC == LMCLOCAL)
