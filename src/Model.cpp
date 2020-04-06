@@ -1823,6 +1823,10 @@ void Model::readClassical(istream& domainFile) {
 	bool isAbstract;
 	for (int i = 0; i < numTasks; i++) {
 		getline(domainFile, line);
+		if (line.size() == 0){
+			cout << "Input promised " << numTasks << " tasks, but the list ended after " << i << endl;
+			exit(-1);
+		}
 		sStream = new stringstream(line);
 		*sStream >> isAbstract;
 		isPrimitive[i] = !isAbstract;
@@ -1837,6 +1841,10 @@ void Model::readHierarchical(istream& domainFile) {
 	// tasks
 	for (int i = 0; i < 3; i++) {
 		getline(domainFile, line);
+		if (!i && line.size()){
+			cout << "Excess task (list of tasks is longer than expected)" << endl;
+			exit(-1);
+		}
 		if (domainFile.eof()) {
 			isHtnModel = false;
 			return;
@@ -1862,6 +1870,10 @@ void Model::readHierarchical(istream& domainFile) {
 	methodNames = new string[numMethods];
 	for (int i = 0; i < numMethods; i++) {
 		getline(domainFile, line);
+		if (domainFile.eof()){
+			cout << "Input promised " << numMethods << " methods, but input ended after " << i << endl;
+			exit(-1);
+		}
 		methodNames[i] = line;
 		getline(domainFile, line);
 		sStream = new stringstream(line);
