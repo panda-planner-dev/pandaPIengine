@@ -47,7 +47,7 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 	long lastOutput = startT;
 	bool reachedTimeLimit = false;
 	const int checkAfter = CHECKAFTER;
-	int sinceCheck = 0;
+	int lastCheck = 0;
 
 	searchNode* tnSol = nullptr;
 	bool continueSearch = true;
@@ -221,16 +221,15 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 				}
 			}
 		}
+		int allnodes = numSearchNodes + htn->numOneModActions + htn->numOneModMethods + htn->numEffLessProg;
 
-		if (++sinceCheck >= checkAfter) {
-			sinceCheck = 0;
+		if (allnodes - lastCheck >= checkAfter) {
+			lastCheck = allnodes;
 
 			gettimeofday(&tp, NULL);
 			currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 
 			if (((currentT - lastOutput) / 1000) > 0) {
-				int allnodes = numSearchNodes + htn->numOneModActions + htn->numOneModMethods
-						+ htn->numEffLessProg;
 				cout << int((currentT - startT) / 1000) << "s generated nodes: "
 						<< allnodes << " nodes/sec.: "
 						<< int(
