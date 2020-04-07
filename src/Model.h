@@ -256,6 +256,10 @@ namespace progression {
         int **reachable = nullptr;
 
         void writeToPDDL(string dName, string pName);
+        set<int> naivePGReachableActions(searchNode *n);
+        void writeTDG(string fName);
+        void writeTDGCompressed(string fName, searchNode *n);
+
     };
 }
 #endif /* MODEL_H_ */

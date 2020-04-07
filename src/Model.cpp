@@ -2871,5 +2871,138 @@ bool Model::taskReachable(searchNode* tn, int t) {
         pfile << ")" << endl;
         pfile.close();
     }
+
+    void Model::writeTDG(string fName) {
+        ofstream file;
+        file.open(fName);
+        file << "digraph {" << endl;
+        for (int i = 0; i < this->numTasks; i++) {
+            file << "   nodeT" << i << " [label = \"" << this->taskNames[i] <<  "\"];" << endl;
+        }
+
+        for(int i = 0; i < this->numMethods; i++) {
+            file << "   nodeM" << i << " [label = \"m" << i <<  "\"];" << endl;
+        }
+
+        for(int i = 0; i < this->numMethods; i++) {
+            file << "   nodeT" << this->decomposedTask[i] << " -> nodeM" << i << ";" << endl;
+            for (int j = 0 ; j < this->numSubTasks[i]; j++) {
+                int st = this->subTasks[i][j];
+                file << "   nodeM" << i << " -> nodeT" << st << ";" << endl;
+            }
+        }
+
+        file << "}" << endl;
+        file.close();
+
+    }
+
+    void Model::writeTDGCompressed(string fName, searchNode *n) {
+        set<int> rA = this->naivePGReachableActions(n);
+
+        ofstream file;
+        file.open(fName);
+        file << "digraph {" << endl;
+        for (int i = 0; i < this->numTasks; i++) {
+            string style = "style=\"solid";
+            if ((i < numActions) && (rA.find(i) == rA.end()))
+                style = "style=\"dotted";
+            if (iu.containsInt(n->containedTasks,0,n->numContainedTasks - 1, i))
+                style += ", filled\", fillcolor=red";
+            else
+                style += "\"";
+            file << "   nodeT" << i << " [label = \"" << i <<  "\", " << style <<"];" << endl;
+        }
+        for (int t1 = 0; t1 < this->numTasks; t1++) {
+            for (int t2 = 0; t2 < this->numTasks; t2++) {
+                bool found = false;
+                for(int i = 0; i < this->numMethods; i++) {
+                    if(this->decomposedTask[i] == t1) {
+                        for(int j = 0; j < this->numSubTasks[i]; j++) {
+                            int st = subTasks[i][j];
+                            if(st == t2) {
+                                found = true;
+                                file << "   nodeT" << t1 << " -> nodeT" << t2 << ";" << endl;
+                                break;
+                            }
+                        }
+                    }
+                    if (found){
+                        break;
+                    }
+                }
+            }
+        }
+        file << "}" << endl;
+        file.close();
+
+    }
+
+    set<int> Model::naivePGReachableActions(searchNode *n) {
+
+        // Top down reachability
+        set<int> tdr;
+        for(int i = 0; i < n->numContainedTasks; i++) {
+            int t = n->containedTasks[i];
+            tdr.insert(t);
+        }
+        bool change = true;
+        while(change) {
+            change = false;
+            set<int> addT;
+            for(int t : tdr) {
+                for(int iM = 0; iM < this->numMethodsForTask[t]; iM++) {
+                    int m = this->taskToMethods[t][iM];
+                    for(int iSt = 0; iSt < this->numSubTasks[m]; iSt++) {
+                        int st = this->subTasks[m][iSt];
+                        if(tdr.find(st) == tdr.end()) {
+                            addT.insert(st);
+                            change = true;
+                        }
+                    }
+                }
+            }
+            for(int t : addT) {
+                tdr.insert(t);
+            }
+        }
+
+        // Planning graph reachability
+        set<int> rF;
+        set<int> rA;
+        for(int i = 0; i < numStateBits; i++) {
+            if(n->state[i])
+                rF.insert(i);
+        }
+        change = true;
+        while(change) {
+            change = false;
+            for(int a = 0; a < numActions; a++) {
+                if(tdr.find(a) == tdr.end()) {
+                    continue;
+                }
+                if(rA.find(a) != rA.end()) {
+                    continue;
+                }
+                bool precFulfilled = true;
+                for (int iP = 0; iP < numPrecs[a]; iP++) {
+                    int pf = precLists[a][iP];
+                    if(rF.find(pf) == rF.end()) {
+                        precFulfilled = false;
+                        break;
+                    }
+                }
+                if (precFulfilled) {
+                    change = true;
+                    rA.insert(a);
+                    for(int iAdd = 0; iAdd < numAdds[a]; iAdd++) {
+                        int fa = addLists[a][iAdd];
+                        rF.insert(fa);
+                    }
+                }
+            }
+        }
+        return rA;
+    }
 }
 /* namespace progression */
