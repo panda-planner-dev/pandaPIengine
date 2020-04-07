@@ -14,6 +14,7 @@
 #include "../heuristics/rcHeuristics/hhRC.h"
 #ifdef DOFREE
 #include "../heuristics/dofHeuristics/hhDOfree.h"
+#include "../heuristics/dofHeuristics/hhStatisticsCollector.h"
 #endif
 #ifdef LMCOUNTHEURISTIC
 #include "../heuristics/landmarks/hhLMCount.h"
@@ -38,7 +39,8 @@ public:
 #endif
 #ifdef DOFREE
         //hhDOfree <IloNumVar::Int, IloNumVar::Bool>*hF;
-        hhDOfree *hF;
+        //hhDOfree *hF;
+        hhStatisticsCollector *hF;
 #endif
 #ifdef LMCOUNTHEURISTIC
 	hhLMCount *hF;

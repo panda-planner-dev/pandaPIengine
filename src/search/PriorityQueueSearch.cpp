@@ -103,8 +103,7 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 	priority_queue<searchNode*, vector<searchNode*>, CmpNodePtrs> fringe;
 	fringe.push(tnI);
     hF->setHeuristicValue(tnI, nullptr, -1);
-    cout << htn->filename << " " << tnI->heuristicValue << endl;
-    exit(17);
+    //cout << htn->filename << " " << tnI->heuristicValue << endl;
 #endif
 #endif
 	int numSearchNodes = 1;
