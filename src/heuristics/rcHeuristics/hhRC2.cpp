@@ -55,13 +55,17 @@ int hhRC2::setHeuristicValue(searchNode *n) {
     for (int i = 0; i < n->numAbstract; i++) {
         // add reachability facts
         for (int j = 0; j < n->unconstraintAbstract[i]->numReachableT; j++) {
-            s0set.insert(factory->t2tdr(n->unconstraintAbstract[i]->reachableT[j]));
+            int t = n->unconstraintAbstract[i]->reachableT[j];
+            if (t < htn->numActions)
+                s0set.insert(factory->t2tdr(t));
         }
     }
     for (int i = 0; i < n->numPrimitive; i++) {
         // add reachability facts
         for (int j = 0; j < n->unconstraintPrimitive[i]->numReachableT; j++) {
-            s0set.insert(factory->t2tdr(n->unconstraintPrimitive[i]->reachableT[j]));
+            int t = n->unconstraintPrimitive[i]->reachableT[j];
+            if (t < htn->numActions)
+                s0set.insert(factory->t2tdr(t));
         }
     }
 
