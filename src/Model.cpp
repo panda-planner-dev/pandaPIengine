@@ -1760,8 +1760,13 @@ void Model::readClassical(istream& domainFile) {
 		int intSize = intSet.size();
 		if (intSize < numPrecs[i]) {
 			cout
-					<< "Action prec/add/del-definition contains same state feature twice"
+					<< "Action #" << i << " prec/add/del-definition contains same state feature twice"
 					<< endl;
+#ifndef NDEBUG
+			cout << "Original:";
+			for (int j = 0; j < numPrecs[i]; j++) cout << " " << precLists[i][j];
+			cout << endl;
+#endif
 			numPrecs[i] = intSet.size();
 			delete[] precLists[i];
 			precLists[i] = new int[numPrecs[i]];
