@@ -74,6 +74,8 @@ void planningGraph::calcReachability(vector<bool>& s,
 
 	for (int i = 0; i < m->numPrecLessActions; i++) {
 		int ac = m->precLessActions[i];
+        if (!reachableIn.get(ac))
+            continue;
 		reachableTasksSet.insert(ac);
 		for (int iAdd = 0; iAdd < m->numAdds[ac]; iAdd++) {
 			int fAdd = m->addLists[ac][iAdd];
@@ -87,7 +89,7 @@ void planningGraph::calcReachability(vector<bool>& s,
 		int prop = queue->topVal();
 		queue->pop();
 		if (hValProp[prop] < pVal)
-		continue;
+		    continue;
 		for (int iOp = 0; iOp < m->precToActionSize[prop]; iOp++) {
 			int op = m->precToAction[prop][iOp];
 			hValOp[op] += pVal;
@@ -119,8 +121,7 @@ void planningGraph::calcReachability(vector<bool>& s,
 		int t = stack->pop();
 		for (int i = 0; i < m->stToMethodNum[t]; i++) {
 			int method = m->stToMethod[t][i];
-			if ((--subtasks[method] == 0)
-					&& (reachableIn.get(m->decomposedTask[method]))) {
+			if ((--subtasks[method] == 0) && (reachableIn.get(m->decomposedTask[method]))) {
 				reachableMethodsSet.insert(method);
 				if (!reachableTasksSet.get(m->decomposedTask[method])) {
 					reachableTasksSet.insert(m->decomposedTask[method]);
