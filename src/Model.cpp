@@ -2048,10 +2048,6 @@ namespace progression {
                 sts[ist] = this->subTasks[m][ist];
                 stcount[ist] = 1;
             }
-
-            for (int ist = 0; ist < n; ist++) {
-                stcount[ist] = 1;
-            }
             iu.sort(sts, 0, n - 1);
 
             for (int i = 0; i < n - 1; i++) {
