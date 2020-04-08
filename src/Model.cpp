@@ -1760,24 +1760,19 @@ namespace progression {
         }
 
         for (int i = 0; i < numActions; i++) {
-            set<int> intSet;
-            for (int j = 0; j < numPrecs[i]; j++) {
-                assert(precLists[i][j] < numStateBits);
-                intSet.insert(precLists[i][j]);
-            }
-            int intSize = intSet.size();
-            if (intSize < numPrecs[i]) {
-                cout
-                        << "Action prec/add/del-definition contains same state feature twice"
-                        << endl;
-                numPrecs[i] = intSet.size();
-                delete[] precLists[i];
-                precLists[i] = new int[numPrecs[i]];
-                int cur = 0;
-                for (int p : intSet) {
-                    precLists[i][cur++] = p;
-                }
-                assert(cur == intSize);
+            bool duplicates = false;
+            int size = iu.makeSet(precLists[i], numPrecs[i]);
+            if (size != numPrecs[i])
+                duplicates = true;
+            size = iu.makeSet(addLists[i], numAdds[i]);
+            if (size != numAdds[i])
+                duplicates = true;
+            size = iu.makeSet(delLists[i], numDels[i]);
+            if (size != numDels[i])
+                duplicates = true;
+            if (duplicates) {
+                cout << "Action prec/add/del-definition contains same state feature twice (action " << i << ")." << endl;
+                exit(-1);
             }
         }
 
