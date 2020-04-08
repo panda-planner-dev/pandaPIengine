@@ -320,28 +320,54 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, IloNumVar::Type IntType, IloNumVar
     if ((this->cAndOrLms == cAndOrLmsFull) || (this->cAndOrLms == cAndOrLmsOnlyTnI)) {
         causalLMs = new LmCausal(htn);
     }
-    printHeuristicInformation(htn);
+    printHeuristicInformation();
 }
 
-void hhDOfree::printHeuristicInformation(Model *htn) {
+void hhDOfree::printHeuristicInformation() {
     string s = "dof";
-    cout << "- state is represented by" << endl;
-
+    if ((this->cBoolType == IloNumVar::Bool) && (this->cIntType == IloNumVar::Int)) {
+        s = s + "IP,";
+    } else if ((this->cBoolType == IloNumVar::Float) && (this->cIntType == IloNumVar::Float)) {
+        s = s + "LP,";
+    } else {
+        exit(-1);
+    }
+    if (this->cTdg == csTdg::cTdgFull) {
+        s = s + "TdgFull,";
+    } else if (this->cTdg == csTdg::cTdgAllowUC) {
+        s = s + "TdgAllowUC,";
+    } else if (this->cTdg == csTdg::cTdgNone) {
+        s = s + "TdgNone,";
+        exit(-1);
+    }
+    if (this->cPg == csPg::cPgFull) {
+        s = s + "PgFull,";
+    } else if (this->cPg == csPg::cPgNone) {
+        s = s + "PgNone,";
+    }
+    if (this->cAndOrLms == csAndOrLms::cAndOrLmsFull) {
+        s = s + "AndOrLmsFull,";
+    } else if (this->cAndOrLms == csAndOrLms::cAndOrLmsOnlyTnI) {
+        s = s + "AndOrLmsOnlyTnI,";
+    } else if (this->cAndOrLms == csAndOrLms::cAndOrLmsNone) {
+        s = s + "AndOrLmsNone,";
+    }
+    if (this->cLmcLms == csLmcLms::cLmcLmsNone) {
+        s = s + "LmcLmsNone,";
+    } else if (this->cLmcLms == csLmcLms::cLmcLmsFull) {
+        s = s + "LmcLmsFull,";
+    }
+    if (this->cNetChange == csNetChange::cNetChangeNone) {
+        s = s + "NetChangeNone,";
+    } else if (this->cNetChange == csNetChange::cNetChangeFull) {
+        s = s + "NetChangeFull,";
+    }
+    if (this->cAddExternalLms == csAddExternalLms::cAddExternalLmsNo) {
+        s = s + "AddExternalLmsNo";
+    } else if (this->cAddExternalLms == csAddExternalLms::cAddExternalLmsYes) {
+        s = s + "AddExternalLmsYes";
+    }
     cout << "[HCONF:" << s << "]" << endl;
-    if (this->cAddExternalLms == cAddExternalLmsYes) {
-#ifdef TRACKLMSFULL
-        this->findLMs(n);
-    for(int i =0; i < n->numfLMs;i++) {
-    cout << "fact lm " << htn->factStrs[n->fLMs[i]] << endl;
-    }
-    for(int i =0; i < n->numtLMs;i++) {
-    cout << "task lm " << htn->taskNames[n->tLMs[i]] << endl;
-    }
-    for(int i =0; i < n->nummLMs;i++) {
-    cout  << "method lm " << htn->methodNames[n->mLMs[i]] << endl;
-    }
-#endif
-    }
 }
 
 hhDOfree::~hhDOfree() {
@@ -907,7 +933,6 @@ int hhDOfree::recreateModel(searchNode *n) {
     }
 
     IloCplex cplex(model);
-    //cplex.exportModel("/home/dh/Schreibtisch/temp/model-01.lp");
 
     cplex.setParam(IloCplex::Param::Threads, 1);
     //cplex.setParam(IloCplex::Param::TimeLimit, TIMELIMIT / CHECKAFTER);
@@ -924,16 +949,22 @@ int hhDOfree::recreateModel(searchNode *n) {
         /*} else if (cplex.getStatus() == IloAlgorithm::Status::Unknown) {
          cout << "value: time-limit" << endl;
          res = 0;*/
-
+/*
         for (int i = 0; i < htn->numTasks; i++) {
             double d = cplex.getValue(v[iUA[i]]);
             if (d > 0.000001) {
                 cout << htn->taskNames[i] << " == " << d << endl;
             }
         }
-
+*/
     } else {
         res = UNREACHABLE;
+/*
+        string dateiname = "/home/dh/Schreibtisch/temp2/model-";
+        dateiname += fileID;
+        fileID++;
+        cplex.exportModel(dateiname.c_str());
+*/
     }
 
     lenv.end();

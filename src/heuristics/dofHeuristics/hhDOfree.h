@@ -49,6 +49,7 @@ namespace progression {
     };
 
     class hhDOfree {
+        //int fileID = 0;
 
         Model *htn;
         //void countTNI(searchNode* n, Model* htn);
@@ -111,10 +112,10 @@ namespace progression {
         void setHeuristicValue(searchNode *n, searchNode *parent, int absTask,
                                int method);
 
+        void printHeuristicInformation();
+
     private:
         const int largeC = 100;
-
-        void printHeuristicInformation(Model *htn);
 
         int *numAP;
         int *numSP;
