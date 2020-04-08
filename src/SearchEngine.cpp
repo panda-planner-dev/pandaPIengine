@@ -29,6 +29,8 @@
 
 #include "heuristics/rcHeuristics/RCModelFactory.h"
 
+#include "sat/sat_planner.h"
+
 using namespace std;
 using namespace progression;
 
@@ -57,6 +59,9 @@ int main(int argc, char *argv[]) {
 	cerr << "Reading HTN model from file \"" << s << "\" ... " << endl;
 	Model* htn = new Model();
 	htn->read(s);
+
+	solve_with_sat_planner(htn);
+
 	assert(htn->isHtnModel);
 	searchNode* tnI = htn->prepareTNi(htn);
 

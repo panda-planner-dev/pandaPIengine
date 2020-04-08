@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+option(SAT "Compile with the SAT planner" ON)
 
 ### if no build type is set, it is "Release"
 if (NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
@@ -17,9 +17,11 @@ list(APPEND linker_flags "$<$<CONFIG:RELEASE>:-flto;-static;-static-libgcc>")
 include_directories("search")
 include_directories("heuristics")
 include_directories("intDataStructures")
+include_directories("sat")
 add_subdirectory(search)
 add_subdirectory(heuristics)
 add_subdirectory(intDataStructures)
+add_subdirectory(sat)
 
 file(GLOB main_SRC "*.h" "*.cpp")
  
@@ -33,3 +35,7 @@ target_link_libraries(pandaPIengine PUBLIC heuristics)
 target_link_libraries(pandaPIengine PUBLIC hrc)
 target_link_libraries(pandaPIengine PUBLIC hlm)
 target_link_libraries(pandaPIengine PUBLIC intDataStructures)
+
+if (SAT)
+	target_link_libraries(pandaPIengine PUBLIC sat)
+endif (SAT)
