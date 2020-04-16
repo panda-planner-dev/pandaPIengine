@@ -39,6 +39,27 @@ PriorityQueueSearch::~PriorityQueueSearch() {
 	// TODO Auto-generated destructor stub
 }
 
+
+pair<string,int> printTraceOfSearchNode(Model* htn, searchNode* tnSol){
+	int sLength = 0;
+	string sol = "";
+	solutionStep* sost = tnSol->solution;
+	bool done = sost == nullptr || sost->prev == nullptr;
+	while (!done) {
+		sLength++;
+		if (sost->method >= 0)
+			sol = htn->methodNames[sost->method] + " @ "
+					+ htn->taskNames[sost->task] + "\n" + sol;
+		else
+			sol = htn->taskNames[sost->task] + "\n" + sol;
+		done = sost->prev == nullptr;
+		sost = sost->prev;
+	}
+
+	return make_pair(sol,sLength);
+}
+
+
 void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 	timeval tp;
 	gettimeofday(&tp, NULL);
@@ -275,20 +296,7 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 		cout << "  - best solution after " << this->bestSolTime << "ms." << endl;
 	}
 	if (tnSol != nullptr) {
-		int sLength = 0;
-		string sol = "";
-		solutionStep* sost = tnSol->solution;
-		bool done = false;
-		while (!done) {
-			sLength++;
-			if (sost->method >= 0)
-				sol = htn->methodNames[sost->method] + " @ "
-						+ htn->taskNames[sost->task] + "\n" + sol;
-			else
-				sol = htn->taskNames[sost->task] + "\n" + sol;
-			done = sost->prev == nullptr;
-			sost = sost->prev;
-		}
+		auto [sol,sLength] = printTraceOfSearchNode(htn,tnSol);
 		cout << "- Status: Solved" << endl;
 		cout << "- Found solution of length " << sLength << endl;
 		cout << "- Total costs of actions: " << tnSol->actionCosts << endl
