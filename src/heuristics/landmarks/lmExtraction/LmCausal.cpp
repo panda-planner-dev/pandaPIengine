@@ -300,8 +300,7 @@ namespace progression {
     bool LmCausal::isTNode(int i) { return (i >= htn->numStateBits) && (i < (htn->numStateBits + htn->numTasks)); }
 
     bool LmCausal::isMNode(int i) {
-        return ((i >= (htn->numStateBits + htn->numTasks)) &&
-                (i < htn->numStateBits + htn->numTasks + htn->numMethods));
+        return ((i >= (htn->numStateBits + htn->numTasks)) && (i < htn->numStateBits + htn->numTasks + htn->numMethods));
     }
 
     bool LmCausal::setUnion(LmAoNode *update, int *combine, int size) {
@@ -802,11 +801,11 @@ namespace progression {
     int LmCausal::iterGetLm() {
         int lm = this->iterN->lms[this->iterI];
         if (isTNode(lm)) {
-            nodeToT(lm);
+            return nodeToT(lm);
         } else if (isFNode(lm)) {
-            nodeToF(lm);
+            return nodeToF(lm);
         } else {
-            nodeToM(lm);
+            return nodeToM(lm);
         }
     }
 
@@ -817,6 +816,7 @@ namespace progression {
         } else if (isFNode(lm)) {
             return fact;
         } else {
+            assert(isMNode(lm));
             return METHOD;
         }
     }
