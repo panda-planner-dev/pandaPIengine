@@ -60,6 +60,8 @@ Model::Model() {
 	numFirstPrimSubTasks = nullptr;
 	numFirstAbstractSubTasks = nullptr;
 	numOrderings = nullptr;
+	methodIsTotallyOrdered = nullptr;
+	methodTotalOrder = nullptr;
 	methodNames = nullptr;
 	numFirstTasks = nullptr;
 	numLastTasks = nullptr;
@@ -1906,31 +1908,6 @@ void Model::readHierarchical(istream& domainFile) {
 		//for (int o = 0; o < numOrderings[i]; o+=2)
 		//	adj[ordering[i][o]].push_back(ordering[i][o+1]);
 
-		// transitive reduction (i.e. remove all unnecessary edges)
-		vector<vector<bool>> trans (numSubTasks[i]);
-		for (int x = 0; x < numSubTasks[i]; x++)
-			for (int y = 0; y < numSubTasks[i]; y++) trans[x].push_back(false);
-		
-		for (int o = 0; o < numOrderings[i]; o+=2)
-			trans[ordering[i][o]][ordering[i][o+1]] = true;
-
-		for (int k = 0; k < numSubTasks[i]; k++)
-			for (int x = 0; x < numSubTasks[i]; x++)
-				for (int y = 0; y < numSubTasks[i]; y++)
-					if (trans[x][k] && trans[k][y]) trans[x][y] = false;
-
-		vector<int> ord;
-		for (int x = 0; x < numSubTasks[i]; x++)
-			for (int y = 0; y < numSubTasks[i]; y++)
-				if (trans[x][y])
-					ord.push_back(x), ord.push_back(y);
-
-		ordering[i] = new int[ord.size()];
-		for (int x = 0; x < ord.size(); x++)
-			ordering[i][x] = ord[x];
-		numOrderings[i] = ord.size();
-
-
 #ifndef NDEBUG
 		assert((numOrderings[i] % 2) == 0);
 		for (int j = 0; j < numOrderings[i]; j++) {
@@ -1982,6 +1959,9 @@ void Model::readHierarchical(istream& domainFile) {
 		}
 #endif
 	}
+
+	// transitive reduction
+	computeTransitiveChangeOfMethodOrderings(false);
 
 	// Mapping from task to methods where it is a subtasks
 	stToMethodNum = new int[this->numTasks];
@@ -2878,4 +2858,107 @@ void Model::calcMinimalImpliedX() {
         pfile.close();
     }
 }
+
+
+void Model::methodTopSortDFS(int cur, map<int,unordered_set<int>> & adj, map<int, int> & colour, int & curpos, int* order){
+	assert (colour[cur] != 1);
+	if (colour[cur]) return;
+
+	colour[cur] = 1;
+	for (const int & nei : adj[cur]) methodTopSortDFS(nei,adj,colour, curpos, order);
+	colour[cur] = 2;
+
+	order[curpos--] = cur;
+}
+
+
+bool Model::isMethodTotallyOrdered(int method){
+	map<int,unordered_set<int>> adj;
+	for (size_t i = 0; i < numOrderings[method]; i+=2)
+		adj[ordering[method][i]].insert(ordering[method][i+1]);
+
+	map<int,int> colour;
+	
+	methodTotalOrder[method] = new int[numSubTasks[method]];
+
+	int curPos = numSubTasks[method] - 1;
+	for (size_t i = 0; i < numSubTasks[method]; i++)
+		if (!colour[i]) methodTopSortDFS(i, adj, colour, curPos, methodTotalOrder[method]);
+
+	// check whether it is a total order
+	for (size_t i = 1; i < numSubTasks[method]; i++){
+		bool orderEnforced = false;
+		int a = methodTotalOrder[method][i-1];
+		int b = methodTotalOrder[method][i];
+		if (!adj[a].count(b)) return false;
+	}
+
+	return true;
+}
+
+bool Model::isTotallyOrdered(){
+	bool result = true;
+	if (methodIsTotallyOrdered != nullptr){
+		for (size_t m = 0; m < numMethods; m++)
+			if (!methodIsTotallyOrdered[m]) return false;
+		return true;
+	}
+
+	methodIsTotallyOrdered = new bool[numMethods];
+	methodTotalOrder = new int*[numMethods];
+
+	for (size_t m = 0; m < numMethods; m++)
+		result &= (methodIsTotallyOrdered[m] = isMethodTotallyOrdered(m));
+
+	return result;
+}
+
+void Model::computeTransitiveChangeOfMethodOrderings(bool closure){
+	for (size_t i = 0; i < numMethods; i++){
+		// transitive closure
+		vector<vector<bool>> trans (numSubTasks[i]);
+		for (int x = 0; x < numSubTasks[i]; x++)
+			for (int y = 0; y < numSubTasks[i]; y++) trans[x].push_back(false);
+		
+		for (int o = 0; o < numOrderings[i]; o+=2)
+			trans[ordering[i][o]][ordering[i][o+1]] = true;
+
+		for (int k = 0; k < numSubTasks[i]; k++)
+			for (int x = 0; x < numSubTasks[i]; x++)
+				for (int y = 0; y < numSubTasks[i]; y++)
+					if (trans[x][k] && trans[k][y]) trans[x][y] = closure;
+
+		vector<int> ord;
+		for (int x = 0; x < numSubTasks[i]; x++)
+			for (int y = 0; y < numSubTasks[i]; y++)
+				if (trans[x][y])
+					ord.push_back(x), ord.push_back(y);
+
+		delete[] ordering[i];
+		ordering[i] = new int[ord.size()];
+		for (int x = 0; x < ord.size(); x++)
+			ordering[i][x] = ord[x];
+		numOrderings[i] = ord.size();
+	}
+}
+
+void Model::computeTransitiveClosureOfMethodOrderings(){
+	computeTransitiveChangeOfMethodOrderings(true);
+}
+
+
+void Model::buildOrderingDatastructures(){
+	methodSubTasksPredecessors = new unordered_set<int>*[numMethods];
+	methodSubTasksSuccessors = new unordered_set<int>*[numMethods];
+	for (size_t m = 0; m < numMethods; m++){
+		methodSubTasksPredecessors[m] = new unordered_set<int>[numSubTasks[m]];
+		methodSubTasksSuccessors[m] = new unordered_set<int>[numSubTasks[m]];
+		
+		for (int o = 0; o < numOrderings[m]; o+=2){
+			methodSubTasksSuccessors[m][ordering[m][o]].insert(ordering[m][o+1]);
+			methodSubTasksPredecessors[m][ordering[m][o+1]].insert(ordering[m][o]);
+		}
+	}
+}
+
 /* namespace progression */

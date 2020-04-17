@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <map>
 #include <forward_list>
 
 #include "ProgressionNetwork.h"
@@ -144,6 +145,14 @@ public:
 	int* numFirstAbstractSubTasks;
 	int** ordering; // this is a list of ints (p1,s2, p2,s2, ...) means that p1 is before s2, p2 before s2, ...
 	int* numOrderings; // this is the length of the ARRAY, not the number of ordering constraints
+
+	// ordering structure used by the SAT planner
+	bool* methodIsTotallyOrdered;
+	int** methodTotalOrder;
+	unordered_set<int>** methodSubTasksPredecessors;
+	unordered_set<int>** methodSubTasksSuccessors;
+
+
 	string* methodNames;
 	int** methodsFirstTasks;
 	int** methodSubtaskSuccNum;
@@ -229,6 +238,18 @@ public:
 	int** reachable = nullptr;
 
 	void writeToPDDL(string dName, string pName);
+	bool isMethodTotallyOrdered(int method);
+	bool isTotallyOrdered();
+	void computeTransitiveClosureOfMethodOrderings();
+	void buildOrderingDatastructures();
+
+
+// internal auxiliary methods
+private:
+	void methodTopSortDFS(int cur, map<int,unordered_set<int>> & adj, map<int, int> & colour, int & curpos, int* order);
+	void computeTransitiveChangeOfMethodOrderings(bool closure);
+
+
 };
 }
 #endif /* MODEL_H_ */
