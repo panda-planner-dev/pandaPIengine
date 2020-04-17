@@ -7,6 +7,8 @@
 
 struct SOG {
 	int numberOfVertices;
+	vector<unordered_set<int>> labels;
+
 	vector<unordered_set<int>> adj; // successors
 	vector<unordered_set<int>> bdj; // predecessors
 

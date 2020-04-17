@@ -11,7 +11,7 @@ endif()
 project(pandaPIengine)
 
 list(APPEND compiler_flags -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -pedantic "$<$<CONFIG:DEBUG>:-Og;-ggdb3>" "$<$<CONFIG:RELEASE>:-O2>")
-list(APPEND linker_flags "$<$<CONFIG:RELEASE>:-flto;-static;-static-libgcc>")
+list(APPEND linker_flags "$<$<CONFIG:RELEASE>:-flto>")
 
 
 include_directories("search")
