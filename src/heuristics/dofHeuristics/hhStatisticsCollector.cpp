@@ -12,7 +12,7 @@ hhStatisticsCollector::hhStatisticsCollector(Model *htn, searchNode *n, int dept
     for (int ilp = 0; ilp <= 1; ilp++) {
         for (int tdg = cTdgFull; tdg <= cTdgAllowUC; tdg++) {
             for (int pg = cPgFull; pg <= cPgNone; pg++) {
-                for (int aolms = cAndOrLmsOnlyTnI; aolms <= cAndOrLmsNone; aolms++) {
+                for (int aolms = cAndOrLmsNone; aolms <= cAndOrLmsFull; aolms++) {
                     for (int lmclms = cLmcLmsFull; lmclms <= cLmcLmsNone; lmclms++) {
                         for (int nc = cNetChangeFull; nc <= cNetChangeNone; nc++) {
                             csTdg eTDG = static_cast<csTdg>(tdg);
@@ -21,8 +21,6 @@ hhStatisticsCollector::hhStatisticsCollector(Model *htn, searchNode *n, int dept
                             csLmcLms eLMCLMs = static_cast<csLmcLms>(lmclms);
                             csNetChange eNC = static_cast<csNetChange>(nc);
 
-                            if (eAOLMs == csAndOrLms::cAndOrLmsFull) // skip landmark implications
-                                continue;
                             if (ePG == cPgTimeRelaxed) // Skip PG time relaxation
                                 continue;
 
@@ -41,8 +39,12 @@ hhStatisticsCollector::hhStatisticsCollector(Model *htn, searchNode *n, int dept
             }
         }
     }
-    //hhDOfree *h = new hhDOfree(htn, n, IloNumVar::Int, IloNumVar::Bool, cTdgAllowUC, cPgNone, cAndOrLmsNone, cLmcLmsNone, cNetChangeNone, cAddExternalLmsNo);
-    //this->ilpHs.push_back(h);
+
+    /*hhDOfree *h = new hhDOfree(htn, n, IloNumVar::Int, IloNumVar::Bool, cTdgAllowUC, cPgNone, cAndOrLmsNone, cLmcLmsNone, cNetChangeNone, cAddExternalLmsNo);
+    hhDOfree *h = new hhDOfree(htn, n, IloNumVar::Int, IloNumVar::Bool, cTdgFull, cPgFull, cAndOrLmsNone, cLmcLmsNone, cNetChangeNone, cAddExternalLmsNo);
+    this->ilpHs.push_back(h);
+    hhDOfree *h2 = new hhDOfree(htn, n, IloNumVar::Int, IloNumVar::Bool, cTdgFull, cPgFull, cAndOrLmsNone, cLmcLmsFull, cNetChangeNone, cAddExternalLmsNo);
+    this->ilpHs.push_back(h2);*/
 
     cout << "0 [RC,LMC]" << endl;
     for (int i = 0; i < ilpHs.size(); i++) {
@@ -61,6 +63,8 @@ void hhStatisticsCollector::setHeuristicValue(searchNode *n, searchNode *parent,
 }
 
 void hhStatisticsCollector::setHeuristicValue(searchNode *n) {
+    //m->writeTDGCompressed("/home/dh/Schreibtisch/analysis/tdg.dot" ,n);
+    //m->writeTDG("/home/dh/Schreibtisch/analysis/tdg2.dot");
     cout << "[hinf," << m->filename << "," << n->modificationDepth << ",";
     int hLMC = hRcLmc->setHeuristicValue(n);
     if (hLMC == UNREACHABLE) {
