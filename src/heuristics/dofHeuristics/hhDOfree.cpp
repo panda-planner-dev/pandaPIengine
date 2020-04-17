@@ -8,7 +8,9 @@
 #include "hhDOfree.h"
 
 
-hhDOfree::hhDOfree(Model *htn, searchNode *n, IloNumVar::Type IntType, IloNumVar::Type BoolType, csTdg tdgConstrs, csPg pgConstrs, csAndOrLms aoLMConstrs, csLmcLms lmcLMConstrs, csNetChange ncConstrs, csAddExternalLms addLMConstrs) :
+hhDOfree::hhDOfree(Model *htn, searchNode *n, IloNumVar::Type IntType, IloNumVar::Type BoolType, csTdg tdgConstrs,
+                   csPg pgConstrs, csAndOrLms aoLMConstrs, csLmcLms lmcLMConstrs, csNetChange ncConstrs,
+                   csAddExternalLms addLMConstrs) :
         cIntType(IntType),
         cBoolType(BoolType),
         cTdg(tdgConstrs),
@@ -250,24 +252,16 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, IloNumVar::Type IntType, IloNumVar
         }
 
         cout << "  - initializing data structures for net change constraints" << endl;
-        set<int> *tAP = new set<int>[htn->numStateBits];
-        set<int> *tSP = new set<int>[htn->numStateBits];
-        set<int> *tAC = new set<int>[htn->numStateBits];
+        set<int> *tAP = new set<int>[htn->numStateBits]; // always producer
+        set<int> *tSP = new set<int>[htn->numStateBits]; // sometimes producer
+        set<int> *tAC = new set<int>[htn->numStateBits]; // always consumer
         for (int a = 0; a < htn->numActions; a++) {
             for (int iE = 0; iE < htn->numAdds[a]; iE++) {
                 int eff = htn->addLists[a][iE];
 
                 // try to find other effect that is mutex to eff
                 // find var the effect belongs to
-                int var = -1;
-                for (int i = 0; i < htn->numVars; i++) {
-                    if ((htn->firstIndex[i] <= eff) && (htn->lastIndex[i] >= eff)) {
-                        var = i;
-                        break;
-                    }
-                }
-                assert(var >= 0);
-
+                int var = vOfL[eff];
                 int prec = -1;
                 for (int i = htn->firstIndex[var]; i <= htn->lastIndex[var]; i++) {
                     if (iu.containsInt(htn->precLists[a], 0, htn->numPrecs[a] - 1, i)) {
@@ -275,16 +269,15 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, IloNumVar::Type IntType, IloNumVar
                         break;
                     }
                 }
+                //assert(prec != eff);
                 if (prec >= 0) {
                     tAP[eff].insert(a);
                     tAC[prec].insert(a);
                     //cout << htn->taskNames[a] << " " << htn->factStrs[prec] << " -> " << htn->factStrs[eff] << endl;
                     continue;
                 }
-                // todo: find other prec that is mutex to eff
 
                 tSP[eff].insert(a);
-                //cout << htn->taskNames[a] << " ??? -> " << htn->factStrs[eff] << endl;
             }
         }
 
@@ -389,7 +382,7 @@ hhDOfree::~hhDOfree() {
 }
 
 void hhDOfree::setHeuristicValue(searchNode *n, searchNode *parent,
-                                              int action) {
+                                 int action) {
     int h = this->recreateModel(n);
     n->goalReachable = (h != UNREACHABLE);
     n->heuristicValue = h;
@@ -413,7 +406,7 @@ void hhDOfree::updatePG(searchNode *n) {
 }
 
 void hhDOfree::setHeuristicValue(searchNode *n, searchNode *parent, int absTask,
-                                              int method) {
+                                 int method) {
     this->setHeuristicValue(n, parent, -1);
 }
 
@@ -526,9 +519,9 @@ int hhDOfree::recreateModel(searchNode *n) {
     IloNumExpr mainExp(lenv);
 
     for (int i = pg->reachableTasksSet.getFirst();
-         (i >= 0) && (i < htn->numActions); i =
-                                                    pg->reachableTasksSet.getNext()) {
-        int costs = htn->actionCosts[i];
+         (i >= 0) && (i < htn->numActions); i = pg->reachableTasksSet.getNext()) {
+        //int costs = htn->actionCosts[i];
+        int costs = 1;
         mainExp = mainExp + (costs * v[iUA[i]]);
     }
 
@@ -807,7 +800,7 @@ int hhDOfree::recreateModel(searchNode *n) {
         }
     }
 
-    if (this->cAndOrLms == cAndOrLmsOnlyTnI) {
+    if((this->cAndOrLms == cAndOrLmsOnlyTnI) || (this->cAndOrLms == cAndOrLmsFull)) {
         causalLMs->calcLMs(n, pg);
         landmark **andOrLMs = causalLMs->getLMs();
         for (int i = 0; i < causalLMs->getNumLMs(); i++) {
@@ -828,54 +821,64 @@ int hhDOfree::recreateModel(searchNode *n) {
                     int tlm = lm->lm[0];
                     if (pg->taskReachable(tlm))
                         model.add(v[iUA[tlm]] >= 1);
-                    else
-                        cout << "buh!" << endl;
                 }
             }
         }
-    } else if (this->cAndOrLms == cAndOrLmsFull) {// add all implications
-        causalLMs->calcLMs(n, pg);
-        for (int i = 0; i < n->numContainedTasks; i++) {
-            int t = n->containedTasks[i];
-/*            assert(pg->taskReachable(t));
     }
-    for (int t = pg->reachableTasksSet.getFirst(); t >= 0; t = pg->reachableTasksSet.getNext()) {*/
+    if (this->cAndOrLms == cAndOrLmsFull) {// add all implications
+        //causalLMs->calcLMs(n, pg);
+        for (int t = pg->reachableTasksSet.getFirst(); t >= 0; t = pg->reachableTasksSet.getNext()) {
             causalLMs->initIterTask(t);
             while (causalLMs->iterHasNext()) {
                 int lm = causalLMs->iterGetLm();
                 lmType type = causalLMs->iterGetLmType();
                 if (type == task) {
-                    //assert(pg->taskReachable(lm));
                     if (pg->taskReachable(lm)) {
-                        //model.add(v[iUA[lm]] * largeC >= v[iUA[t]]);
-                        model.add(v[iUA[lm]] >= 1);
+                        model.add(v[iUA[lm]] * largeC >= v[iUA[t]]);
+                    } else {
+                        model.add(v[iUA[t]] == 0);
+                        //cout << "lm unreachable" << endl;
                     }
-                } /*else if (type == fact) {
-                    if ((!n->state[lm]) && (pg->usefulFactSet.get(lm)))
+                } else if (type == fact) {
+                    if ((!n->state[lm]) && (pg->usefulFactSet.get(lm))) {
                         model.add(v[iUF[lm]] * largeC >= v[iUA[t]]);
+                    }
                 } else {
                     assert(type == METHOD);
-                    if (pg->methodReachable(lm))
+                    if (pg->methodReachable(lm)) {
                         model.add(v[iM[lm]] * largeC >= v[iUA[t]]);
-                }*/
+                    } else {
+                        model.add(v[iUA[t]] == 0);
+                        //cout << "lm unreachable" << endl;
+                    }
+                }
                 causalLMs->iterate();
             }
-        }/*
+        }
         for (int m = pg->reachableMethodsSet.getFirst(); m >= 0; m = pg->reachableMethodsSet.getNext()) {
             causalLMs->initIterMethod(m);
             while (causalLMs->iterHasNext()) {
                 int lm = causalLMs->iterGetLm();
                 lmType type = causalLMs->iterGetLmType();
-                if (type == fact) {
-                    if (pg->factReachable(lm))
-                        model.add(v[iUF[lm]] * largeC >= v[iM[m]]);
-                } else if (type == task) {
-                    if (pg->taskReachable(lm))
+                if (type == task) {
+                    if (pg->taskReachable(lm)) {
                         model.add(v[iUA[lm]] * largeC >= v[iM[m]]);
+                    } else {
+                        model.add(v[iM[m]] == 0);
+                        //cout << "lm unreachable" << endl;
+                    }
+                } else if (type == fact) {
+                    if ((!n->state[lm]) && (pg->usefulFactSet.get(lm))) {
+                        model.add(v[iUF[lm]] * largeC >= v[iM[m]]);
+                    }
                 } else {
                     assert(type == METHOD);
-                    if (pg->methodReachable(lm))
+                    if (pg->methodReachable(lm)) {
                         model.add(v[iM[lm]] * largeC >= v[iM[m]]);
+                    } else {
+                        model.add(v[iM[m]] == 0);
+                        //cout << "lm unreachable" << endl;
+                    }
                 }
                 causalLMs->iterate();
             }
@@ -885,32 +888,62 @@ int hhDOfree::recreateModel(searchNode *n) {
             while (causalLMs->iterHasNext()) {
                 int lm = causalLMs->iterGetLm();
                 lmType type = causalLMs->iterGetLmType();
-                if (type == fact) {
-                    if (pg->factReachable(lm))
-                        model.add(v[iUF[lm]] * largeC >= v[iUF[f]]);
-                } else if (type == task) {
-                    if (pg->taskReachable(lm))
+                if (type == task) {
+                    if (pg->taskReachable(lm)) {
                         model.add(v[iUA[lm]] * largeC >= v[iUF[f]]);
+                    } else {
+                        model.add(v[iUF[f]] == 0);
+                        //cout << "lm unreachable" << endl;
+                    }
+                } else if (type == fact) {
+                    if ((!n->state[lm]) && (pg->usefulFactSet.get(lm))) {
+                        model.add(v[iUF[lm]] * largeC >= v[iUF[f]]);
+                    }
                 } else {
                     assert(type == METHOD);
-                    if (pg->methodReachable(lm))
+                    if (pg->methodReachable(lm)) {
                         model.add(v[iM[lm]] * largeC >= v[iUF[f]]);
+                    } else {
+                        model.add(v[iUF[f]] == 0);
+                        //cout << "lm unreachable" << endl;
+                    }
                 }
                 causalLMs->iterate();
             }
-        }*/
+        }
     }
 
     if (this->cNetChange == cNetChangeFull) {
         for (int f = 0; f < htn->numStateBits; f++) {
             if (!pg->usefulFactSet.get(f))
                 continue;
+
+            // goal stuff
+            bool vEqVInG = iu.containsInt(htn->gList, 0, htn->gSize - 1, f);
+            bool ovEqVInG = false; // variable where v belongs to is set to other value in G
+            if (!vEqVInG) {
+                int var = vOfL[f];
+                for (int i = htn->firstIndex[var]; i < htn->lastIndex[var]; i++) {
+                    if (iu.containsInt(htn->gList, 0, htn->gSize - 1, i)) {
+                        ovEqVInG = true;
+                        break;
+                    }
+                }
+            }
+            bool VnotInG = (!vEqVInG && !ovEqVInG); // the entire variable v belongs to is not contained in G
             int l;
-            // todo: test if in goal
             if (n->state[f]) {
-                l = -1;
-            } else {
-                l = 0;
+                if ((VnotInG) || (ovEqVInG)) {
+                    l = -1;
+                } else {
+                    l = 0;
+                }
+            } else { // v not true in s
+                if (vEqVInG) {
+                    l = 1;
+                } else {
+                    l = 0;
+                }
             }
             IloExpr ncl(lenv);
             for (int ia = 0; ia < this->numAP[f]; ia++) {
@@ -944,19 +977,32 @@ int hhDOfree::recreateModel(searchNode *n) {
     cplex.setWarning(lenv.getNullStream());
 
     if (cplex.solve()) {
-        res = cplex.getObjValue();
+        res = round(cplex.getObjValue());
+        //IloCplex::CplexStatus status = cplex.getCplexStatus();
+        //cout << endl << endl << "Status: " << status << endl;
+
         //cout << "RCLMC " << hLMC << " DOF " << res << endl;
         /*} else if (cplex.getStatus() == IloAlgorithm::Status::Unknown) {
          cout << "value: time-limit" << endl;
          res = 0;*/
-/*
-        for (int i = 0; i < htn->numTasks; i++) {
+
+        /*
+        cout << endl << endl << "SUM: " << res << endl;
+        for (int i = pg->reachableTasksSet.getFirst(); (i >= 0) && (i < htn->numActions); i = pg->reachableTasksSet.getNext()) {
             double d = cplex.getValue(v[iUA[i]]);
             if (d > 0.000001) {
-                cout << htn->taskNames[i] << " == " << d << endl;
+                cout <<  "T " << htn->taskNames[i] << " == " << d << endl;
             }
         }
-*/
+
+        for (int i = pg->reachableMethodsSet.getFirst(); i >= 0;
+             i = pg->reachableMethodsSet.getNext()) {
+            double d = cplex.getValue(v[iM[i]]);
+            if (d > 0.000001) {
+                cout <<  "M " << htn->taskNames[i] << " == " << d << endl;
+            }
+        }
+        */
     } else {
         res = UNREACHABLE;
 /*

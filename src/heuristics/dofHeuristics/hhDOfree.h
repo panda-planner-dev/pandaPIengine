@@ -36,7 +36,7 @@ namespace progression {
         cPgFull, cPgTimeRelaxed, cPgNone
     };
     enum csAndOrLms {
-        cAndOrLmsFull, cAndOrLmsOnlyTnI, cAndOrLmsNone
+        cAndOrLmsNone, cAndOrLmsOnlyTnI, cAndOrLmsFull
     };
     enum csAddExternalLms {
         cAddExternalLmsYes, cAddExternalLmsNo
