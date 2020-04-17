@@ -25,4 +25,9 @@ PDT* initialPDT(Model* htn);
 void expandPDT(PDT* pdt, Model* htn);
 void expandPDTUpToLevel(PDT* pdt, int K, Model* htn);
 
+void getLeafs(PDT* cur, vector<PDT*> & leafs);
+
+void printPDT(Model * htn, PDT* cur);
+
+
 #endif

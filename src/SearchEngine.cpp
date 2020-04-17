@@ -61,6 +61,7 @@ int main(int argc, char *argv[]) {
 	htn->read(s);
 
 	solve_with_sat_planner(htn);
+	return 0;
 
 	assert(htn->isHtnModel);
 	searchNode* tnI = htn->prepareTNi(htn);

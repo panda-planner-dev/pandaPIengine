@@ -7,7 +7,10 @@
 
 struct SOG {
 	int numberOfVertices;
-	vector<set<int>> adj; // successors
+	vector<unordered_set<int>> adj; // successors
+	vector<unordered_set<int>> bdj; // predecessors
+
+	vector<vector<int>> methodSubTasksToVertices;
 };
 
 SOG* optimiseSOG(vector<int> & methods, Model* htn);
