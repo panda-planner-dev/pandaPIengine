@@ -46,8 +46,6 @@ private:
 	noDelIntSet markedOps;
 	IntStack needToMark;
 
-	bool allActionsCostOne = false;
-
 	int* subtasks;
 
 };

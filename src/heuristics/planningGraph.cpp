@@ -25,13 +25,6 @@ planningGraph::planningGraph(Model* sas) {
 	markedFs.init(m->numStateBits);
 	markedOps.init(m->numActions);
 	needToMark.init(m->numStateBits);
-	allActionsCostOne = true;
-	for (int i = 0; i < m->numActions; i++) {
-		if (m->actionCosts[i] != 1) {
-			allActionsCostOne = false;
-			break;
-		}
-	}
 	reachableTasksSet.init(m->numTasks);
 
 	stack = new IntStack();
