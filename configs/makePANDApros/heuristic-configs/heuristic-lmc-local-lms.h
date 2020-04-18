@@ -2,7 +2,9 @@
 #define HEURISTIC LMCLOCAL
 
 #if ((HEURISTIC == LMCLOCAL) || (HEURISTIC == LMCANDOR))
-#define TRACKLMS // track landmarks in the search nodes
+#define TRACKLMSFULL // track landmarks in the search nodes
+#define LMCOUNTHEURISTIC
+#define TRACKTASKSINTN
 #endif
 
 #ifdef LMCANDORRA
