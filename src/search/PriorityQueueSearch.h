@@ -38,9 +38,8 @@ public:
         hhRC2 *hF;
 #endif
 #ifdef DOFREE
-        //hhDOfree <IloNumVar::Int, IloNumVar::Bool>*hF;
-        //hhDOfree *hF;
-        hhStatisticsCollector *hF;
+        hhDOfree *hF;
+        //hhStatisticsCollector *hF;
 #endif
 #ifdef LMCOUNTHEURISTIC
 	hhLMCount *hF;

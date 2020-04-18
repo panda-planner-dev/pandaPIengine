@@ -67,8 +67,6 @@
 #define DOFUPDATE 2
 #define DOFUPDATEWITHREACHABILITY 3
 
-
-
 // type of search
 #define SEARCHTYPE HEURISTICSEARCH // choose from [search-type]
 
@@ -80,11 +78,38 @@
 
 #define ONEMODAC
 //#define ONEMODMETH
+//#define HEURISTIC RCLMC2
+//#define RCHEURISTIC2
 
-// select a heuristic function
-#define HEURISTIC RCLMC2
-#define RCHEURISTIC2
-#define CORRECTTASKCOUNT
+// configure DOF
+//#define HEURISTIC DOFREEILP
+#define HEURISTIC DOFREELP
+
+// use TDG constraints
+// #define ILPTDG cTdgFull
+#define ILPTDG cTdgAllowUC
+
+// use planning graph constraints
+#define ILPPG cPgFull
+// #define ILPPG cPgTimeRelaxed
+// #define ILPPG cPgNone
+
+// use AND/OR landmark constraints
+//#define ILPANDORLMS cAndOrLmsNone
+//#define ILPANDORLMS cAndOrLmsOnlyTnI
+#define ILPANDORLMS cAndOrLmsFull
+
+// use LM-Cut landmark constraints
+//#define ILPLMCLMS cLmcLmsNone
+#define ILPLMCLMS cLmcLmsFull
+
+// use net change constraints
+//#define ILPNC cNetChangeNone
+#define ILPNC cNetChangeFull
+
+#define RCLMC2STORELMS
+
+//#define CORRECTTASKCOUNT
 
 #ifdef CORRECTTASKCOUNT
 #define CALCMINIMALIMPLIEDCOSTS
@@ -95,9 +120,20 @@
 
 #define TRACKTASKSINTN
 
-#define CHECKAFTER 5000 // nodes after which the timelimit is checked
+//#define TREATSCCS // prevent disconnected components
+#define INITSCCS
+
+//#define DOFTASKREACHABILITY // store the hierarchical task reachability in the ILP to make  it easier to solve
+#define DOFREE
+#define CHECKAFTER 50 // nodes after which the timelimit is checked
 #define MAINTAINREACHABILITY
-#define ONLYACTIONS // it is only needed for actions
+#define ALLTASKS // it is needed for all tasks
+
+// bis
+
+//#define CHECKAFTER 5000 // nodes after which the timelimit is checked
+//#define MAINTAINREACHABILITY
+//#define ONLYACTIONS // it is only needed for actions
 #ifndef OPTIMIZEUNTILTIMELIMIT
 #define OPTIMIZEUNTILTIMELIMIT false
 #endif

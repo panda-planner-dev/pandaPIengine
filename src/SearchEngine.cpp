@@ -37,6 +37,7 @@
 #include "heuristics/rcHeuristics/RCModelFactory.h"
 #include "heuristics/landmarks/lmExtraction/LmFdConnector.h"
 #include "heuristics/landmarks/hhLMCount.h"
+#include "heuristics/dofHeuristics/hhStatisticsCollector.h"
 
 using namespace std;
 using namespace progression;
@@ -248,8 +249,13 @@ int main(int argc, char *argv[]) {
 #endif
 #endif
 #ifdef DOFREE
-    search.hF = new hhDOfree(htn, tnI, IloNumVar::Float, IloNumVar::Float, cTdgAllowUC, cPgFull, cAndOrLmsOnlyTnI, cLmcLmsFull, cNetChangeFull, cAddExternalLmsNo);
-    //search.hF = new hhDOfree<IloNumVar::Int, IloNumVar::Bool>(htn, tnI);
+#if HEURISTIC == DOFREEILP
+    search.hF = new hhDOfree(htn, tnI, IloNumVar::Int, IloNumVar::Bool, eTDG, ePG, eAOLMs, eLMCLMs, eNC, cAddExternalLmsNo);
+#elif HEURISTIC == DOFREELP
+    search.hF = new hhDOfree(htn, tnI, IloNumVar::Float, IloNumVar::Float, ILPTDG, ILPPG, ILPANDORLMS, ILPLMCLMS, ILPNC, cAddExternalLmsNo);
+#endif
+	// for collecting statistics
+    //search.hF = new hhStatisticsCollector(htn, tnI, 3);
 #endif
 #if (HEURISTIC == LMCLOCAL)
 	search.hF = new hhLMCount(htn, tnI, 0);
