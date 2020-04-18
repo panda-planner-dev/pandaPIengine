@@ -244,6 +244,7 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, IloNumVar::Type IntType, IloNumVar
     }
 
     if (this->cNetChange == cNetChangeFull) {
+        cout << "  - initializing data structures for net change constraints" << endl;
         vOfL = new int[htn->numStateBits];
         for (int i = 0; i < htn->numVars; i++) {
             for (int j = htn->firstIndex[i]; j <= htn->lastIndex[i]; j++) {
@@ -251,7 +252,6 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, IloNumVar::Type IntType, IloNumVar
             }
         }
 
-        cout << "  - initializing data structures for net change constraints" << endl;
         set<int> *tAP = new set<int>[htn->numStateBits]; // always producer
         set<int> *tSP = new set<int>[htn->numStateBits]; // sometimes producer
         set<int> *tAC = new set<int>[htn->numStateBits]; // always consumer
@@ -269,7 +269,8 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, IloNumVar::Type IntType, IloNumVar
                         break;
                     }
                 }
-                //assert(prec != eff);
+                if(prec == eff)
+                    continue;
                 if (prec >= 0) {
                     tAP[eff].insert(a);
                     tAC[prec].insert(a);
@@ -388,6 +389,11 @@ void hhDOfree::setHeuristicValue(searchNode *n, searchNode *parent,
     n->heuristicValue = h;
 }
 
+void hhDOfree::setHeuristicValue(searchNode *n, searchNode *parent, int absTask,
+                                 int method) {
+    this->setHeuristicValue(n, parent, -1);
+}
+
 void hhDOfree::updatePG(searchNode *n) {
     // collect preprocessed reachability
     preProReachable.clear();
@@ -403,11 +409,6 @@ void hhDOfree::updatePG(searchNode *n) {
     }
 
     pg->calcReachability(n->state, preProReachable); // calculate reachability
-}
-
-void hhDOfree::setHeuristicValue(searchNode *n, searchNode *parent, int absTask,
-                                 int method) {
-    this->setHeuristicValue(n, parent, -1);
 }
 
 int hhDOfree::recreateModel(searchNode *n) {
@@ -479,8 +480,7 @@ int hhDOfree::recreateModel(searchNode *n) {
     }
 
     for (int a = pg->reachableTasksSet.getFirst();
-         (a >= 0) && (a < htn->numActions); a =
-                                                    pg->reachableTasksSet.getNext()) {
+         (a >= 0) && (a < htn->numActions); a = pg->reachableTasksSet.getNext()) {
         for (int ai = 0; ai < htn->numAdds[a]; ai++) {
             if (!pg->usefulFactSet.get(htn->addLists[a][ai]))
                 continue;
@@ -504,8 +504,7 @@ int hhDOfree::recreateModel(searchNode *n) {
             iv++;
         }
         for (int a = pg->reachableTasksSet.getFirst();
-             (a >= 0) && (a < htn->numActions); a =
-                                                        pg->reachableTasksSet.getNext()) {
+             (a >= 0) && (a < htn->numActions); a = pg->reachableTasksSet.getNext()) {
             v.add(IloNumVar(lenv, 0, htn->numActions, cIntType));
             iTA[a] = iv;
 #ifdef NAMEMODEL
@@ -778,7 +777,6 @@ int hhDOfree::recreateModel(searchNode *n) {
 #endif
     }
 
-    int res = -1;
     if (this->cLmcLms == cLmcLmsFull) {
         // add lm cut landmarks
         for (LMCutLandmark *storedcut : *this->hRC->cuts) {
@@ -812,8 +810,9 @@ int hhDOfree::recreateModel(searchNode *n) {
                     model.add(v[iUF[f]] >= 1);
                 }
             } else if (lm->type == METHOD) {
-                if (lm->connection == atom) {
-                    model.add(v[iM[lm->lm[0]]] >= 1);
+                int mlm = lm->lm[0];
+                if((lm->connection == atom) &&(pg->methodReachable(mlm))) {
+                    model.add(v[iM[mlm]] >= 1);
                 }
             } else {
                 assert(lm->type == task);
@@ -826,7 +825,6 @@ int hhDOfree::recreateModel(searchNode *n) {
         }
     }
     if (this->cAndOrLms == cAndOrLmsFull) {// add all implications
-        //causalLMs->calcLMs(n, pg);
         for (int t = pg->reachableTasksSet.getFirst(); t >= 0; t = pg->reachableTasksSet.getNext()) {
             causalLMs->initIterTask(t);
             while (causalLMs->iterHasNext()) {
@@ -837,11 +835,12 @@ int hhDOfree::recreateModel(searchNode *n) {
                         model.add(v[iUA[lm]] * largeC >= v[iUA[t]]);
                     } else {
                         model.add(v[iUA[t]] == 0);
-                        //cout << "lm unreachable" << endl;
                     }
                 } else if (type == fact) {
                     if ((!n->state[lm]) && (pg->usefulFactSet.get(lm))) {
                         model.add(v[iUF[lm]] * largeC >= v[iUA[t]]);
+                    } else if (!pg->factReachable(lm)) {
+                        model.add(v[iUA[t]] == 0);
                     }
                 } else {
                     assert(type == METHOD);
@@ -849,7 +848,6 @@ int hhDOfree::recreateModel(searchNode *n) {
                         model.add(v[iM[lm]] * largeC >= v[iUA[t]]);
                     } else {
                         model.add(v[iUA[t]] == 0);
-                        //cout << "lm unreachable" << endl;
                     }
                 }
                 causalLMs->iterate();
@@ -865,11 +863,12 @@ int hhDOfree::recreateModel(searchNode *n) {
                         model.add(v[iUA[lm]] * largeC >= v[iM[m]]);
                     } else {
                         model.add(v[iM[m]] == 0);
-                        //cout << "lm unreachable" << endl;
                     }
                 } else if (type == fact) {
                     if ((!n->state[lm]) && (pg->usefulFactSet.get(lm))) {
                         model.add(v[iUF[lm]] * largeC >= v[iM[m]]);
+                    } else if (!pg->factReachable(lm)) {
+                        model.add(v[iM[m]] == 0);
                     }
                 } else {
                     assert(type == METHOD);
@@ -877,7 +876,6 @@ int hhDOfree::recreateModel(searchNode *n) {
                         model.add(v[iM[lm]] * largeC >= v[iM[m]]);
                     } else {
                         model.add(v[iM[m]] == 0);
-                        //cout << "lm unreachable" << endl;
                     }
                 }
                 causalLMs->iterate();
@@ -893,11 +891,12 @@ int hhDOfree::recreateModel(searchNode *n) {
                         model.add(v[iUA[lm]] * largeC >= v[iUF[f]]);
                     } else {
                         model.add(v[iUF[f]] == 0);
-                        //cout << "lm unreachable" << endl;
                     }
                 } else if (type == fact) {
                     if ((!n->state[lm]) && (pg->usefulFactSet.get(lm))) {
                         model.add(v[iUF[lm]] * largeC >= v[iUF[f]]);
+                    } else if (!pg->factReachable(lm)) {
+                        model.add(v[iUF[f]] == 0);
                     }
                 } else {
                     assert(type == METHOD);
@@ -905,7 +904,6 @@ int hhDOfree::recreateModel(searchNode *n) {
                         model.add(v[iM[lm]] * largeC >= v[iUF[f]]);
                     } else {
                         model.add(v[iUF[f]] == 0);
-                        //cout << "lm unreachable" << endl;
                     }
                 }
                 causalLMs->iterate();
@@ -976,6 +974,7 @@ int hhDOfree::recreateModel(searchNode *n) {
     cplex.setOut(lenv.getNullStream());
     cplex.setWarning(lenv.getNullStream());
 
+    int res = -1;
     if (cplex.solve()) {
         res = round(cplex.getObjValue());
         //IloCplex::CplexStatus status = cplex.getCplexStatus();

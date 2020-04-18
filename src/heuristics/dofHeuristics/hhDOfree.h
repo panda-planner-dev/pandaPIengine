@@ -9,7 +9,7 @@
 #define HEURISTICS_HHDOFREE_H_
 
 //#define OUTPUTLPMODEL
-#define NAMEMODEL // assign human-readable names to each ILP variable
+//#define NAMEMODEL // assign human-readable names to each ILP variable
 
 #include <rcHeuristics/hhRC2.h>
 #include <math.h>
