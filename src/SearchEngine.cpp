@@ -250,7 +250,7 @@ int main(int argc, char *argv[]) {
 #endif
 #ifdef DOFREE
 #if HEURISTIC == DOFREEILP
-    search.hF = new hhDOfree(htn, tnI, IloNumVar::Int, IloNumVar::Bool, eTDG, ePG, eAOLMs, eLMCLMs, eNC, cAddExternalLmsNo);
+    search.hF = new hhDOfree(htn, tnI, IloNumVar::Int, IloNumVar::Bool, ILPTDG, ILPPG, ILPANDORLMS, ILPLMCLMS, ILPNC, cAddExternalLmsNo);
 #elif HEURISTIC == DOFREELP
     search.hF = new hhDOfree(htn, tnI, IloNumVar::Float, IloNumVar::Float, ILPTDG, ILPPG, ILPANDORLMS, ILPLMCLMS, ILPNC, cAddExternalLmsNo);
 #endif

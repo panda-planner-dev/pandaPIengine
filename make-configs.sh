@@ -27,7 +27,7 @@ for config in ../configs/active/*.h; do
   rm -rf *
   cmake ../src/ &>> ../makeLog.txt
   make -j &>> ../makeLog.txt 
-  mv pandaPIplanner "../temp/ppro-$confName"
+  mv pandaPIengine "../temp/ppro-$confName"
 done
 
 grep -i "error" ../makeLog.txt

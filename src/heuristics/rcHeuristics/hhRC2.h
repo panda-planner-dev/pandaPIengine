@@ -31,8 +31,12 @@ public:
 	hsFilter* sasH;
 #endif
 
+#if (HEURISTIC == RCLMC2)
+    hsLmCut* sasH;
+#else
 #ifdef RCLMC2STORELMS
     hsLmCut* sasH;
+#endif
 #endif
 
     hhRC2(Model* htnModel);
