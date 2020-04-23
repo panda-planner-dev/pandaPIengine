@@ -3,11 +3,12 @@
 #include "sog.h"
 
 
-SOG* runPOSOGOptimiser(SOG* sog, vector<int> & methods, Model* htn){
+SOG* runPOSOGOptimiser(SOG* sog, vector<tuple<int,int,int>> & methods, Model* htn){
 	vector<unordered_set<int>> antiAdj;
 	vector<unordered_set<int>> antiBdj;
+	int m0 = get<0>(methods[0]);
 	// put the subtasks of the first method into the SOG
-	sog->numberOfVertices = htn->numSubTasks[methods[0]];
+	sog->numberOfVertices = htn->numSubTasks[m0];
 	sog->labels.resize(sog->numberOfVertices);
 	sog->adj.resize(sog->numberOfVertices);
 	sog->bdj.resize(sog->numberOfVertices);
@@ -16,16 +17,16 @@ SOG* runPOSOGOptimiser(SOG* sog, vector<int> & methods, Model* htn){
 	vector<int> mapping;
 	for (size_t i = 0; i < sog->numberOfVertices; i++){
 		mapping.push_back(i);
-		sog->labels[i].insert(htn->subTasks[methods[0]][i]);
+		sog->labels[i].insert(htn->subTasks[m0][i]);
 	}
 	sog-> methodSubTasksToVertices.push_back(mapping);
 
 
 
 	// add ordering
-	for (int ordering = 0; ordering < htn->numOrderings[methods[0]]; ordering += 2){
-		sog->adj[htn->ordering[methods[0]][ordering]].insert(htn->ordering[methods[0]][ordering + 1]);
-		sog->bdj[htn->ordering[methods[0]][ordering + 1]].insert(htn->ordering[methods[0]][ordering]);
+	for (int ordering = 0; ordering < htn->numOrderings[m0]; ordering += 2){
+		sog->adj[htn->ordering[m0][ordering]].insert(htn->ordering[m0][ordering + 1]);
+		sog->bdj[htn->ordering[m0][ordering + 1]].insert(htn->ordering[m0][ordering]);
 	}
 	// compute complement of order set
 	for (int i = 0; i < sog->numberOfVertices; i++)
@@ -38,7 +39,7 @@ SOG* runPOSOGOptimiser(SOG* sog, vector<int> & methods, Model* htn){
 	
 	// merge the vertices of the other methods
 	for (size_t mID = 1; mID < methods.size(); mID++){
-		int m = methods[mID];
+		int m = get<0>(methods[mID]);
 		mapping.clear();
 		mapping.resize(htn->numSubTasks[m]);
 		unordered_set<int> takenVertices;
@@ -148,17 +149,18 @@ next_vertex:;
 }
 
 
-SOG* runTOSOGOptimiser(SOG* sog, vector<int> & methods, Model* htn){
+SOG* runTOSOGOptimiser(SOG* sog, vector<tuple<int,int,int>> & methods, Model* htn){
 
 	// TODO build adj, bdj
-	sog->numberOfVertices = htn->numSubTasks[methods[0]];	
+	int m0 = get<0>(methods[0]);
+	sog->numberOfVertices = htn->numSubTasks[m0];	
 	sog->labels.resize(sog->numberOfVertices);
 	sog->adj.resize(sog->numberOfVertices);
 	sog->bdj.resize(sog->numberOfVertices);
 
 
 	for (size_t mID = 0; mID < methods.size(); mID++){
-		int m = methods[mID];
+		int m = get<0>(methods[mID]);
 		// (x,y) -> minimum labels needed when putting the first x tasks to the first y positions
 		vector<vector<int>> minAdditionalLabels (htn->numSubTasks[m]+1);
 		vector<vector<bool>> optimalPutHere (htn->numSubTasks[m]+1);
@@ -231,10 +233,10 @@ SOG* runTOSOGOptimiser(SOG* sog, vector<int> & methods, Model* htn){
 
 
 // just the greedy optimiser
-SOG* optimiseSOG(vector<int> & methods, Model* htn){
+SOG* optimiseSOG(vector<tuple<int,int,int>> & methods, Model* htn){
 	// edge case
 	bool allMethodsAreTotallyOrdered = true;
-	for (const int & m : methods)
+	for (const auto & [m,_1,_2] : methods)
 		if (!htn->methodIsTotallyOrdered[m]){
 			allMethodsAreTotallyOrdered = false;
 			break;
@@ -246,14 +248,14 @@ SOG* optimiseSOG(vector<int> & methods, Model* htn){
 		return sog;
 	}
 	
-	sort(methods.begin(), methods.end(), [&](int m1, int m2) {
-        return htn->numSubTasks[m1] > htn->numSubTasks[m2];   
+	sort(methods.begin(), methods.end(), [&](tuple<int,int,int> m1, tuple<int,int,int> m2) {
+        return htn->numSubTasks[get<0>(m1)] > htn->numSubTasks[get<0>(m2)];   
     });
 
 #ifndef NDEBUG
 	int maxSize = 0;
 	for (size_t mID = 0; mID < methods.size(); mID++)
-		if (maxSize < htn->numSubTasks[methods[mID]]) maxSize = htn->numSubTasks[methods[mID]];
+		if (maxSize < htn->numSubTasks[get<0>(methods[mID])]) maxSize = htn->numSubTasks[get<0>(methods[mID])];
 	cout << endl << endl << endl << "Running PO SOG Optimiser with " << methods.size() << " methods with up to " << maxSize << " subtasks." << endl;
 	//cout << htn->numSubTasks[methods[0]] << " max " << maxSize << endl;
 #endif

@@ -15,7 +15,7 @@ struct SOG {
 	vector<vector<int>> methodSubTasksToVertices;
 };
 
-SOG* optimiseSOG(vector<int> & methods, Model* htn);
+SOG* optimiseSOG(vector<tuple<int,int,int>> & methods, Model* htn);
 
 
 #endif
