@@ -37,9 +37,13 @@ struct PDT {
 	vector<int> abstractVariable;
 	vector<vector<int>> methodVariables;
 
-///// thats what Tree Rex does ...
+///// that's what Tree Rex does ... for incremental solving
 	int baseStateVarVariable;
 
+/////  
+	int outputID;
+	int outputTask;
+	int outputMethod;
 
 ///// METHODS
 	PDT();
@@ -56,6 +60,11 @@ struct PDT {
 	void assignVariableIDs(sat_capsule & capsule, Model * htn);
 	
 	void addDecompositionClauses(void* solver, sat_capsule & capsule);
+
+	// output
+	void assignOutputNumbers(void* solver, int & currentID, Model * htn);
+	int getNextOutputTask();
+	void printDecomposition(Model * htn);
 };
 
 

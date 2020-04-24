@@ -1,5 +1,6 @@
 #include <cassert>
 #include "pdt.h"
+#include "ipasir.h"
 #include "../Util.h"
 
 
@@ -11,6 +12,9 @@ PDT::PDT(){
 	expanded = false;
 	vertexVariables = false;
 	childrenVariables = false;
+	outputID = -1;
+	outputTask = -1;
+	outputMethod = -1;
 }
 
 
@@ -19,6 +23,9 @@ PDT::PDT(Model* htn){
 	expanded = false;
 	vertexVariables = false;
 	childrenVariables = false;
+	outputID = -1;
+	outputTask = -1;
+	outputMethod = -1;
 	possibleAbstracts.push_back(htn->initialTask);
 }
 
@@ -247,6 +254,70 @@ void PDT::assignVariableIDs(sat_capsule & capsule, Model * htn){
 	for (PDT* & child : children)
 		child->assignVariableIDs(capsule, htn);
 }
+
+
+
+void PDT::assignOutputNumbers(void* solver, int & currentID, Model * htn){
+	if (outputID != -1) return;
+
+	if (children.size() == 0)
+		for (size_t pIndex = 0; pIndex < primitiveVariable.size(); pIndex++){
+			int prim = primitiveVariable[pIndex];
+			if (ipasir_val(solver,prim) > 0){
+				assert(outputID == -1);
+				outputID = currentID++;
+				outputTask = possiblePrimitives[pIndex];
+			}
+		}
+	
+	for (size_t aIndex = 0; aIndex < abstractVariable.size(); aIndex++){
+		int abs = abstractVariable[aIndex];
+		if (ipasir_val(solver,abs) > 0){
+			assert(outputID == -1);
+			outputID = currentID++;
+			outputTask = possibleAbstracts[aIndex];
+
+			// find the applied method
+			for (size_t mIndex = 0; mIndex < applicableMethods[aIndex].size(); mIndex++){
+				int m = methodVariables[aIndex][mIndex];
+				if (ipasir_val(solver,m) > 0){
+					assert(outputMethod == -1);
+					outputMethod = htn->taskToMethods[outputTask][mIndex];
+				}
+			}
+		}
+	}
+
+	for (PDT* & child : children) child->assignOutputNumbers(solver, currentID, htn);
+}
+
+int PDT::getNextOutputTask(){
+	if (outputID != -1) return outputID;
+	
+	for (PDT* & child : children){
+		int sub = child->getNextOutputTask();
+		if (sub != -1) return sub;
+	}
+	return -1;
+}
+
+void PDT::printDecomposition(Model * htn){
+	if (outputID == -1) return;
+	if (outputTask < htn->numActions) return;
+	
+	cout << outputID << " " << htn->taskNames[outputTask] << " -> " << 
+		htn->methodNames[outputMethod];
+
+	// output children
+	for (PDT* & child : children){
+		int sub = child->getNextOutputTask();
+		if (sub != -1) cout << " " << sub;
+	}
+	cout << endl;
+
+	for (PDT* & child : children) child->printDecomposition(htn);
+}
+
 
 
 void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
