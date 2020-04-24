@@ -73,6 +73,16 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 			assertNot(solver,base0 + svar);
 	}
 
+	// assert goal state
+	unordered_set<int> goalSet;
+	for (size_t i = 0; i < htn->gSize; i++) goalSet.insert(htn->gList[i]);
+	for (int svar = 0; svar < int(htn->numStateBits); svar++){
+		if (goalSet.count(svar))
+			assertYes(solver,goalBase + svar);
+		else
+			assertNot(solver,goalBase + svar);
+	}
+
 
 	for (PDT* & leaf : leafs){
 		for (const int & abs : leaf->abstractVariable)
