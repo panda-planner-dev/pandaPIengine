@@ -13,18 +13,26 @@ struct PDT {
 	vector<int> possiblePrimitives;
 	vector<int> possibleAbstracts;
 
+	// for every abstract, the task and method index by which it can be created
+	vector<vector<pair<int,int>>> causesForAbstracts;
+	// primitives can also be caused by primitive inheritance, this will be marked with a -1,primIndex (of parent)
+	vector<vector<pair<int,int>>> causesForPrimitives;
 
 	bool expanded;
 
-	int numberOfChildren;
 	vector<PDT*> children;
 	SOG* sog;
 
 	vector<vector<bool>> applicableMethods; // indicates whether the methods in the model are actually applicable and have not been pruned
 	vector<vector<vector<tuple<int,bool,int>>>> listIndexOfChildrenForMethods;
-	vector<int> positionOfPrimitivesInChildren;
+
+	// for every primitive the number of the child and the index of the task in the possible primitives array
+	vector<pair<int,int>> positionOfPrimitivesInChildren;
 	
 /// SAT encoding stuff
+	bool vertexVariables;
+	bool childrenVariables;
+	int noTaskPresent;
 	vector<int> primitiveVariable;
 	vector<int> abstractVariable;
 	vector<vector<int>> methodVariables;
@@ -43,7 +51,7 @@ struct PDT {
 	 */
 	void assignVariableIDs(sat_capsule & capsule, Model * htn);
 	
-	void addDecompositionClauses(void* solver);
+	void addDecompositionClauses(void* solver, sat_capsule & capsule);
 };
 
 

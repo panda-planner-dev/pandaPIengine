@@ -15,7 +15,9 @@ void solve_with_sat_planner(Model * htn){
 	PDT* pdt = new PDT(htn);
 	pdt->expandPDTUpToLevel(5,htn);
 
+#ifndef NDEBUG
 	printPDT(htn,pdt);
+#endif
 
 	vector<PDT*> leafs;
 	pdt->getLeafs(leafs);
@@ -30,12 +32,13 @@ void solve_with_sat_planner(Model * htn){
 	
 	cout << ipasir_signature() << endl;
 	void* solver = ipasir_init();
-	pdt->addDecompositionClauses(solver);
+	pdt->addDecompositionClauses(solver, capsule);
 
 	// assert the initial abstract task
 	ipasir_add(solver,pdt->abstractVariable[0]);
 	ipasir_add(solver,0);
-
+	
+	
 	int state = ipasir_solve(solver);
 	cout << "Solver state: " << state << endl;
 	if (state == 10){
@@ -44,11 +47,15 @@ void solve_with_sat_planner(Model * htn){
 		
 			std::string s = std::to_string(v);
 			int x = 4 - s.size();
-			while (x--) std::cout << " ";
+			while (x-- && x > 0) std::cout << " ";
 			std::cout << v << ": ";
 			if (val > 0) std::cout << "    ";
 			else         std::cout << "not ";
+#ifndef NDEBUG
 			std::cout << capsule.variableNames[v] << endl; 
+#else
+			std::cout << v << endl;
+#endif
 		}
 	}
 }

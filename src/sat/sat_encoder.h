@@ -25,6 +25,15 @@ void setDebugMode (bool enabled);
 # define DEBUG(x)
 #endif
 
+#define INTPAD 4
+#define PATHPAD 15
+#define STRINGPAD 0
+
+std::string path_string(std::vector<int> & path);
+std::string pad_string(std::string s, int chars = STRINGPAD);
+std::string pad_int(int i, int chars = INTPAD);
+std::string pad_path(std::vector<int> & path, int chars = PATHPAD);
+
 
 struct sat_capsule{
 	int number_of_variables;
@@ -43,6 +52,8 @@ struct sat_capsule{
 
 void implies(void* solver, int i, int j);
 void impliesOr(void* solver, int i, std::vector<int> & j);
+void impliesAllNot(void* solver, int i, std::vector<int> & j);
+void atMostOne(void* solver, sat_capsule & capsule, std::vector<int> & is);
 
 
 #endif
