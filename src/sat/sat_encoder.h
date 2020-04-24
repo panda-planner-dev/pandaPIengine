@@ -49,9 +49,15 @@ struct sat_capsule{
 	sat_capsule();
 };
 
+int get_number_of_clauses();
+
+void assertYes(void* solver, int i);
+void assertNot(void* solver, int i);
 
 void implies(void* solver, int i, int j);
+void impliesNot(void* solver, int i, int j);
 void impliesOr(void* solver, int i, std::vector<int> & j);
+void impliesPosAndNegImpliesOr(void* solver, int i, int j, std::vector<int> & k);
 void impliesAllNot(void* solver, int i, std::vector<int> & j);
 void atMostOne(void* solver, sat_capsule & capsule, std::vector<int> & is);
 

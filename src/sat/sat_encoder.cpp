@@ -74,12 +74,38 @@ void sat_capsule::printVariables(){
 }
 #endif
 
+int number_of_clauses = 0;
+
+int get_number_of_clauses(){
+	return number_of_clauses;
+}
+
+void assertYes(void* solver, int i){
+	ipasir_add(solver,i);
+	ipasir_add(solver,0);
+	number_of_clauses++;
+}
+
+void assertNot(void* solver, int i){
+	ipasir_add(solver,-i);
+	ipasir_add(solver,0);
+	number_of_clauses++;
+}
 
 void implies(void* solver, int i, int j){
 	//DEBUG(std::cout << "Adding " << -i << " " << j << " " << 0 << std::endl);
 	ipasir_add(solver,-i);
 	ipasir_add(solver,j);
 	ipasir_add(solver,0);
+	number_of_clauses++;
+}
+
+void impliesNot(void* solver, int i, int j){
+	//DEBUG(std::cout << "Adding " << -i << " " << j << " " << 0 << std::endl);
+	ipasir_add(solver,-i);
+	ipasir_add(solver,-j);
+	ipasir_add(solver,0);
+	number_of_clauses++;
 }
 
 void impliesOr(void* solver, int i, std::vector<int> & j){
@@ -87,6 +113,16 @@ void impliesOr(void* solver, int i, std::vector<int> & j){
 	for (int & x : j)
 		ipasir_add(solver,x);
 	ipasir_add(solver,0);
+	number_of_clauses++;
+}
+
+void impliesPosAndNegImpliesOr(void* solver, int i, int j, std::vector<int> & k){
+	ipasir_add(solver,-i);
+	ipasir_add(solver,j);
+	for (int & x : k)
+		ipasir_add(solver,x);
+	ipasir_add(solver,0);
+	number_of_clauses++;
 }
 
 void impliesAllNot(void* solver, int i, std::vector<int> & j){
@@ -94,6 +130,7 @@ void impliesAllNot(void* solver, int i, std::vector<int> & j){
 		ipasir_add(solver,-i);
 		ipasir_add(solver,-x);
 		ipasir_add(solver,0);
+		number_of_clauses++;
 	}
 }
 
@@ -120,9 +157,9 @@ void atMostOne(void* solver, sat_capsule & capsule, std::vector<int> & is){
 			else	
 				ipasir_add(solver,  baseVar + b );
 			ipasir_add(solver,0);
+			number_of_clauses++;
 		}
 	}
-
 }
 
 

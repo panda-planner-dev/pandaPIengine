@@ -2,6 +2,8 @@
 #include "sat_encoder.h"
 #include "ipasir.h"
 #include "pdt.h"
+#include "state_formula.h"
+
 
 void solve_with_sat_planner(Model * htn){
 	setDebugMode(true);
@@ -13,21 +15,14 @@ void solve_with_sat_planner(Model * htn){
 	htn->buildOrderingDatastructures();
 
 	PDT* pdt = new PDT(htn);
-	pdt->expandPDTUpToLevel(5,htn);
+	pdt->expandPDTUpToLevel(3,htn);
 
 #ifndef NDEBUG
 	printPDT(htn,pdt);
 #endif
-
-	vector<PDT*> leafs;
-	pdt->getLeafs(leafs);
-	cout << "Number of leafs: " << leafs.size() << endl;
-
-
+	
 	sat_capsule capsule;
-
 	pdt->assignVariableIDs(capsule, htn);
-
 	DEBUG(capsule.printVariables());
 	
 	cout << ipasir_signature() << endl;
@@ -35,10 +30,21 @@ void solve_with_sat_planner(Model * htn){
 	pdt->addDecompositionClauses(solver, capsule);
 
 	// assert the initial abstract task
-	ipasir_add(solver,pdt->abstractVariable[0]);
-	ipasir_add(solver,0);
+	assertYes(solver,pdt->abstractVariable[0]);
+
+	// add the state formula
+	vector<PDT*> leafs;
+	pdt->getLeafs(leafs);
+	cout << "Number of leafs: " << leafs.size() << endl;
+
+
+	vector<vector<pair<int,int>>> vars;
+	get_linear_state_atoms(capsule, leafs, vars);
+	generate_state_transition_formula(solver, capsule, vars, leafs, htn);
 	
 	
+	cout << "Formula has " << capsule.number_of_variables << " vars and " << get_number_of_clauses() << " clauses." << endl;
+	cout << "Starting solver" << endl;
 	int state = ipasir_solve(solver);
 	cout << "Solver state: " << state << endl;
 	if (state == 10){
@@ -56,6 +62,17 @@ void solve_with_sat_planner(Model * htn){
 #else
 			std::cout << v << endl;
 #endif
+		}
+	}
+
+
+
+	/// extract the primitive plan
+	for (PDT* & leaf : leafs){
+		for (size_t pIndex = 0; pIndex < leaf->primitiveVariable.size(); pIndex++){
+			int prim = leaf->primitiveVariable[pIndex];
+			if (ipasir_val(solver,prim) > 0)
+				std::cout << htn->taskNames[leaf->possiblePrimitives[pIndex]] << endl;
 		}
 	}
 }

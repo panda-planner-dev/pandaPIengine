@@ -37,6 +37,10 @@ struct PDT {
 	vector<int> abstractVariable;
 	vector<vector<int>> methodVariables;
 
+///// thats what Tree Rex does ...
+	int baseStateVarVariable;
+
+
 ///// METHODS
 	PDT();
 	PDT(Model* htn);
