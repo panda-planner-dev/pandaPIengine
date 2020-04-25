@@ -162,4 +162,10 @@ void atMostOne(void* solver, sat_capsule & capsule, std::vector<int> & is){
 	}
 }
 
+void atLeastOne(void* solver, sat_capsule & capsule, std::vector<int> & is){
+	for (int & i : is)
+		ipasir_add(solver, i);
+	ipasir_add(solver,0);
+	number_of_clauses++;
+}
 

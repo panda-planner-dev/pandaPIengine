@@ -87,6 +87,63 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 
 }
 
+
+void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & leafs, Model* htn){
+	std::clock_t solver_start = std::clock();
+
+	for (size_t time = 0; time < leafs.size(); time++){
+		int timeBase = leafs[time]->baseStateVarVariable;
+
+		for (int v = 0; v < htn->numVars; v++){
+			if (htn->firstIndex[v] == htn->lastIndex[v]) continue; // STRIPS
+			
+			vector<int> vars;
+			for (int f = htn->firstIndex[v]; f <= htn->lastIndex[v]; f++)
+				vars.push_back(timeBase + f);
+
+			atMostOne(solver,capsule,vars);
+			atLeastOne(solver,capsule,vars);
+		}
+
+		for (int m = 0; m < htn->numStrictMutexes; m++){
+			vector<int> vars;
+			for (int me = 0; me < htn->strictMutexesSize[m]; me++)
+				vars.push_back(timeBase + htn->strictMutexes[m][me]);
+
+			atMostOne(solver,capsule,vars);
+			atLeastOne(solver,capsule,vars);
+		}
+
+		for (int m = 0; m < htn->numMutexes; m++){
+			vector<int> vars;
+			for (int me = 0; me < htn->mutexesSize[m]; me++)
+				vars.push_back(timeBase + htn->mutexes[m][me]);
+
+			atMostOne(solver,capsule,vars);
+		}
+
+
+		for (int i = 0; i < htn->numInvariants; i++){
+			vector<int> vars;
+			for (int ie = 0; ie < htn->invariantsSize[i]; ie++){
+				int inv = htn->invariants[i][ie];
+				if (inv < 0)
+					vars.push_back(-(timeBase + (-inv-1)));
+				else
+					vars.push_back(timeBase + inv);
+			}
+			
+			//atLeastOne(solver,capsule,vars);
+		}
+	
+	
+	}
+	std::clock_t solver_end = std::clock();
+	double solver_time_in_ms = 1000.0 * (solver_end-solver_start) / CLOCKS_PER_SEC;
+	cout << "Invar time: " << solver_time_in_ms << "ms" << endl;
+	cout << "For " << leafs.size() << "*" << (htn->numStrictMutexes + htn->numMutexes + htn->numVars) << endl;
+}
+
 void get_linear_state_atoms(sat_capsule & capsule, vector<PDT*> & leafs, vector<vector<pair<int,int>>> & ret){
 	// these are just the primitives in the correct order
 

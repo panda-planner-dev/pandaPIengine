@@ -6,10 +6,36 @@
 #include <cassert>
 
 
-
 void printSolution(void * solver, Model * htn, PDT* pdt){
 	vector<PDT*> leafs;
 	pdt->getLeafs(leafs);
+
+
+	//for (size_t time = 0; time < leafs.size(); time++){
+	//	int timeBase = leafs[time]->baseStateVarVariable;
+
+	//	for (int v = 0; v < htn->numVars; v++){
+	//		if (htn->firstIndex[v] == htn->lastIndex[v]) continue; // STRIPS
+	//		
+	//		std::set<int> tru;
+	//		for (int f = htn->firstIndex[v]; f <= htn->lastIndex[v]; f++)
+	//			if (ipasir_val(solver,timeBase + f) > 0)
+	//				tru.insert(f);
+
+	//		if (tru.size() != 1){
+	//			cout << "Timestep " << time << endl;
+	//			cout << "Variable " << v << " " << htn->varNames[v] << " is not a SAS+ group ..." << endl;
+	//			cout << "True are:";
+	//			for (int f : tru)
+	//				cout << " " << f << " " << htn->factStrs[f];
+	//			cout << endl;
+	//			
+	//			exit(0);
+	//		}
+	//	}
+	//}
+
+
 	
 	int currentID = 0;
 	
@@ -77,12 +103,17 @@ void createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	vector<vector<pair<int,int>>> vars;
 	get_linear_state_atoms(capsule, leafs, vars);
 	generate_state_transition_formula(solver, capsule, vars, leafs, htn);
+
+#ifdef SAT_USEMUTEXES
+	generate_mutex_formula(solver,capsule,leafs,htn);
+#endif
 }
 
 
 
 
 void solve_with_sat_planner(Model * htn){
+	htn->writeToPDDL("foo-d.hddl", "foo-p.hddl");
 	setDebugMode(true);
 
 	// start by determining whether this model is totally ordered
@@ -111,6 +142,9 @@ void solve_with_sat_planner(Model * htn){
 		
 		cout << "Solver state: " << (state==10?"SAT":"UNSAT") << endl;
 		if (state == 10){
+#ifndef NDEBUG
+			printVariableTruth(solver, htn, capsule);
+#endif
 			printSolution(solver,htn,pdt);
 			ipasir_release(solver);
 			return;
