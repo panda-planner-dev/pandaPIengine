@@ -1645,34 +1645,26 @@ void Model::readClassical(istream& domainFile) {
 	}
 	getline(domainFile, line);
 	getline(domainFile, line);
-	// read further mutexes
-	getline(domainFile, line);
-	sStream = new stringstream(line);
-	*sStream >> numMutexes;
-	delete sStream;
-	mutexes = new int*[numMutexes];
-	mutexesSize = new int[numMutexes];
-	for (int i = 0; i < numMutexes; i++){
-		getline(domainFile, line);
-		mutexes[i] = readIntList(line, mutexesSize[i]);
-	}
-	getline(domainFile, line);
-	getline(domainFile, line);
 
+	for (int informationType = 0; informationType < 3; informationType++){
+		int & num = (informationType == 0) ? numStrictMutexes : ((informationType == 1) ? numMutexes : numInvariants);
+		int* & size = (informationType == 0) ? strictMutexesSize : ((informationType == 1) ? mutexesSize : invariantsSize);
+		int** & elems = (informationType == 0) ? strictMutexes : ((informationType == 1) ? mutexes : invariants);
 
-	// read further mutexes
-	getline(domainFile, line);
-	sStream = new stringstream(line);
-	*sStream >> numInvariants;
-	delete sStream;
-	invariants = new int*[numInvariants];
-	invariantsSize = new int[numInvariants];
-	for (int i = 0; i < numInvariants; i++){
+		// read further information
 		getline(domainFile, line);
-		invariants[i] = readIntList(line, invariantsSize[i]);
+		sStream = new stringstream(line);
+		*sStream >> num;
+		delete sStream;
+		elems = new int*[num];
+		size = new int[num];
+		for (int i = 0; i < num; i++){
+			getline(domainFile, line);
+			elems[i] = readIntList(line, size[i]);
+		}
+		getline(domainFile, line);
+		getline(domainFile, line);
 	}
-	getline(domainFile, line);
-	getline(domainFile, line);
 
 
 	// read actions
