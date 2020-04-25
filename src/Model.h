@@ -78,6 +78,11 @@ public:
 	int* lastIndex;
 	string* varNames;
 
+	// additional strict mutexes
+	int numStrictMutexes;
+	int** strictMutexes;
+	int* strictMutexesSize;
+
 	// additional mutexes
 	int numMutexes;
 	int** mutexes;
