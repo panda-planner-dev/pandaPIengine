@@ -11,7 +11,7 @@ set (CMAKE_CXX_STANDARD 17)
 project(pandaPIengine)
 
 list(APPEND compiler_flags -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -pedantic "$<$<CONFIG:DEBUG>:-Og;-ggdb3;-lpthread>" "$<$<CONFIG:RELEASE>:-O2;-lpthread>")
-list(APPEND linker_flags "$<$<CONFIG:RELEASE>:-flto;-lpthread>")
+list(APPEND linker_flags -lpthread "$<$<CONFIG:RELEASE>:-flto>")
 
 
 include_directories("search")

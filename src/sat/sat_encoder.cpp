@@ -76,6 +76,10 @@ void sat_capsule::printVariables(){
 
 int number_of_clauses = 0;
 
+void reset_number_of_clauses(){
+	number_of_clauses = 0;
+}
+
 int get_number_of_clauses(){
 	return number_of_clauses;
 }

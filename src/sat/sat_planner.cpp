@@ -101,6 +101,7 @@ void createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	// get leafs
 	vector<PDT*> leafs;
 	pdt->getLeafs(leafs);
+	cout << "PDT has " << leafs.size() << " leafs" << endl;
 	
 	// generate primitive executability formula
 	vector<vector<pair<int,int>>> vars;
@@ -122,6 +123,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 		void* solver = ipasir_init();
 		cout << "Generating formula for depth " << depth << endl;
 		createFormulaForDepth(solver,pdt,htn,capsule,depth);
+		
 		cout << "Formula has " << capsule.number_of_variables << " vars and " << get_number_of_clauses() << " clauses." << endl;
 		
 		cout << "Starting solver" << endl;
@@ -198,7 +200,7 @@ void* run_sat_planner_for_depth(void * param){
 	cout << "Solver state: " << (ret->state==10?"SAT":"UNSAT") << endl;
 	if (ret->state == 10){
 #ifndef NDEBUG
-		printVariableTruth(ret->solver, ret->htn, ret->capsule);
+		printVariableTruth(ret->solver, ret->htn, capsule);
 #endif
 		printSolution(ret->solver, ret->htn, ret->pdt);
 		ipasir_release(ret->solver);
@@ -346,8 +348,8 @@ void solve_with_sat_planner(Model * htn){
 	htn->buildOrderingDatastructures();
 
 
-	solve_with_sat_planner_time_interleave(htn);
-	//solve_with_sat_planner_linear_bound_increase(htn);
+	//solve_with_sat_planner_time_interleave(htn);
+	solve_with_sat_planner_linear_bound_increase(htn);
 }
 
 

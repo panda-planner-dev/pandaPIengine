@@ -49,6 +49,7 @@ struct sat_capsule{
 	sat_capsule();
 };
 
+void reset_number_of_clauses();
 int get_number_of_clauses();
 
 void assertYes(void* solver, int i);

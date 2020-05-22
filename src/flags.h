@@ -84,7 +84,7 @@
 #endif
 
 
-#define SAT_USEMUTEXES
+//#define SAT_USEMUTEXES
 
 
 #endif /* FLAGS_H_ */
