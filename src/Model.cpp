@@ -591,6 +591,10 @@ searchNode* Model::decompose(searchNode *n, int taskNo, int method) {
 	assert(!isPrimitive[decomposed->task]);
 	assert(decomposedTask[method] == decomposed->task);
 
+#ifdef TRACESOLUTION
+	int mySolutionStepInstanceNumber = progression::currentSolutionStepInstanceNumber++;
+#endif
+
 	searchNode* result = new searchNode;
 #if STATEREP == SRCOPY
 	result->state = n->state;
@@ -637,7 +641,11 @@ searchNode* Model::decompose(searchNode *n, int taskNo, int method) {
 	}
 
 	// add the successors of the decomposed task as successor of the method's last tasks
-	pair<planStep**, planStep**> mInstance = initializeMethod(method); // returns first and last tasks
+	pair<planStep**, planStep**> mInstance = initializeMethod(method
+#ifdef TRACESOLUTION
+			, mySolutionStepInstanceNumber 
+#endif	
+			); // returns first and last tasks
 	for (int i = 0; i < numLastTasks[method]; i++) {
 		mInstance.second[i]->successorList =
 				new planStep*[decomposed->numSuccessors];
@@ -687,6 +695,11 @@ searchNode* Model::decompose(searchNode *n, int taskNo, int method) {
 	result->solution->task = decomposed->task;
 	result->solution->method = method;
 	result->solution->prev = n->solution;
+#ifdef TRACESOLUTION
+	result->solution->mySolutionStepInstanceNumber = mySolutionStepInstanceNumber;
+	result->solution->myPositionInParent = decomposed->myPositionInParent;
+	result->solution->parentSolutionStepInstanceNumber = decomposed->parentSolutionStepInstanceNumber;
+#endif
 	result->solution->pointersToMe = 1;
 	result->modificationDepth = n->modificationDepth + 1;
 	result->mixedModificationDepth = n->mixedModificationDepth + 1;
@@ -927,13 +940,21 @@ searchNode* Model::decompose(searchNode *n, int taskNo, int method) {
 	return result;
 }
 
-pair<planStep**, planStep**> Model::initializeMethod(int method) {
+pair<planStep**, planStep**> Model::initializeMethod(int method
+#ifdef TRACESOLUTION
+		, int parentSolutionStepIndex
+#endif
+		) {
 	planStep** stepPointerList = new planStep*[numSubTasks[method]];
 	for (int i = 0; i < numSubTasks[method]; i++) {
 		stepPointerList[i] = new planStep;
 		stepPointerList[i]->id = ++this->psID;
 		stepPointerList[i]->task = subTasks[method][i];
 		stepPointerList[i]->pointersToMe = 0;
+#ifdef TRACESOLUTION
+		stepPointerList[i]->parentSolutionStepInstanceNumber = parentSolutionStepIndex;
+		stepPointerList[i]->myPositionInParent = i;
+#endif
 	}
 	for (int i = 0; i < numSubTasks[method]; i++) {
 		stepPointerList[i]->numSuccessors = 0;
@@ -1151,6 +1172,11 @@ searchNode* Model::apply(searchNode* n, int taskNo) {
 	result->solution->task = progressed->task;
 	result->solution->method = -1;
 	result->solution->prev = n->solution;
+#ifdef TRACESOLUTION
+	result->solution->mySolutionStepInstanceNumber = progression::currentSolutionStepInstanceNumber++;
+	result->solution->myPositionInParent = progressed->myPositionInParent;
+	result->solution->parentSolutionStepInstanceNumber = progressed->parentSolutionStepInstanceNumber;
+#endif
 	result->solution->pointersToMe = 1;
 	result->modificationDepth = n->modificationDepth + 1;
 	result->mixedModificationDepth = n->mixedModificationDepth + this->actionCosts[progressed->task];
