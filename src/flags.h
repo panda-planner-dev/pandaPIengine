@@ -83,8 +83,8 @@
 #define CHECKAFTER 5000 // nodes after which the timelimit is checked
 #endif
 
-
 //#define SAT_USEMUTEXES
 
+//#define TRACESOLUTION
 
 #endif /* FLAGS_H_ */
