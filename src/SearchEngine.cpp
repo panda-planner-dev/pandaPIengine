@@ -31,6 +31,8 @@
 
 #include "sat/sat_planner.h"
 
+#include "Invariants.h"
+
 using namespace std;
 using namespace progression;
 
@@ -59,6 +61,9 @@ int main(int argc, char *argv[]) {
 	cerr << "Reading HTN model from file \"" << s << "\" ... " << endl;
 	Model* htn = new Model();
 	htn->read(s);
+
+	compute_Rintanen_Invariants(htn);
+	return 0;
 
 	solve_with_sat_planner(htn);
 	return 0;

@@ -104,6 +104,9 @@ public:
 	int** precLists;
 	int** addLists;
 	int** delLists;
+#ifdef RINTANEN_INVARIANTS
+	int** changedLists;
+#endif
 
 	// dummy for CE
 	int** conditionalAddLists;
@@ -116,6 +119,7 @@ public:
 	bool** addVectors;
 	bool** delVectors;
 #endif
+
 	int numPrecLessActions;
 	int* precLessActions;
 	int* precToActionSize;
@@ -124,6 +128,9 @@ public:
 	int* numPrecs;
 	int* numAdds;
 	int* numDels;
+#ifdef RINTANEN_INVARIANTS
+	int* numChanged;
+#endif
 	
 	int* numConditionalAdds;
 	int* numConditionalDels;

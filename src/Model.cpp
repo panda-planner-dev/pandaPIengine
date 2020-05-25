@@ -51,6 +51,10 @@ Model::Model() {
 	numPrecs = nullptr;
 	numAdds = nullptr;
 	numDels = nullptr;
+#ifdef RINTANEN_INVARIANTS
+	numChanged = nullptr;
+	changedLists = nullptr;
+#endif
 	s0List = nullptr;
 	gList = nullptr;
 	isPrimitive = nullptr;
@@ -110,10 +114,16 @@ Model::~Model() {
 		delete[] precLists[i];
 		delete[] addLists[i];
 		delete[] delLists[i];
+#ifdef RINTANEN_INVARIANTS
+		delete[] changedLists[i];
+#endif
 	}
 	delete[] precLists;
 	delete[] addLists;
 	delete[] delLists;
+#ifdef RINTANEN_INVARIANTS
+	delete[] changedLists;
+#endif
 	delete[] precLessActions;
 	delete[] precToActionSize;
 	for (int i = 0; i < numStateBits; i++) {
@@ -123,6 +133,9 @@ Model::~Model() {
 	delete[] numPrecs;
 	delete[] numAdds;
 	delete[] numDels;
+#ifdef RINTANEN_INVARIANTS
+	delete[] numChanged;
+#endif
 	delete[] s0List;
 	delete[] gList;
 	delete[] isPrimitive;
@@ -2142,6 +2155,24 @@ void Model::read(string f) {
 #if (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
 	generateVectorRepresentation();
 #endif
+#ifdef RINTANEN_INVARIANTS
+	numChanged = new int[numActions];
+	changedLists = new int*[numActions];
+	for (int i = 0; i < numActions; i++) {
+		unordered_set<int> changed;
+		for (int j = 0; j < numAdds[i]; j++)
+			changed.insert(addLists[i][j]);
+		for (int j = 0; j < numDels[i]; j++)
+			changed.insert(delLists[i][j]);
+	
+		numChanged[i] = changed.size();
+		changedLists[i] = new int[numChanged[i]];
+		int j = 0;
+		for (auto x : changed)
+			changedLists[i][j++] = x;
+	}
+#endif
+
 	if (f != "stdin"){
 		((ifstream*) inputStream)->close();
 	}

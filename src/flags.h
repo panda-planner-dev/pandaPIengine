@@ -50,8 +50,6 @@
 
 #define EARLYGOALTEST
 
-// select a state representation
-#define STATEREP SRCOPY // choose from [state-representation]
 
 //#define OPTIMIZEUNTILTIMELIMIT true
 
@@ -84,7 +82,18 @@
 #endif
 
 //#define SAT_USEMUTEXES
+#define RINTANEN_INVARIANTS
 
 //#define TRACESOLUTION
+
+
+
+#ifdef RINTANEN_INVARIANTS
+#define STATEREP SRCALC1
+#else
+// select a state representation
+#define STATEREP SRCOPY // choose from [state-representation]
+#endif
+
 
 #endif /* FLAGS_H_ */
