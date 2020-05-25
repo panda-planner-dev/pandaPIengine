@@ -52,8 +52,6 @@ void compute_Rintanen_Invariants(Model * htn){
 
 	bool * posInferredPreconditions = new bool[htn->numStateBits];
 	bool * negInferredPreconditions = new bool[htn->numStateBits];
-	bool * ensuresPosP = new bool[htn->numStateBits];
-	bool * ensuresNegP = new bool[htn->numStateBits];
 
 	bool * toDelete = new bool[v0.size()];
 	for (size_t i = 0; i < v0.size(); i++)
@@ -62,6 +60,7 @@ void compute_Rintanen_Invariants(Model * htn){
 	
 	int nc = 0;
 	int round = 1;
+	int lastChangeAtAction = -1;
 	do {
 		cout << "Round " << round;
 		nc = 0;
@@ -111,121 +110,90 @@ void compute_Rintanen_Invariants(Model * htn){
 		cout << ": " << v0.size() << " invariants remaining" << endl;
 
 		for (size_t tIndex = 0; tIndex < htn->numActions; tIndex++){
+			// we can break if we already have done a full round without any change
+			if (!nc && tIndex > lastChangeAtAction) break;
+			
 			// infer additional preconditions and effects
 			for (int p1 = 0; p1 < htn->numStateBits; p1++){
 				posInferredPreconditions[p1] = false;
 				negInferredPreconditions[p1] = false;
 			}
 
-			for (size_t preIndex = 0; preIndex < htn->numPrecs[tIndex]; preIndex++){
+			bool inapplicable = false;
+			for (size_t preIndex = 0; !inapplicable && preIndex < htn->numPrecs[tIndex]; preIndex++){
 				int pre = htn->precLists[tIndex][preIndex];
 				posInferredPreconditions[pre] = true;
 
 				// look only at the invariants that are possibly matching this precondition
-				// TODO look only at the ones containing it negatively	
 				for (size_t invarListIndex = 0; invarListIndex < negInvarsPerPredicate[pre].size(); invarListIndex++){
 					int invar = negInvarsPerPredicate[pre][invarListIndex];
 					if (toDelete[invar]) continue;
 					if (v0[invar].first < 0 && pre == -v0[invar].first-1){
-						if (v0[invar].second < 0)
+						if (v0[invar].second < 0){
 							negInferredPreconditions[-v0[invar].second - 1] = true;
-						else
+							if (posInferredPreconditions[-v0[invar].second - 1]) {inapplicable = true; break;}
+						} else {
 							posInferredPreconditions[ v0[invar].second] = true;
+							if (negInferredPreconditions[v0[invar].second]) {inapplicable = true; break;}
+						}
 					}
 					if (v0[invar].second < 0 && pre == -v0[invar].second-1){
-						if (v0[invar].first < 0)
+						if (v0[invar].first < 0){
 							negInferredPreconditions[-v0[invar].first - 1] = true;
-						else
+							if (posInferredPreconditions[-v0[invar].first - 1]) {inapplicable = true; break;}
+						} else {
 							posInferredPreconditions[ v0[invar].first] = true;
+							if (negInferredPreconditions[v0[invar].first]) {inapplicable = true; break;}
+						}
 					}
 				}
 			}
+			if (inapplicable) continue;
 
-
-			for (int p1 = 0; p1 < htn->numStateBits; p1++){
-				if ((posInferredPreconditions[p1] && !htn->delVectors[tIndex][p1]) || htn->addVectors[tIndex][p1])
-					ensuresPosP[p1] = true;
-				else
-					ensuresPosP[p1] = false;
-			}
-			
-			for (int p1 = 0; p1 < htn->numStateBits; p1++){
-				if ((negInferredPreconditions[p1] && !htn->addVectors[tIndex][p1]) || htn->delVectors[tIndex][p1])
-					ensuresNegP[p1] = true;
-				else
-					ensuresNegP[p1] = false;
-			}
-
-
-			for (size_t addIndex = 0; addIndex < htn->numAdds[tIndex]; addIndex++){
-				int add = htn->addLists[tIndex][addIndex];
-				// if the actions adds something, this may violate an invariant containing the predicate negatively
-				for (size_t invarListIndex = 0; invarListIndex < negInvarsPerPredicate[add].size(); invarListIndex++){
-					int invar = negInvarsPerPredicate[add][invarListIndex];
-					if (toDelete[invar]) continue;
+#define ensuresNegP(p) (negInferredPreconditions[p] && !htn->addVectors[tIndex][p]) || htn->delVectors[tIndex][p]
+#define ensuresPosP(p) (posInferredPreconditions[p] && !htn->delVectors[tIndex][p]) || htn->addVectors[tIndex][p]
+			for (int type = 0 ; type < 2; type++){
+				int num   = type ? htn->numAdds[tIndex] : htn->numDels[tIndex];
+				int* list = type ? htn->addLists[tIndex] : htn->delLists[tIndex];
+				vector<vector<int>> & invarSource = type ? negInvarsPerPredicate : posInvarsPerPredicate; 
 				
-					// so this invariant is violated if it does not ensure the other literal
-    	            bool ab = v0[invar].first  >= 0;
-    	            bool bb = v0[invar].second >= 0;
-					int ap = v0[invar].first;   if (!ab) ap = -ap - 1;
-					int bp = v0[invar].second;  if (!bb) bp = -bp - 1;
-				
-					if (ap == add){
-						// check if (bp,bb) is ensured by the action
-						if (bb){
-							if (ensuresPosP[bp]) continue;
-						} else {
-							if (ensuresNegP[bp]) continue;
-						}
-					} else {
-						if (ab){
-							if (ensuresPosP[ap]) continue;
-						} else {
-							if (ensuresNegP[ap]) continue;
-						}
-					}
+				for (size_t index = 0; index < num; index++){
+					int c = list[index];
+					// if the actions adds something, this may violate an invariant containing the predicate negatively
+					for (size_t invarListIndex = 0; invarListIndex < invarSource[c].size(); invarListIndex++){
+						int invar = invarSource[c][invarListIndex];
+						if (toDelete[invar]) continue;
 					
-					toDelete[invar] = true;
-					nc += 1;
-				}
-			}
-
-
-			for (size_t delIndex = 0; delIndex < htn->numDels[tIndex]; delIndex++){
-				int del = htn->delLists[tIndex][delIndex];
-				// if the actions adds something, this may violate an invariant containing the predicate negatively
-				for (size_t invarListIndex = 0; invarListIndex < posInvarsPerPredicate[del].size(); invarListIndex++){
-					int invar = posInvarsPerPredicate[del][invarListIndex];
-					if (toDelete[invar]) continue;
-				
-					// so this invariant is violated if it does not ensure the other literal
-    	            bool ab = v0[invar].first  >= 0;
-    	            bool bb = v0[invar].second >= 0;
-					int ap = v0[invar].first;   if (!ab) ap = -ap - 1;
-					int bp = v0[invar].second;  if (!bb) bp = -bp - 1;
-				
-					if (ap == del){
-						// check if (bp,bb) is ensured by the action
-						if (bb){
-							if (ensuresPosP[bp]) continue;
-						} else {
-							if (ensuresNegP[bp]) continue;
-						}
-					} else {
-						if (ab){
-							if (ensuresPosP[ap]) continue;
-						} else {
-							if (ensuresNegP[ap]) continue;
-						}
-					}
+						// so this invariant is violated if it does not ensure the other literal
+    	    	        bool ab = v0[invar].first  >= 0;
+    	    	        bool bb = v0[invar].second >= 0;
+						int ap = v0[invar].first;   if (!ab) ap = -ap - 1;
+						int bp = v0[invar].second;  if (!bb) bp = -bp - 1;
 					
-					toDelete[invar] = true;
-					nc += 1;
+						if (ap == c){
+							// check if (bp,bb) is ensured by the action
+							if (bb){
+								if (ensuresPosP(bp)) continue;
+							} else {
+								if (ensuresNegP(bp)) continue;
+							}
+						} else {
+							if (ab){
+								if (ensuresPosP(ap)) continue;
+							} else {
+								if (ensuresNegP(ap)) continue;
+							}
+						}
+						
+						toDelete[invar] = true;
+						nc += 1;
+						lastChangeAtAction = tIndex;
+					}
 				}
 			}
 
 			if (tIndex % 500 == 499)
-				cout << "  " << v0.size() - nc << " / " << v0.size() << " remaining." << endl;
+				cout << "  " << v0.size() - nc << " / " << v0.size() << " remaining after " << tIndex+1 << " of " << htn->numActions << endl;
 		}
 	} while (nc);
 
