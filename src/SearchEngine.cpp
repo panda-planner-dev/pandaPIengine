@@ -36,19 +36,19 @@ int main(int argc, char *argv[]) {
 #ifndef NDEBUG
 	cout << "You have compiled the search engine without setting the NDEBUG flag. This will make it slow and should only be done for debug." << endl;
 #endif
-	srand(42);
 	//srand(atoi(argv[4]));
 
-	string s, s2, s3;
+	string s;
+	int seed = 42;
 	if (argc == 1) {
 		cout << "No file name passed. Reading input from stdin";
 		s = "stdin";
-		s2 = s3 = "";
 	} else {
 		s = argv[1];
-		s2 = (argc > 2) ? argv[2] : "";
-		s3 = (argc > 3) ? argv[3] : "";
+		if (argc > 2) seed = atoi(argv[2]);
 	}
+	cout << "Random seed: " << seed << endl;
+	srand(seed);
 
 
 /*
@@ -85,15 +85,10 @@ int main(int argc, char *argv[]) {
 #ifdef RCHEURISTIC
 	cout << "Heuristic: RC encoding" << endl;
 	Model* heuristicModel;
-	if (s2.size() == 0){
-		cout << "No RC model specified. Computing ... " << endl;
-		RCModelFactory* factory = new RCModelFactory(htn);
-		heuristicModel = factory->getRCmodelSTRIPS();
-		delete factory;
-	} else {
-		heuristicModel = new Model();
-		heuristicModel->read(s2);
-	}
+	cout << "Computing RC model ... " << endl;
+	RCModelFactory* factory = new RCModelFactory(htn);
+	heuristicModel = factory->getRCmodelSTRIPS();
+	delete factory;
 
 #if HEURISTIC == RCFF
 	search.hF = new hhRC(htn, new hsAddFF(heuristicModel));
