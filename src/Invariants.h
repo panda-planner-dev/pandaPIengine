@@ -1,5 +1,5 @@
-#ifndef pdt_h_INCLUDED
-#define pdt_h_INCLUDED
+#ifndef invariants_INCLUDED
+#define invariants_INCLUDED
 
 #include "flags.h" // defines flags
 #include "Model.h"
@@ -7,5 +7,6 @@
 void extract_invariants_from_parsed_model(Model * htn);
 void compute_Rintanen_Invariants(Model * htn);
 
+bool can_state_features_co_occur(Model * htn, int a, int b);
 
 #endif

@@ -122,8 +122,12 @@ public:
 
 	int numPrecLessActions;
 	int* precLessActions;
+	
 	int* precToActionSize;
 	int** precToAction;
+
+	int* delToActionSize;
+	int** delToAction;
 
 	int* numPrecs;
 	int* numAdds;

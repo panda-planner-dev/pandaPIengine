@@ -48,6 +48,8 @@ Model::Model() {
 	precLessActions = nullptr;
 	precToActionSize = nullptr;
 	precToAction = nullptr;
+	delToActionSize = nullptr;
+	delToAction = nullptr;
 	numPrecs = nullptr;
 	numAdds = nullptr;
 	numDels = nullptr;
@@ -126,10 +128,13 @@ Model::~Model() {
 #endif
 	delete[] precLessActions;
 	delete[] precToActionSize;
+	delete[] delToActionSize;
 	for (int i = 0; i < numStateBits; i++) {
 		delete[] precToAction[i];
+		delete[] delToAction[i];
 	}
 	delete[] precToAction;
+	delete[] delToAction;
 	delete[] numPrecs;
 	delete[] numAdds;
 	delete[] numDels;
@@ -1811,6 +1816,7 @@ void Model::readClassical(istream& domainFile) {
 		}
 	}
 
+	// prec to actions
 	set<int> precToActionTemp[numStateBits];
 	for (int i = 0; i < numActions; i++) {
 		for (int j = 0; j < numPrecs[i]; j++) {
@@ -1827,6 +1833,26 @@ void Model::readClassical(istream& domainFile) {
 		int cur = 0;
 		for (int ac : precToActionTemp[i]) {
 			precToAction[i][cur++] = ac;
+		}
+	}
+
+	// del to action
+	set<int> delToActionTemp[numStateBits];
+	for (int i = 0; i < numActions; i++) {
+		for (int j = 0; j < numDels[i]; j++) {
+			int f = delLists[i][j];
+			delToActionTemp[f].insert(i);
+		}
+	}
+	delToActionSize = new int[numStateBits];
+	delToAction = new int*[numStateBits];
+
+	for (int i = 0; i < numStateBits; i++) {
+		delToActionSize[i] = delToActionTemp[i].size();
+		delToAction[i] = new int[delToActionSize[i]];
+		int cur = 0;
+		for (int ac : delToActionTemp[i]) {
+			delToAction[i][cur++] = ac;
 		}
 	}
 	// s0

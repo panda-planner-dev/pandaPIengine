@@ -20,6 +20,15 @@ template <> struct hash<std::pair<int, int>> {
 // note: all invariants are contained twice!
 unordered_set<int> * binary_invariants;
 
+bool can_state_features_co_occur(Model * htn, int a, int b){
+	if (a == -b-1) return false; // edge case!
+	a = -a-1 + htn->numStateBits;
+	b = -b-1;
+
+
+	return !binary_invariants[a].count(b);
+}
+
 void insert_invariant(Model * htn, int a, int b){
 	//cout << "\t\t\t\t\t\t\t\t\tInsert " << a << " " << b << endl;
 	binary_invariants[a + htn->numStateBits].insert(b);
@@ -34,7 +43,7 @@ int count_invariants(Model * htn){
 }
 
 void extract_invariants_from_parsed_model(Model * htn){
-	cout << "Extracting invariants from parsed model" << endl;
+	cout << endl << "Extracting invariants from parsed model" << endl;
 	binary_invariants = new unordered_set<int>[2*htn->numStateBits];
 
 	int unusableInvariant = 0;
@@ -180,7 +189,7 @@ void extract_invariants_from_parsed_model(Model * htn){
 
 void compute_Rintanen_Invariants(Model * htn){
 	std::clock_t invariant_start = std::clock();
-	cout << "Computing invariants [Rintanen]" << endl;
+	cout << endl << "Computing invariants [Rintanen]" << endl;
 
 	bool * s0Vector = new bool[htn->numStateBits];
 	for (int i = 0; i < htn->numStateBits; i++) s0Vector[i] = false;
@@ -431,4 +440,9 @@ void compute_Rintanen_Invariants(Model * htn){
 		}
 	}
 #endif
+
+
+	// add invariants to list
+	for (auto [a,b] : v0)
+		insert_invariant(htn,a,b);
 }
