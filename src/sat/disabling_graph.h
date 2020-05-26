@@ -15,6 +15,23 @@ struct graph{
 	~graph();
 
 	int count_edges();
+	void calcSCCs();
+	void calcSCCGraph();
+
+	graph * scc_graph;
+
+	// place to keep the SCC data
+	int numSCCs = -1;
+	int* vertexToSCC = nullptr;
+	int** sccToVertices = nullptr;
+	int* sccSize = nullptr;
+	
+
+	string dot_string();
+	string dot_string(map<int,string> names);
+
+private:
+	void tarjan(int v);
 };
 
 

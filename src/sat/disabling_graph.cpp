@@ -1,3 +1,5 @@
+#include <fstream>
+
 #include "disabling_graph.h"
 #include "../Debug.h"
 #include "../Invariants.h"
@@ -33,6 +35,149 @@ int graph::count_edges(){
 		c+= adjSize[i];
 	return c;
 }
+
+// temporal SCC information
+int maxdfs; // counter for dfs
+bool* U; // set of unvisited nodes
+vector<int>* S; // stack
+bool* containedS;
+int* dfsI;
+int* lowlink;
+
+void graph::calcSCCs() {
+	cout << "Calculate SCCs..." << endl;
+
+	maxdfs = 0;
+	U = new bool[numVertices];
+	S = new vector<int>;
+	containedS = new bool[numVertices];
+	dfsI = new int[numVertices];
+	lowlink = new int[numVertices];
+	numSCCs = 0;
+	vertexToSCC = new int[numVertices];
+	for (int i = 0; i < numVertices; i++) {
+		U[i] = true;
+		containedS[i] = false;
+		vertexToSCC[i] = -1;
+	}
+
+	for (size_t i = 0; i < numVertices; i++)
+		if (U[i]) tarjan(i);
+
+	sccSize = new int[numSCCs];
+	for (int i = 0; i < numSCCs; i++)
+		sccSize[i] = 0;
+	
+	for (int i = 0; i < numVertices; i++) {
+		int j = vertexToSCC[i];
+		sccSize[j]++;
+	}
+	cout << "- Number of SCCs: " << numSCCs << endl;
+
+	// generate inverse mapping
+	sccToVertices = new int*[numSCCs];
+	int currentI[numSCCs];
+	for (int i = 0; i < numSCCs; i++)
+		currentI[i] = 0;
+	for (int i = 0; i < numSCCs; i++) {
+		sccToVertices[i] = new int[sccSize[i]];
+	}
+	for (int i = 0; i < numVertices; i++) {
+		int scc = vertexToSCC[i];
+		sccToVertices[scc][currentI[scc]] = i;
+		currentI[scc]++;
+	}
+
+	delete[] U;
+	delete S;
+	delete[] containedS;
+	delete[] dfsI;
+	delete[] lowlink;
+}
+
+
+
+void graph::tarjan(int v) {
+	dfsI[v] = maxdfs;
+	lowlink[v] = maxdfs; // v.lowlink <= v.dfs
+	maxdfs++;
+
+	S->push_back(v);
+	containedS[v] = true;
+	U[v] = false; // delete v from U
+
+	for (int i = 0; i < adjSize[v]; i++) { // iterate subtasks -> these are the adjacent nodes
+		int v2 = adj[v][i];
+		if (U[v2]) {
+			tarjan(v2);
+			if (lowlink[v] > lowlink[v2]) {
+				lowlink[v] = lowlink[v2];
+			}
+		} else if (containedS[v2]) {
+			if (lowlink[v] > dfsI[v2])
+				lowlink[v] = dfsI[v2];
+		}
+	}
+
+	if (lowlink[v] == dfsI[v]) { // root of an SCC
+		int v2;
+		do {
+			v2 = S->back();
+			S->pop_back();
+			containedS[v2] = false;
+			vertexToSCC[v2] = numSCCs;
+		} while (v2 != v);
+		numSCCs++;
+	}
+}
+
+void graph::calcSCCGraph() {
+	vector<unordered_set<int>> sccg (numSCCs);
+
+	for (int i = 0; i < numVertices; i++) {
+		int sccFrom = vertexToSCC[i];
+		for (int j = 0; j < adjSize[i]; j++) {
+			int sccTo = vertexToSCC[adj[i][j]];
+			if (sccFrom != sccTo) {
+				sccg[sccFrom].insert(sccTo);
+			}
+		}
+	}
+	scc_graph = new graph(sccg);
+}
+
+
+string graph::dot_string(){
+	map<int,string> empty;
+	return dot_string(empty);
+}
+
+
+string graph::dot_string(map<int,string> names){
+    string result = "digraph someDirectedGraph{\n";
+
+	// edges
+	for (int i = 0; i < numVertices; i++) {
+		for (int jI = 0; jI < adjSize[i]; jI++) {
+			int j = adj[i][jI];
+			result += "\ta" + to_string(i) + " -> a" + to_string(j) + " [label=\"\"];\n";
+		}
+	}
+	
+	// vertices
+	for (int i = 0; i < numVertices; i++){
+		string label = to_string(i);
+		if (names.count(i)) label = names[i];
+
+		result += "\ta" + to_string(i) + " [label=\"" + label + "\"];\n";
+	}
+
+	result += "}\n";
+
+	return result;
+}
+
+
 
 bool are_actions_applicable_in_the_same_state(Model * htn, int a, int b){
 	if (a == b) return true;
@@ -102,84 +247,28 @@ void compute_disabling_graph(Model * htn){
 	
 	// convert into int data structures
 	graph * dg = new graph(tempAdj);
+	cout << "Generated graph with " << dg->count_edges() << " edges." << endl;
+	dg->calcSCCs();
+	map<int,int> scc_sizes;
+	for (int scc = 0; scc < dg->numSCCs; scc++)
+		scc_sizes[dg->sccSize[scc]]++;
 
+	cout << "SCC sizes:";
+	for (auto [size,num] : scc_sizes)
+		cout << " " << num << "x" << size;
+	cout << endl;
+
+	/*map<int,string> names;
+	for (int i = 0; i < htn->numActions; i++)
+		names[i] = htn->taskNames[i];
+	ofstream out("dg.dot");
+    //out << dg->dot_string(names);
+    out << dg->dot_string();
+    out.close();
+	system("dot -Tpdf dg.dot > dg.pdf");
+	*/
+	
 	std::clock_t dg_end = std::clock();
 	double dg_time = 1000.0 * (dg_end-dg_start) / CLOCKS_PER_SEC;
-	cout << "Generated graph with " << dg->count_edges() << " edges." << endl;
 	cout << "Generating the graph took " << dg_time << "ms." << endl;
 }
-
-#ifdef FALSE
-
-  // the non-extended disabling graph will contain only those edges implies by the problem itself, not by additional constraints (like LTL)
-  lazy val (disablingGraph, nonExtendedDisablingGraph): (DirectedGraph[Task], DirectedGraph[Task]) = {
-    println("Computing disabling graph")
-    val time1 = System.currentTimeMillis()
-
-    def applicable(task1: IntTask, task2: IntTask): Boolean = {
-      var counter = false
-      // incompatibe preconditions via invariants
-      var i = 0
-      while (!counter && i < task1.preList.length) {
-        var j = 0
-        while (!counter && j < task2.preList.length) {
-          counter |= checkInvariant(-task1.preList(i), -task2.preList(j))
-          j += 1
-        }
-        i += 1
-      }
-      // incompatible effects via invariants
-      i = 0
-      while (!counter && i < task1.invertedEffects.length) {
-        var j = 0
-        while (!counter && j < task2.invertedEffects.length) {
-          counter |= checkInvariant(task1.invertedEffects(i), task2.invertedEffects(j))
-          j += 1
-        }
-        i += 1
-      }
-      // are applicable if we have not found a counter example
-      !counter
-    }
-
-    def affects(task1: Task, task2: Task): Boolean = task1.delEffectsAsPredicate exists task2.posPreconditionAsPredicateSet.contains
-
-    // compute affection
-    val predicateToAdding: Map[Predicate, Array[IntTask]] =
-      intTasks flatMap { t => t.task.addEffectsAsPredicate map { e => (t, e) } } groupBy (_._2) map { case (p, as) => p -> as.map(_._1) }
-
-    val predicateToDeleting: Map[Predicate, Array[IntTask]] =
-      intTasks flatMap { t => t.task.delEffectsAsPredicate map { e => (t, e) } } groupBy (_._2) map { case (p, as) => p -> as.map(_._1) }
-
-    val predicateToNeeding: Map[Predicate, Array[IntTask]] =
-      intTasks flatMap { t => t.task.posPreconditionAsPredicate map { e => (t, e) } } groupBy (_._2) map { case (p, as) => p -> as.map(_._1) }
-
-    val edgesWithDuplicats: Seq[(IntTask, IntTask)] =
-      predicateToDeleting.toSeq flatMap { case (p, as) => predicateToNeeding.getOrElse(p, new Array(0)) flatMap { n => as map { d => (d, n) } } }
-    val alwaysEdges: Seq[(IntTask, IntTask)] = (edgesWithDuplicats groupBy { _._1 } toSeq) flatMap { case (t1, t2) => (t2 map {
-      _._2
-    } distinct) collect { case t if t != t1 => (t1, t) }
-    }
-    val additionalEdges = additionalEdgesInDisablingGraph.flatMap(_.additionalEdges(this)(predicateToAdding, predicateToDeleting, predicateToNeeding))
-    val time12 = System.currentTimeMillis()
-    println("Candidates (" + alwaysEdges.length + " & " + additionalEdges.length + ") generated: " + ((time12 - time1) / 1000))
-
-    val alwaysApplicableEdges = alwaysEdges collect { case (a, b) if applicable(a, b) => (a.task, b.task) }
-    val additionalApplicableEdges = additionalEdges collect { case (a, b) if applicable(a, b) => (a.task, b.task) }
-
-    val fullDG = SimpleDirectedGraph(domain.primitiveTasks, (alwaysApplicableEdges ++ additionalApplicableEdges).distinct)
-    val nonExtendedDG = SimpleDirectedGraph(domain.primitiveTasks, alwaysApplicableEdges.distinct)
-
-    val time2 = System.currentTimeMillis()
-    println("EDGELIST " + fullDG.edgeList.length + " of " + fullDG.vertices.size * (fullDG.vertices.size - 1) + " in " + (time2 - time1) / 1000.0)
-    val allSCCS = fullDG.stronglyConnectedComponents
-    val time3 = System.currentTimeMillis()
-    println(((allSCCS map { _.size } groupBy { x => x }).toSeq.sortBy(_._1) map { case (k, s) => s.size + "x" + k } mkString ", ") + " in " + (time3 - time2) / 1000.0)
-
-    (fullDG, nonExtendedDG)
-  }
-
-
-#endif
-
-
