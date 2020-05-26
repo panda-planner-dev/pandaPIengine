@@ -21,10 +21,19 @@ using namespace std;
 
 namespace progression {
 
+#ifdef TRACESOLUTION
+extern int currentSolutionStepInstanceNumber;
+#endif
+
 struct solutionStep {
 	int task;
 	int method;
 	int pointersToMe;
+#ifdef TRACESOLUTION
+	int mySolutionStepInstanceNumber;
+	int myPositionInParent;
+	int parentSolutionStepInstanceNumber;
+#endif
 	solutionStep* prev;
 
 	~solutionStep();
@@ -34,6 +43,10 @@ struct planStep {
 	int id;
 	int task;
 	int pointersToMe;
+#ifdef TRACESOLUTION
+	int myPositionInParent;
+	int parentSolutionStepInstanceNumber;
+#endif
 	int numSuccessors;
 	planStep** successorList = nullptr;
 #ifdef MAINTAINREACHABILITY

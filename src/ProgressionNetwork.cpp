@@ -9,6 +9,11 @@
 #include <stdlib.h>
 
 namespace progression {
+
+#ifdef TRACESOLUTION
+int currentSolutionStepInstanceNumber = 0;
+#endif
+
 ////////////////////////////////
 // solutionStep
 ////////////////////////////////

@@ -35,7 +35,11 @@ private:
 	int* readIntList(string s, int& size);
 	tuple<int*,int*,int**> readConditionalIntList(string s, int& sizeA, int& sizeB, int*& sizeC);
 	void generateMethodRepresentation();
-	pair<planStep**, planStep**> initializeMethod(int method);
+	pair<planStep**, planStep**> initializeMethod(int method
+#ifdef TRACESOLUTION
+		, int parentSolutionStepIndex
+#endif
+			);
 	int psID = 0;
 
 	void printSummary();
@@ -76,6 +80,11 @@ public:
 	int* firstIndex;
 	int* lastIndex;
 	string* varNames;
+
+	// additional strict mutexes
+	int numStrictMutexes;
+	int** strictMutexes;
+	int* strictMutexesSize;
 
 	// additional mutexes
 	int numMutexes;
