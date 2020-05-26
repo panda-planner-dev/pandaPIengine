@@ -2227,7 +2227,8 @@ int* Model::readIntList(string s, int& size) {
 	vector<int> v;
 	int x;
 	sStream >> x;
-	while (x >= 0) {
+	while (x != -1) {
+		if (x < 0) x++; // convert back to -i-1 instead of -i-2
 		v.push_back(x);
 		sStream >> x;
 	}
