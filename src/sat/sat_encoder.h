@@ -4,26 +4,7 @@
 #include <map>
 #include <vector>
 #include <string>
-
-/**
- * @brief Returns true if debug mode is enabled.
- */
-bool getDebugMode (void);
-
-/**
- * @brief Enables or disables debug mode.
- *
- * If the program was built without DEBUG_MODE, and enabled is set to true,
- * a warning message will be printed to cerr, and debug mode will not be enabled.
- */
-void setDebugMode (bool enabled);
-
-
-#ifndef NDEBUG
-# define DEBUG(x) do { if (getDebugMode ()) { x; } } while (0)
-#else
-# define DEBUG(x)
-#endif
+#include "../Debug.h"
 
 #define INTPAD 4
 #define PATHPAD 15

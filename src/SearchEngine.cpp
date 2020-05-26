@@ -18,6 +18,7 @@
 #include "./search/PriorityQueueSearch.h"
 #endif
 
+#include "Debug.h"
 #include "Model.h"
 #if HEURISTIC == RCFF
 #include "heuristics/rcHeuristics/hsAddFF.h"
@@ -62,6 +63,8 @@ int main(int argc, char *argv[]) {
 	Model* htn = new Model();
 	htn->read(s);
 
+	setDebugMode(true);
+	extract_invariants_from_parsed_model(htn);
 	compute_Rintanen_Invariants(htn);
 	return 0;
 

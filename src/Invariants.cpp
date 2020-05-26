@@ -1,8 +1,182 @@
 #include <vector>
 #include <iostream>
+#include <queue>
+#include <cassert>
 #include "Invariants.h"
+#include "Debug.h"
 
 using namespace std;
+
+namespace std {
+template <> struct hash<std::pair<int, int>> {
+    inline size_t operator()(const std::pair<int, int> &v) const {
+        std::hash<int> int_hasher;
+        return int_hasher(v.first) ^ int_hasher(v.second);
+    }
+};
+
+}
+
+// note: all invariants are contained twice!
+unordered_set<int> * binary_invariants;
+
+void insert_invariant(Model * htn, int a, int b){
+	//cout << "\t\t\t\t\t\t\t\t\tInsert " << a << " " << b << endl;
+	binary_invariants[a + htn->numStateBits].insert(b);
+	binary_invariants[b + htn->numStateBits].insert(a);
+}
+
+int count_invariants(Model * htn){
+	int number_of_invariants = 0;
+	for (int i = 0; i < 2*htn->numStateBits; i++)
+		number_of_invariants += binary_invariants[i].size();
+	return number_of_invariants / 2; // count double
+}
+
+void extract_invariants_from_parsed_model(Model * htn){
+	cout << "Extracting invariants from parsed model" << endl;
+	binary_invariants = new unordered_set<int>[2*htn->numStateBits];
+
+	int unusableInvariant = 0;
+	int unusableStrictMutexes = 0;
+	int unusableSASGroups = 0;
+
+	// go through everything we know and add invariants
+	for (size_t invarN = 0; invarN < htn->numInvariants; invarN++){
+		if (htn->invariantsSize[invarN] != 2) { unusableInvariant++; continue; }
+
+		insert_invariant(htn,htn->invariants[invarN][0], htn->invariants[invarN][1]);
+	}
+		
+	for (size_t mutexN = 0; mutexN < htn->numStrictMutexes; mutexN++){
+		for (size_t m1 = 0; m1 < htn->strictMutexesSize[mutexN]; m1++)
+			for (size_t m2 = m1 + 1; m2 < htn->strictMutexesSize[mutexN]; m2++)
+				insert_invariant(htn,-htn->strictMutexes[mutexN][m1]-1, -htn->strictMutexes[mutexN][m2]-1);
+
+		if (htn->strictMutexesSize[mutexN] != 2){ unusableStrictMutexes++; continue; }
+		// if it is strict, one of the two values must be true
+		insert_invariant(htn,htn->strictMutexes[mutexN][0], htn->strictMutexes[mutexN][1]);
+	}
+
+
+
+	for (size_t mutexN = 0; mutexN < htn->numMutexes; mutexN++){
+		for (size_t m1 = 0; m1 < htn->mutexesSize[mutexN]; m1++)
+			for (size_t m2 = m1 + 1; m2 < htn->mutexesSize[mutexN]; m2++)
+				insert_invariant(htn,-htn->mutexes[mutexN][m1]-1, -htn->mutexes[mutexN][m2]-1);
+	}
+
+	// SAS+ groups imply mutual exclusion
+	for (size_t var = 0; var < htn->numVars; var++){
+		for (int i = htn->firstIndex[var]; i <= htn->lastIndex[var]; i++)
+			for (int j = i+1; j <= htn->lastIndex[var]; j++)
+				insert_invariant(htn,-i-1, -j-1);	
+	
+		if (htn->lastIndex[var] - htn->firstIndex[var] != 1) { unusableSASGroups++; continue; }
+		insert_invariant(htn, htn->firstIndex[var], htn->lastIndex[var]);
+	}
+
+
+
+	// see how many invariants we got for statistics
+	int number_of_invariants = count_invariants(htn);
+	cout << "Extracted " << number_of_invariants << " invariants." << endl;
+
+	
+	cout << "Starting resolution." << endl;
+	std::clock_t resolution_start = std::clock();
+	
+	// now do resolution over the invariants
+	queue<pair<int,int>> invariant_to_process;
+	for (int i = 0; i < 2*htn->numStateBits; i++){
+		int a = i - htn->numStateBits;
+		if (a < 0) a = -a-1;
+		for (const int & j : binary_invariants[i]){
+			int b = j;
+			if (b < 0) b = -b-1;
+			if (a < b){
+				invariant_to_process.push(make_pair(i - htn->numStateBits,j));
+			}
+		}
+	}
+
+	int round = 0;
+	int newInvars = 0;
+	while (invariant_to_process.size()){
+		while (invariant_to_process.size()){
+			pair<int,int> inv = invariant_to_process.front();
+			invariant_to_process.pop();
+			int invA = -inv.first - 1;
+			int invB = -inv.second - 1;
+
+			// first variable, look for invariants containing the contrary fact
+			for (const int & j : binary_invariants[invA + htn->numStateBits]){
+				if (-j-1 == inv.second) continue; // trivial invariant
+				// the new invariant is inv.second,j
+				if (!binary_invariants[inv.second + htn->numStateBits].count(j)){
+					insert_invariant(htn,inv.second,j);
+					invariant_to_process.push(make_pair(inv.second,j));
+					newInvars++;
+				}
+			}
+
+			// second variable, look for invariants containing the contrary fact
+			for (const int & j : binary_invariants[invB + htn->numStateBits]){
+				if (-j-1 == inv.first) continue; // trivial invariant
+				// the new invariant is inv.first,j
+				if (!binary_invariants[inv.first + htn->numStateBits].count(j)){
+					insert_invariant(htn,inv.first,j);
+					invariant_to_process.push(make_pair(inv.first,j));
+					newInvars++;
+				}
+			}
+			round++;
+			if (round % 500 == 0){
+				cout << "Resolution: " << invariant_to_process.size() << " remaining. " << newInvars << " new invariants found." << endl;
+			}
+		}
+
+		cout << "Starting inference from SAS groups." << endl;
+		// the SAS group is essentially a big OR, if we can resolve every member except for one with the same clause we have a new clause
+		for (int iAccess = 0; iAccess < 2*htn->numStateBits; iAccess++){
+			// check for all mutex groups whether it is mutex with all but one of the elements
+			for (size_t var = 0; var < htn->numVars; var++){
+				if (htn->firstIndex[var] == htn->lastIndex[var]) continue; // no true SAS group
+				int pred = iAccess - htn->numStateBits; if (pred < 0) pred = -pred-1;
+				if (htn->firstIndex[var] <= pred && pred <= htn->lastIndex[var]) continue; // no inference with my own SAS group
+		
+
+				int invar = 0; // 0 all mutex, 1 more than two non mutex
+				for (int i = htn->firstIndex[var]; i <= htn->lastIndex[var]; i++){
+					int iNeg = -i-1;
+					if (binary_invariants[iAccess].count(iNeg)) continue;
+					if (invar == 0) invar = iNeg;
+					else if (invar < 0) { invar = 1; break; }
+				}
+
+				if (invar == 1) continue; // cannot be mutex
+				if (invar == 0){
+					cout << "fact is statically false. This should have been detected in preprocessing ... I'm giving up." << endl;
+					exit(0);
+				}
+				if (invar < 0 && binary_invariants[iAccess].count(-invar-1) == 0){
+					// so only invar is the only one that is not mutex with iAccess, thus we have a new invariant
+					insert_invariant(htn, -invar-1, iAccess - htn->numStateBits);
+					invariant_to_process.push(make_pair(-invar-1, iAccess - htn->numStateBits));
+				}
+			}
+		}
+		cout << "Found " << invariant_to_process.size() << " new invariants." << endl;
+	}
+
+	number_of_invariants = count_invariants(htn);
+	std::clock_t resolution_end = std::clock();
+	double resolution_time = 1000.0 * (resolution_end-resolution_start) / CLOCKS_PER_SEC;
+	
+	cout << "After resolution we have " << number_of_invariants << " invariants, taking " << resolution_time << "ms." << endl;
+}
+
+
 
 void compute_Rintanen_Invariants(Model * htn){
 	std::clock_t invariant_start = std::clock();
@@ -192,7 +366,7 @@ void compute_Rintanen_Invariants(Model * htn){
 				}
 			}
 
-			if (tIndex % 500 == 499)
+			if (tIndex % 5000 == 4999)
 				cout << "  " << v0.size() - nc << " / " << v0.size() << " remaining after " << tIndex+1 << " of " << htn->numActions << endl;
 		}
 	} while (nc);
@@ -201,4 +375,60 @@ void compute_Rintanen_Invariants(Model * htn){
 	double invariant_time = 1000.0 * (invariant_end-invariant_start) / CLOCKS_PER_SEC;
 	
 	cout << "Found " << v0.size() << " invariants in " << invariant_time << "ms" << endl;
+
+
+	// debugging, see whether H2 mutexes are better or not?
+#ifdef FALSE
+	int t = 0, k = 0;
+	for (auto [a,b] : v0){
+		bool known = false;
+		// check whether this mutex is implied
+		// look through the invariants
+
+		t++;
+		if (binary_invariants[a + htn->numStateBits].count(b)) continue;	
+		k++;
+		cout << "New invariant: ";
+
+		set<int> xx; xx.insert(a); xx.insert(b);
+		for (int y : xx){
+			cout << " " << y << " (";
+			int p = y;
+			if (p < 0) cout << "not ", p = -p - 1;
+			cout << htn->factStrs[p];
+			cout << ")";
+		}
+
+		cout << endl;
+		
+		//cout << k << "/" << t << endl;
+	}
+
+	cout << "Total invariants " << t << " new ones " << k << endl;
+
+
+	unordered_set<pair<int,int>> v0set;
+	for (const auto & x : v0) v0set.insert(x);
+
+	for (int i = 0; i < 2*htn->numStateBits; i++){
+		int a = i - htn->numStateBits;
+		for (const int & j : binary_invariants[i]){
+			int b = j;
+			if (v0set.count(make_pair(a,b)) || v0set.count(make_pair(b,a))) continue;
+
+			cout << "Unknown invariant: ";
+	
+			set<int> xx; xx.insert(a); xx.insert(b);
+			for (int y : xx){
+				cout << " " << y << " (";
+				int p = y;
+				if (p < 0) cout << "not ", p = -p - 1;
+				cout << htn->factStrs[p];
+				cout << ")";
+			}
+	
+			cout << endl;
+		}
+	}
+#endif
 }

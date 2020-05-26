@@ -339,7 +339,6 @@ void solve_with_sat_planner_time_interleave(Model * htn){
 
 void solve_with_sat_planner(Model * htn){
 	//htn->writeToPDDL("foo-d.hddl", "foo-p.hddl");
-	setDebugMode(true);
 
 	// start by determining whether this model is totally ordered
 	cout << "Instance is totally ordered: " << htn->isTotallyOrdered() << endl;
