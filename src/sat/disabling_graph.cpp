@@ -1,4 +1,5 @@
 #include <fstream>
+#include <queue>
 
 #include "disabling_graph.h"
 #include "../Debug.h"
@@ -146,6 +147,33 @@ void graph::calcSCCGraph() {
 	scc_graph = new graph(sccg);
 }
 
+bool graph::can_reach_any_of(vector<int> from, vector<int> to){
+	unordered_set<int> toSet;
+	for (const int & x : to) toSet.insert(x);
+
+	bool visi[numVertices];
+	for (int i = 0; i < numVertices; i++) visi[i] = false;
+
+	queue<int> q;
+	for (const int & x : from) q.push(x);
+
+	while (q.size()){
+		int x = q.front();
+		q.pop();
+
+		for (int j = 0; j < adjSize[x]; j++){
+			int y = adj[x][j];
+			if (!visi[y]){
+				if (toSet.count(y)) return true;
+				visi[y] = true;
+				q.push(y);
+			}
+		}
+	}
+
+	return false;
+}
+
 
 string graph::dot_string(){
 	map<int,string> empty;
@@ -154,6 +182,11 @@ string graph::dot_string(){
 
 
 string graph::dot_string(map<int,string> names){
+	map<int,string> empty;
+	return dot_string(names,empty);
+}
+
+string graph::dot_string(map<int,string> names, map<int,string> nodestyles){
     string result = "digraph someDirectedGraph{\n";
 
 	// edges
@@ -169,7 +202,10 @@ string graph::dot_string(map<int,string> names){
 		string label = to_string(i);
 		if (names.count(i)) label = names[i];
 
-		result += "\ta" + to_string(i) + " [label=\"" + label + "\"];\n";
+		result += "\ta" + to_string(i) + " [label=\"" + label + "\"";
+		if (nodestyles.count(i))
+			result += "," + nodestyles[i];
+		result += "];\n";
 	}
 
 	result += "}\n";
@@ -221,7 +257,7 @@ bool are_actions_applicable_in_the_same_state(Model * htn, int a, int b){
 	return !counter;
 }
 
-void compute_disabling_graph(Model * htn){
+graph * compute_disabling_graph(Model * htn){
 	cout << endl << "Computing Disabling Graph" << endl;
 	std::clock_t dg_start = std::clock();
 
@@ -258,17 +294,9 @@ void compute_disabling_graph(Model * htn){
 		cout << " " << num << "x" << size;
 	cout << endl;
 
-	/*map<int,string> names;
-	for (int i = 0; i < htn->numActions; i++)
-		names[i] = htn->taskNames[i];
-	ofstream out("dg.dot");
-    //out << dg->dot_string(names);
-    out << dg->dot_string();
-    out.close();
-	system("dot -Tpdf dg.dot > dg.pdf");
-	*/
-	
 	std::clock_t dg_end = std::clock();
 	double dg_time = 1000.0 * (dg_end-dg_start) / CLOCKS_PER_SEC;
 	cout << "Generating the graph took " << dg_time << "ms." << endl;
+
+	return dg;
 }

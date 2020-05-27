@@ -17,6 +17,7 @@ struct graph{
 	int count_edges();
 	void calcSCCs();
 	void calcSCCGraph();
+	bool can_reach_any_of(vector<int> from, vector<int> to);
 
 	graph * scc_graph;
 
@@ -29,13 +30,12 @@ struct graph{
 
 	string dot_string();
 	string dot_string(map<int,string> names);
+	string dot_string(map<int,string> names, map<int,string> nodestyles);
 
 private:
 	void tarjan(int v);
 };
 
-
-
-void compute_disabling_graph(Model * htn);
+graph * compute_disabling_graph(Model * htn);
 
 #endif
