@@ -51,6 +51,8 @@ pair<string,int> extractSolutionFromSearchNode(Model * htn, searchNode* tnSol){
 	map<int,vector<pair<int,int>>> children;
 	vector<pair<int,string>> decompositionStructure;
 
+	int root = -1;
+
 	while (!done) {
 		sLength++;
 		if (sost->method >= 0){
@@ -58,6 +60,7 @@ pair<string,int> extractSolutionFromSearchNode(Model * htn, searchNode* tnSol){
 			application.first = sost->mySolutionStepInstanceNumber;
 			application.second = htn->taskNames[sost->task] + " -> " + htn->methodNames[sost->method];
 			decompositionStructure.push_back(application);
+			if (sost->task == htn->initialTask) root = application.first;
 		} else {
 			sol = to_string(sost->mySolutionStepInstanceNumber) + " " +
 					htn->taskNames[sost->task] + "\n" + sol;
@@ -74,7 +77,7 @@ pair<string,int> extractSolutionFromSearchNode(Model * htn, searchNode* tnSol){
 	}
 
 	sol = "==>\n" + sol;
-	sol = sol + "root 0\n";
+	sol = sol + "root " + to_string(root) + "\n";
 	for (auto x : decompositionStructure){
 		sol += to_string(x.first) + " " + x.second;
 		sort(children[x.first].begin(), children[x.first].end());
