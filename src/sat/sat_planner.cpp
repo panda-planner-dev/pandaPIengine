@@ -3,11 +3,13 @@
 #include "ipasir.h"
 #include "pdt.h"
 #include "state_formula.h"
+#include "disabling_graph.h"
 #include <cassert>
 #include <thread> 
 #include <chrono>
 #include <pthread.h>
 #include <signal.h>
+#include <fstream>
 
 void printSolution(void * solver, Model * htn, PDT* pdt){
 	vector<PDT*> leafs;
@@ -83,13 +85,13 @@ void printVariableTruth(void* solver, Model * htn, sat_capsule & capsule){
 }
 
 
-void createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & capsule, int depth){
+void createFormulaForDepth(void* solver, PDT* pdt, graph * dg, Model * htn, sat_capsule & capsule, int depth){
 	pdt->expandPDTUpToLevel(depth,htn);
-
 #ifndef NDEBUG
 	printPDT(htn,pdt);
 #endif
 	
+
 	pdt->assignVariableIDs(capsule, htn);
 	DEBUG(capsule.printVariables());
 
@@ -103,26 +105,98 @@ void createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	pdt->getLeafs(leafs);
 	cout << "PDT has " << leafs.size() << " leafs" << endl;
 	
+	vector<vector<int>> blocks = compute_block_compression(htn, dg, leafs);
+	cout << "Block compression leads to " << blocks.size() << " timesteps." << endl;
+
+	/*for (auto block : blocks){
+		cout << endl << "New Block" << endl;
+		for (int l : block){
+			cout << "\tLeaf:" << endl;
+			for (int a : leafs[l]->possiblePrimitives)
+				cout << "\t\t" << htn->taskNames[a] << endl;
+		}
+	}*/
+
+
 	// generate primitive executability formula
 	vector<vector<pair<int,int>>> vars;
 	get_linear_state_atoms(capsule, leafs, vars);
-	generate_state_transition_formula(solver, capsule, vars, leafs, htn);
+	//generate_state_transition_formula(solver, capsule, vars, leafs, htn);
+	generate_state_transition_formula(solver, capsule, vars, leafs, blocks, htn);
 
 #ifdef SAT_USEMUTEXES
-	generate_mutex_formula(solver,capsule,leafs,htn);
+	generate_mutex_formula(solver,capsule,leafs, blocks, htn);
 #endif
+
+
+
+
+
+
+/*
+	map<int,string> names;
+	//for (int i = 0; i < htn->numActions; i++)
+	//	names[i] = htn->taskNames[i];
+	
+	map<int,string> style;
+	for (int prim : leafs[0]->possiblePrimitives)
+		style[prim] = "style=filled,fillcolor=green";
+
+	for (int prim : leafs[1]->possiblePrimitives){
+		if (style.count(prim))
+			style[prim] = "style=filled,fillcolor=red";
+		else
+			style[prim] = "style=filled,fillcolor=blue";
+	}
+	
+	for (int prim : leafs[2]->possiblePrimitives){
+		if (style.count(prim))
+			style[prim] = "style=filled,fillcolor=red";
+		else
+			style[prim] = "style=filled,fillcolor=yellow";
+	}
+	/*
+	for (int prim : leafs[3]->possiblePrimitives){
+		if (style.count(prim))
+			style[prim] = "style=filled,fillcolor=red";
+		else
+			style[prim] = "style=filled,fillcolor=orange";
+	}
+	
+	for (int prim : leafs[4]->possiblePrimitives){
+		if (style.count(prim))
+			style[prim] = "style=filled,fillcolor=red";
+		else
+			style[prim] = "style=filled,fillcolor=brown";
+	}
+	
+	for (int prim : leafs[5]->possiblePrimitives){
+		if (style.count(prim))
+			style[prim] = "style=filled,fillcolor=red";
+		else
+			style[prim] = "style=filled,fillcolor=gray";
+	}*/
+	
+/*	ofstream out("dg.dot");
+    //out << dg->dot_string(names);
+    out << dg->dot_string(names,style);
+    out.close();
+	system("dot -Tpdf dg.dot > dg.pdf");
+*/	
+	
 }
 
 
 void solve_with_sat_planner_linear_bound_increase(Model * htn){
 	PDT* pdt = new PDT(htn);
+	graph * dg = compute_disabling_graph(htn, true);
 	sat_capsule capsule;
 
 	int depth = 1;
 	while (true){
 		void* solver = ipasir_init();
 		cout << "Generating formula for depth " << depth << endl;
-		createFormulaForDepth(solver,pdt,htn,capsule,depth);
+		createFormulaForDepth(solver,pdt,dg,htn,capsule,depth);
 		
 		cout << "Formula has " << capsule.number_of_variables << " vars and " << get_number_of_clauses() << " clauses." << endl;
 		
@@ -142,8 +216,9 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 			printSolution(solver,htn,pdt);
 			ipasir_release(solver);
 			return;
-		} else
+		} else {
 			depth++;
+		}
 		// release the solver	
 		ipasir_release(solver);
 	}
@@ -156,6 +231,7 @@ struct thread_returns{
 	Model * htn;
 	int depth;
 	PDT * pdt;
+	graph * dg;
 	void* solver;
 	int state;
 	
@@ -182,11 +258,12 @@ void* run_sat_planner_for_depth(void * param){
 
 
 	ret->pdt = new PDT(ret->htn);
+	ret->dg = compute_disabling_graph(ret->htn, true);
 	ret->solver = ipasir_init();
 
 	sat_capsule capsule;
 	cout << "Generating formula for depth " << ret->depth << endl;
-	createFormulaForDepth(ret->solver,ret->pdt,ret->htn,capsule,ret->depth);
+	createFormulaForDepth(ret->solver,ret->pdt,ret->dg,ret->htn,capsule,ret->depth);
 	cout << "Formula has " << capsule.number_of_variables << " vars and " << get_number_of_clauses() << " clauses." << endl;
 	
 	cout << "Starting solver" << endl;

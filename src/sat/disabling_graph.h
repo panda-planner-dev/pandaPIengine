@@ -3,6 +3,7 @@
 
 #include "../flags.h" // defines flags
 #include "../Model.h"
+#include "pdt.h"
 
 
 struct graph{
@@ -17,7 +18,7 @@ struct graph{
 	int count_edges();
 	void calcSCCs();
 	void calcSCCGraph();
-	bool can_reach_any_of(vector<int> from, vector<int> to);
+	bool can_reach_any_of(vector<int> & from, vector<int> & to);
 
 	graph * scc_graph;
 
@@ -36,6 +37,9 @@ private:
 	void tarjan(int v);
 };
 
-graph * compute_disabling_graph(Model * htn);
+graph * compute_disabling_graph(Model * htn, bool no_invariant_inference);
+
+vector<vector<int>> compute_block_compression(Model * htn, graph * dg, vector<PDT*> & leafs);
+
 
 #endif

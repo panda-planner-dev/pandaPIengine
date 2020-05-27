@@ -48,6 +48,8 @@ Model::Model() {
 	precLessActions = nullptr;
 	precToActionSize = nullptr;
 	precToAction = nullptr;
+	addToActionSize = nullptr;
+	addToAction = nullptr;
 	delToActionSize = nullptr;
 	delToAction = nullptr;
 	numPrecs = nullptr;
@@ -129,12 +131,15 @@ Model::~Model() {
 	delete[] precLessActions;
 	delete[] precToActionSize;
 	delete[] delToActionSize;
+	delete[] addToActionSize;
 	for (int i = 0; i < numStateBits; i++) {
 		delete[] precToAction[i];
 		delete[] delToAction[i];
+		delete[] addToAction[i];
 	}
 	delete[] precToAction;
 	delete[] delToAction;
+	delete[] addToAction;
 	delete[] numPrecs;
 	delete[] numAdds;
 	delete[] numDels;
@@ -1833,6 +1838,26 @@ void Model::readClassical(istream& domainFile) {
 		int cur = 0;
 		for (int ac : precToActionTemp[i]) {
 			precToAction[i][cur++] = ac;
+		}
+	}
+
+	// add to action
+	set<int> addToActionTemp[numStateBits];
+	for (int i = 0; i < numActions; i++) {
+		for (int j = 0; j < numAdds[i]; j++) {
+			int f = addLists[i][j];
+			addToActionTemp[f].insert(i);
+		}
+	}
+	addToActionSize = new int[numStateBits];
+	addToAction = new int*[numStateBits];
+
+	for (int i = 0; i < numStateBits; i++) {
+		addToActionSize[i] = addToActionTemp[i].size();
+		addToAction[i] = new int[addToActionSize[i]];
+		int cur = 0;
+		for (int ac : addToActionTemp[i]) {
+			addToAction[i][cur++] = ac;
 		}
 	}
 

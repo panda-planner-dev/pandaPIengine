@@ -147,7 +147,7 @@ void graph::calcSCCGraph() {
 	scc_graph = new graph(sccg);
 }
 
-bool graph::can_reach_any_of(vector<int> from, vector<int> to){
+bool graph::can_reach_any_of(vector<int> & from, vector<int> & to){
 	unordered_set<int> toSet;
 	for (const int & x : to) toSet.insert(x);
 
@@ -155,7 +155,10 @@ bool graph::can_reach_any_of(vector<int> from, vector<int> to){
 	for (int i = 0; i < numVertices; i++) visi[i] = false;
 
 	queue<int> q;
-	for (const int & x : from) q.push(x);
+	for (const int & x : from) {
+		if (toSet.count(x)) return true;
+		q.push(x);
+	}
 
 	while (q.size()){
 		int x = q.front();
@@ -216,6 +219,7 @@ string graph::dot_string(map<int,string> names, map<int,string> nodestyles){
 
 
 bool are_actions_applicable_in_the_same_state(Model * htn, int a, int b){
+	//return true;
 	if (a == b) return true;
 	bool counter = false;
     // incompatible preconditions via invariants
@@ -257,7 +261,7 @@ bool are_actions_applicable_in_the_same_state(Model * htn, int a, int b){
 	return !counter;
 }
 
-graph * compute_disabling_graph(Model * htn){
+graph * compute_disabling_graph(Model * htn, bool no_invariant_inference){
 	cout << endl << "Computing Disabling Graph" << endl;
 	std::clock_t dg_start = std::clock();
 
@@ -270,13 +274,54 @@ graph * compute_disabling_graph(Model * htn){
 			for (int needingIndex = 0; needingIndex < htn->precToActionSize[f]; needingIndex++){
 				int needingAction = htn->precToAction[f][needingIndex];
 				if (deletingAction == needingAction) continue; // action cannot disable itself
-				if (!are_actions_applicable_in_the_same_state(htn, deletingAction, needingAction)) continue;
+				if (!no_invariant_inference &&
+						!are_actions_applicable_in_the_same_state(htn, deletingAction, needingAction))
+					continue;
 				/*DEBUG(
 					cout << deletingAction << " " << htn->taskNames[deletingAction];
 					cout << " vs " << needingAction << " " << htn->taskNames[needingAction] << endl;
 					);*/
 
 				tempAdj[deletingAction].insert(needingAction);
+			}
+		}
+
+		if (no_invariant_inference){
+			for (int addingIndex = 0; addingIndex < htn->addToActionSize[f]; addingIndex++){
+				int addingAction = htn->addToAction[f][addingIndex];
+				
+				for (int needingIndex = 0; needingIndex < htn->precToActionSize[f]; needingIndex++){
+					int needingAction = htn->precToAction[f][needingIndex];
+					if (addingAction == needingAction) continue; // action cannot disable itself
+					if (!no_invariant_inference &&
+							!are_actions_applicable_in_the_same_state(htn, addingAction, needingAction))
+						continue;
+					/*DEBUG(
+						cout << deletingAction << " " << htn->taskNames[deletingAction];
+						cout << " vs " << needingAction << " " << htn->taskNames[needingAction] << endl;
+						);*/
+
+					tempAdj[needingAction].insert(addingAction);
+				}
+			}
+
+			for (int addingIndex = 0; addingIndex < htn->addToActionSize[f]; addingIndex++){
+				int addingAction = htn->addToAction[f][addingIndex];
+				
+				for (int deletingIndex = 0; deletingIndex < htn->delToActionSize[f]; deletingIndex++){
+					int deletingAction = htn->delToAction[f][deletingIndex];
+					if (addingAction == deletingAction) continue; // action cannot disable itself
+					if (!no_invariant_inference &&
+							!are_actions_applicable_in_the_same_state(htn, addingAction, deletingAction))
+						continue;
+					/*DEBUG(
+						cout << deletingAction << " " << htn->taskNames[deletingAction];
+						cout << " vs " << needingAction << " " << htn->taskNames[needingAction] << endl;
+						);*/
+
+					tempAdj[addingAction].insert(deletingAction);
+					tempAdj[deletingAction].insert(addingAction);
+				}
 			}
 		}
 	}
@@ -300,3 +345,66 @@ graph * compute_disabling_graph(Model * htn){
 
 	return dg;
 }
+
+
+
+vector<vector<int>> compute_block_compression(Model * htn, graph * dg, vector<PDT*> & leafs){
+	vector<vector<int>> blocks;
+
+	vector<int> currentBlock;
+	vector<int> currentPrimitives;
+
+	for (size_t l = 0; l < leafs.size(); l++){
+		// try to extend
+		if (dg->can_reach_any_of(leafs[l]->possiblePrimitives,currentPrimitives)){
+			// one of these actions will disable another
+			blocks.push_back(currentBlock); // new block
+			currentBlock.clear();
+			currentPrimitives.clear();
+		}
+
+		currentBlock.push_back(l);
+		for (const int & x : leafs[l]->possiblePrimitives)
+			currentPrimitives.push_back(x);
+	}
+
+	blocks.push_back(currentBlock);
+
+	return blocks;
+}
+
+//vector<vector<int>> compute_block_compression(Model * htn, graph * dg, vector<PDT*> & leafs){
+//	vector<vector<int>> blocks;
+//
+//	vector<int> currentBlock;
+//	vector<int> currentPrimitives;
+//
+//	for (size_t l = 0; l < leafs.size(); l++){
+//		// try to extend
+//		bool allNoDel = true;
+//		for (const int & a : currentPrimitives)
+//			allNoDel &= htn->numDels[a] == 0;
+//		
+//		if (!allNoDel){
+//			// one of these actions will disable another
+//			blocks.push_back(currentBlock); // new block
+//			currentBlock.clear();
+//			currentPrimitives.clear();
+//		}
+//
+//		currentBlock.push_back(l);
+//		for (const int & x : leafs[l]->possiblePrimitives)
+//			currentPrimitives.push_back(x);
+//	}
+//
+//	blocks.push_back(currentBlock);
+//
+//	return blocks;
+//}
+
+
+
+
+
+
+

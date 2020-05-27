@@ -67,9 +67,6 @@ int main(int argc, char *argv[]) {
 	setDebugMode(true);
 	extract_invariants_from_parsed_model(htn);
 	compute_Rintanen_Invariants(htn);
-	compute_disabling_graph(htn);
-	
-	return 0;
 
 	solve_with_sat_planner(htn);
 	return 0;

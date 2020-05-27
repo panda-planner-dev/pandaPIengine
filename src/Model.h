@@ -126,6 +126,8 @@ public:
 	int* precToActionSize;
 	int** precToAction;
 
+	int* addToActionSize;
+	int** addToAction;
 	int* delToActionSize;
 	int** delToAction;
 

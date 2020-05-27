@@ -1,4 +1,5 @@
 #include "Debug.h"
+#include <iostream>
 
 static bool debugMode = false;
 

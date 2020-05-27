@@ -1,20 +1,35 @@
 #include "state_formula.h"
 #include "ipasir.h"
+#include "../Invariants.h"
 #include <cassert>
 
 void generate_state_transition_formula(void* solver, sat_capsule & capsule, vector<vector<pair<int,int>>> & actionVariables, vector<PDT*> & leafs, Model* htn){
+	// no blocks so just unit blocks
+	vector<vector<int>> blocks;
+	for (size_t time = 0; time < actionVariables.size(); time++){
+		vector<int> block;
+		block.push_back(time);
+		blocks.push_back(block);
+	}
 
+	return generate_state_transition_formula(solver,capsule,actionVariables,leafs,blocks,htn);
+}
+	
+void generate_state_transition_formula(void* solver, sat_capsule & capsule, vector<vector<pair<int,int>>> & actionVariables, vector<PDT*> & leafs, vector<vector<int>> & blocks, Model* htn){
+
+	// as many blocks as we have timesteps
+	int timesteps = blocks.size();
 
 	int goalBase = -1;
 	/////////////////////// create variables for atoms per time step
-	for (size_t time = 0; time <= actionVariables.size(); time++){
+	for (size_t time = 0; time <= timesteps; time++){
 		// state variables at time
 		assert(htn->numStateBits > 0);
 		
 		int base = capsule.new_variable();
 		
-		if (time < actionVariables.size())
-			leafs[time]->baseStateVarVariable = base;
+		if (time < timesteps)
+			leafs[blocks[time][0]]->baseStateVarVariable = base;     // save the variables in the first leaf of the block
 		else
 			goalBase = base;
 		
@@ -28,29 +43,31 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 	}
 
 	//////////////////////// state transition
-	for (size_t time = 0; time < actionVariables.size(); time++){
-		int thisTimeBase = leafs[time]->baseStateVarVariable;
-		int nextTimeBase = (time == (actionVariables.size() - 1))?goalBase:leafs[time+1]->baseStateVarVariable;
+	for (size_t time = 0; time < timesteps; time++){
+		int thisTimeBase = leafs[blocks[time][0]]->baseStateVarVariable;
+		int nextTimeBase = (time == (timesteps - 1))?goalBase:leafs[blocks[time+1][0]]->baseStateVarVariable;
 
 		vector<vector<int>> causingPositive (htn->numStateBits);
 		vector<vector<int>> causingNegative (htn->numStateBits);
 
-		// rules for the individual actions
-		for (const auto & [varID,taskID] : actionVariables[time]){
-			// preconditions must be fulfilled
-			for (size_t precIndex = 0; precIndex < htn->numPrecs[taskID]; precIndex++)
-				implies(solver, varID, thisTimeBase + htn->precLists[taskID][precIndex]);
-			// add effects	
-			for (size_t addIndex = 0; addIndex < htn->numAdds[taskID]; addIndex++){
-				int add = htn->addLists[taskID][addIndex];
-				implies(solver, varID, nextTimeBase + add);
-				causingPositive[add].push_back(varID);
-			}
-			// del effects
-			for (size_t delIndex = 0; delIndex < htn->numDels[taskID]; delIndex++){
-				int del = htn->delLists[taskID][delIndex];
-				impliesNot(solver, varID, nextTimeBase + del);
-				causingNegative[del].push_back(varID);
+		for (const int & l : blocks[time]){
+			// rules for the individual actions
+			for (const auto & [varID,taskID] : actionVariables[l]){
+				// preconditions must be fulfilled
+				for (size_t precIndex = 0; precIndex < htn->numPrecs[taskID]; precIndex++)
+					implies(solver, varID, thisTimeBase + htn->precLists[taskID][precIndex]);
+				// add effects	
+				for (size_t addIndex = 0; addIndex < htn->numAdds[taskID]; addIndex++){
+					int add = htn->addLists[taskID][addIndex];
+					implies(solver, varID, nextTimeBase + add);
+					causingPositive[add].push_back(varID);
+				}
+				// del effects
+				for (size_t delIndex = 0; delIndex < htn->numDels[taskID]; delIndex++){
+					int del = htn->delLists[taskID][delIndex];
+					impliesNot(solver, varID, nextTimeBase + del);
+					causingNegative[del].push_back(varID);
+				}
 			}
 		}
 
@@ -83,16 +100,14 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 		for (const int & abs : leaf->abstractVariable)
 			assertNot(solver,abs);
 	}
-
-
 }
 
 
-void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & leafs, Model* htn){
+void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & leafs, vector<vector<int>> & blocks, Model* htn){
 	std::clock_t solver_start = std::clock();
 
-	for (size_t time = 0; time < leafs.size(); time++){
-		int timeBase = leafs[time]->baseStateVarVariable;
+	for (size_t time = 0; time < blocks.size(); time++){
+		int timeBase = leafs[blocks[time][0]]->baseStateVarVariable;
 
 		for (int v = 0; v < htn->numVars; v++){
 			if (htn->firstIndex[v] == htn->lastIndex[v]) continue; // STRIPS
@@ -106,6 +121,7 @@ void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & 
 		}
 
 		for (int m = 0; m < htn->numStrictMutexes; m++){
+			if (htn->strictMutexesSize[m] == 2) continue;
 			vector<int> vars;
 			for (int me = 0; me < htn->strictMutexesSize[m]; me++)
 				vars.push_back(timeBase + htn->strictMutexes[m][me]);
@@ -115,6 +131,7 @@ void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & 
 		}
 
 		for (int m = 0; m < htn->numMutexes; m++){
+			if (htn->mutexesSize[m] == 2) continue;
 			vector<int> vars;
 			for (int me = 0; me < htn->mutexesSize[m]; me++)
 				vars.push_back(timeBase + htn->mutexes[m][me]);
@@ -124,6 +141,7 @@ void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & 
 
 
 		for (int i = 0; i < htn->numInvariants; i++){
+			if (htn->invariantsSize[i] == 2) continue;
 			vector<int> vars;
 			for (int ie = 0; ie < htn->invariantsSize[i]; ie++){
 				int inv = htn->invariants[i][ie];
@@ -133,16 +151,33 @@ void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & 
 					vars.push_back(timeBase + inv);
 			}
 			
-			//atLeastOne(solver,capsule,vars);
+			atLeastOne(solver,capsule,vars);
 		}
-	
-	
+
+
+		for (int i = 0; i < 2*htn->numStateBits; i++){
+			int a = i - htn->numStateBits;
+			int pa = a; if (pa < 0) pa = -pa-1;
+			for (const int & b : binary_invariants[i]){
+				int pb = b; if (pb < 0) pb = -pb-1;
+				if (pa > pb) continue;
+				
+				vector<int> vars;
+				if (a < 0) vars.push_back(-(timeBase + -a -1));
+				else	   vars.push_back( timeBase + a);
+				if (b < 0) vars.push_back(-(timeBase + -b -1));
+				else	   vars.push_back( timeBase + b);
+				atLeastOne(solver,capsule,vars);
+			}
+		}
 	}
 	std::clock_t solver_end = std::clock();
 	double solver_time_in_ms = 1000.0 * (solver_end-solver_start) / CLOCKS_PER_SEC;
-	cout << "Invar time: " << solver_time_in_ms << "ms" << endl;
-	cout << "For " << leafs.size() << "*" << (htn->numStrictMutexes + htn->numMutexes + htn->numVars) << endl;
+	cout << "Invar time: " << solver_time_in_ms << "ms";
+	cout << " " << leafs.size() << "*" << (htn->numStrictMutexes + htn->numMutexes + htn->numVars);
+	cout << " invariant clauses" << endl; 
 }
+
 
 void get_linear_state_atoms(sat_capsule & capsule, vector<PDT*> & leafs, vector<vector<pair<int,int>>> & ret){
 	// these are just the primitives in the correct order
