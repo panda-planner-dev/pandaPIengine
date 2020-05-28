@@ -195,10 +195,14 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 	int depth = 1;
 	while (true){
 		void* solver = ipasir_init();
-		cout << "Generating formula for depth " << depth << endl;
+		cout << endl << endl << "Generating formula for depth " << depth << endl;
+		std::clock_t formula_start = std::clock();
 		createFormulaForDepth(solver,pdt,dg,htn,capsule,depth);
-		
+		std::clock_t formula_end = std::clock();
+		double formula_time_in_ms = 1000.0 * (formula_end-formula_start) / CLOCKS_PER_SEC;
 		cout << "Formula has " << capsule.number_of_variables << " vars and " << get_number_of_clauses() << " clauses." << endl;
+		cout << "Formula time: " << formula_time_in_ms << "ms" << endl;
+		
 		
 		cout << "Starting solver" << endl;
 		std::clock_t solver_start = std::clock();
@@ -209,7 +213,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 		
 		
 		cout << "Solver state: " << (state==10?"SAT":"UNSAT") << endl;
-		if (state == 10){
+		if (false && state == 10){
 #ifndef NDEBUG
 			printVariableTruth(solver, htn, capsule);
 #endif
