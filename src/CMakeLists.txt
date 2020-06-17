@@ -13,11 +13,18 @@ project(pandaPIengine)
 list(APPEND compiler_flags -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -pedantic "$<$<CONFIG:DEBUG>:-Og;-ggdb3>" "$<$<CONFIG:RELEASE>:-O2>")
 list(APPEND linker_flags "$<$<CONFIG:RELEASE>:-flto;-static;-static-libgcc>")
 
+### Cudd Library Includes
+include(ExternalProject)
+include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/cudd)
+include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/cplusplus)
 
+### Project Includes
 include_directories("search")
+include_directories("symbolic_search")
 include_directories("heuristics")
 include_directories("intDataStructures")
 add_subdirectory(search)
+add_subdirectory(symbolic_search)
 add_subdirectory(heuristics)
 add_subdirectory(intDataStructures)
 
@@ -29,17 +36,13 @@ target_compile_options(pandaPIengine PUBLIC ${compiler_flags})
 target_link_options(pandaPIengine PUBLIC ${linker_flags})
 
 target_link_libraries(pandaPIengine PUBLIC search)
+target_link_libraries(pandaPIengine PUBLIC symbolic_search)
 target_link_libraries(pandaPIengine PUBLIC heuristics)
 target_link_libraries(pandaPIengine PUBLIC hrc)
 target_link_libraries(pandaPIengine PUBLIC hlm)
 target_link_libraries(pandaPIengine PUBLIC intDataStructures)
 
-
-### Cudd Library
-include(ExternalProject)
-include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/cudd)
-include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/cplusplus)
-
+### Build Cudd
 ExternalProject_add(
         libcudd
         SOURCE_DIR ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/
@@ -49,6 +52,6 @@ ExternalProject_add(
         BUILD_IN_SOURCE 0
 )
 
-
+### Link Cudd
 add_dependencies(pandaPIengine libcudd)
 target_link_libraries(pandaPIengine PUBLIC ${CMAKE_BINARY_DIR}/libcudd-prefix/src/libcudd-build/cudd/.libs/libcudd.a)
