@@ -178,6 +178,22 @@ bool graph::can_reach_any_of(vector<int> & from, vector<int> & to){
 }
 
 
+bool graph::can_reach_any_of_directly(vector<int> & from, vector<int> & to){
+	unordered_set<int> toSet;
+	for (const int & x : to) toSet.insert(x);
+
+	for (const int & x : from) {
+		if (toSet.count(x)) return true;
+		for (int j = 0; j < adjSize[x]; j++){
+			int y = adj[x][j];
+			if (toSet.count(y)) return true;
+		}
+	}
+
+	return false;
+}
+
+
 string graph::dot_string(){
 	map<int,string> empty;
 	return dot_string(empty);
@@ -356,7 +372,7 @@ vector<vector<int>> compute_block_compression(Model * htn, graph * dg, vector<PD
 
 	for (size_t l = 0; l < leafs.size(); l++){
 		// try to extend
-		if (dg->can_reach_any_of(leafs[l]->possiblePrimitives,currentPrimitives)){
+		if (dg->can_reach_any_of_directly(leafs[l]->possiblePrimitives,currentPrimitives)){
 			// one of these actions will disable another
 			blocks.push_back(currentBlock); // new block
 			currentBlock.clear();
