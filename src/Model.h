@@ -80,6 +80,7 @@ public:
 	int* firstIndex;
 	int* lastIndex;
 	string* varNames;
+	int* varOfStateBit;
 
 	// additional strict mutexes
 	int numStrictMutexes;

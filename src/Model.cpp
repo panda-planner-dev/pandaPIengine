@@ -102,6 +102,7 @@ Model::~Model() {
 	delete[] factStrs;
 	delete[] firstIndex;
 	delete[] lastIndex;
+	delete[] varOfStateBit;
 	delete[] varNames;
 	delete[] actionCosts;
 	for (int i = 0; i < numActions; i++) {
@@ -1659,6 +1660,7 @@ void Model::readClassical(istream& domainFile) {
 	firstIndex = new int[numVars];
 	lastIndex = new int[numVars];
 	varNames = new string[numVars];
+	varOfStateBit = new int[numStateBits];
 	for (int i = 0; i < numVars; i++) {
 		getline(domainFile, line);
 		sStream = new stringstream(line);
@@ -1668,6 +1670,9 @@ void Model::readClassical(istream& domainFile) {
 		assert(lastIndex[i] < numStateBits);
 		*sStream >> varNames[i];
 		delete sStream;
+
+		for (int j = firstIndex[i]; j <= lastIndex[i]; j++)
+			varOfStateBit[j] = i;
 	}
 	getline(domainFile, line);
 	getline(domainFile, line);
