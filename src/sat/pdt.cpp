@@ -7,8 +7,9 @@
 
 //////////////////////////// actual PDT
 
-PDT::PDT(){
+PDT::PDT(PDT * m){
 	path.clear();
+	mother = m;
 	expanded = false;
 	vertexVariables = false;
 	childrenVariables = false;
@@ -26,6 +27,7 @@ PDT::PDT(Model* htn){
 	outputID = -1;
 	outputTask = -1;
 	outputMethod = -1;
+	mother = nullptr;
 	possibleAbstracts.push_back(htn->initialTask);
 }
 
@@ -83,7 +85,7 @@ void PDT::expandPDT(Model* htn){
 	
 	// create children
 	for (size_t c = 0; c < sog->numberOfVertices; c++){
-		PDT* child = new PDT();
+		PDT* child = new PDT(this);
 		child->path = path;
 		child->path.push_back(c);
 

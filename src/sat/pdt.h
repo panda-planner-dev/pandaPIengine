@@ -14,16 +14,24 @@ struct PDT {
 	vector<int> possibleAbstracts;
 
 	// for every abstract, the task and method index by which it can be created
+	// the task ID is relative to possibleAbstracts
+	// the method ID relative to htn->numMethodsForTask for the actual task 
 	vector<vector<pair<int,int>>> causesForAbstracts;
 	// primitives can also be caused by primitive inheritance, this will be marked with a -1,primIndex (of parent)
 	vector<vector<pair<int,int>>> causesForPrimitives;
 
 	bool expanded;
 
+	PDT* mother;
 	vector<PDT*> children;
 	SOG* sog;
 
 	vector<vector<bool>> applicableMethods; // indicates whether the methods in the model are actually applicable and have not been pruned
+	
+	// Tuple
+	// 1. Number of the child
+	// 2. Primitive task assigned to child
+	// 3. Index of the task in the child
 	vector<vector<vector<tuple<int,bool,int>>>> listIndexOfChildrenForMethods;
 
 	// for every primitive the number of the child and the index of the task in the possible primitives array
@@ -46,7 +54,7 @@ struct PDT {
 	int outputMethod;
 
 ///// METHODS
-	PDT();
+	PDT(PDT * m);
 	PDT(Model* htn);
 
 
