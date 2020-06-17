@@ -33,3 +33,22 @@ target_link_libraries(pandaPIengine PUBLIC heuristics)
 target_link_libraries(pandaPIengine PUBLIC hrc)
 target_link_libraries(pandaPIengine PUBLIC hlm)
 target_link_libraries(pandaPIengine PUBLIC intDataStructures)
+
+
+### Cudd Library
+include(ExternalProject)
+include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/cudd)
+include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/cplusplus)
+
+ExternalProject_add(
+        libcudd
+        SOURCE_DIR ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/
+        CONFIGURE_COMMAND touch ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/* && ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/configure --enable-obj --enable-silent-rules "CFLAGS=-O3" "CXXFLAGS=-std=c++0x -O3"
+        BUILD_COMMAND make
+        INSTALL_COMMAND ""
+        BUILD_IN_SOURCE 0
+)
+
+
+add_dependencies(pandaPIengine libcudd)
+target_link_libraries(pandaPIengine PUBLIC ${CMAKE_BINARY_DIR}/libcudd-prefix/src/libcudd-build/cudd/.libs/libcudd.a)
