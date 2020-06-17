@@ -43,7 +43,7 @@ include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/cplusp
 ExternalProject_add(
         libcudd
         SOURCE_DIR ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/
-        CONFIGURE_COMMAND touch ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/* && ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/configure --enable-obj --enable-silent-rules "CFLAGS=-O3" "CXXFLAGS=-std=c++0x -O3"
+        CONFIGURE_COMMAND autoreconf ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/ &&  ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/configure --enable-obj --enable-silent-rules "CFLAGS=-O3" "CXXFLAGS=-std=c++0x -O3"
         BUILD_COMMAND make
         INSTALL_COMMAND ""
         BUILD_IN_SOURCE 0
