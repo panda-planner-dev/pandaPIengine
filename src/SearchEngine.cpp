@@ -28,6 +28,7 @@
 
 #include "heuristics/rcHeuristics/RCModelFactory.h"
 
+#include "symbolic_search/automaton.h"
 #include "symbolic_search/sym_variables.h"
 #include "symbolic_search/transition_relation.h"
 
@@ -124,8 +125,13 @@ int main(int argc, char *argv[]) {
     std::cout << "Creating TR " << i << std::endl;
     trs.emplace_back(&sym_vars, i, htn->actionCosts[i]);
     trs.back().init(htn);
-    sym_vars.bdd_to_dot(trs.back().getBDD(), "op" + std::to_string(i) + ".dot");
+    //sym_vars.bdd_to_dot(trs.back().getBDD(), "op" + std::to_string(i) + ".dot");
   }
+
+  build_automaton(htn);
+
+  return 0;
+
 
   int timeL = TIMELIMIT;
   cout << "Time limit: " << timeL << " seconds" << endl;
