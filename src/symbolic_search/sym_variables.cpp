@@ -114,6 +114,20 @@ BDD SymVariables::getStateBDD(const std::vector<int> &state) const {
 BDD SymVariables::getStateBDD(const int *state_bits,
                               int state_bits_size) const {
   BDD res = oneBDD();
+  unordered_set<int> contained_vars;
+  for (int i = 0; i < state_bits_size; i++) {
+    int var = model->varOfStateBit[state_bits[i]];
+    int val = state_bits[i] - model->firstIndex[var];
+    res = res * preconditionBDDs[var_order[var]][val];
+    contained_vars.insert(var);
+  }
+
+  for (int var = 0; var < model->numVars; ++var) {
+    if (contained_vars.count(var) == 0) {
+      res *= preconditionBDDs[var_order[var]][1];
+    }
+  }
+
   return res;
 }
 
@@ -178,7 +192,7 @@ int SymVariables::getDomainSize(int var) const {
   if (model->firstIndex[var] == model->lastIndex[var]) {
     var_domain_size = 2;
   } else {
-    var_domain_size = model->firstIndex[var] - model->lastIndex[var] + 1;
+    var_domain_size = model->lastIndex[var] - model->firstIndex[var] + 1;
   }
   return var_domain_size;
 }
@@ -221,6 +235,33 @@ void SymVariables::print_options() const {
        << " cache=" << cudd_init_cache_size
        << " max_memory=" << cudd_init_available_memory
        << " ordering: " << (var_ordering ? "special" : "standard") << endl;
+}
+
+void SymVariables::bdd_to_dot(const BDD &bdd,
+                              const std::string &file_name) const {
+  int num_vars = numBDDVars * 2;
+  std::vector<string> var_names(num_vars);
+  for (int v : var_order) {
+    int exp = 0;
+    for (int j : bdd_index_pre[v]) {
+      var_names[j] = "var" + to_string(v) + "_2^" + std::to_string(exp);
+      var_names[j + 1] =
+          "var" + to_string(v) + "_2^" + std::to_string(exp) + "_primed";
+      exp++;
+    }
+  }
+
+  std::vector<char *> names(num_vars);
+  for (int i = 0; i < num_vars; ++i) {
+    names[i] = &var_names[i].front();
+  }
+  FILE *outfile = fopen(file_name.c_str(), "w");
+  DdNode **ddnodearray = (DdNode **)malloc(sizeof(bdd.Add().getNode()));
+  ddnodearray[0] = bdd.Add().getNode();
+  Cudd_DumpDot(manager->getManager(), 1, ddnodearray, names.data(), NULL,
+               outfile); // dump the function to .dot file
+  free(ddnodearray);
+  fclose(outfile);
 }
 
 } // namespace symbolic
