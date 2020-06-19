@@ -115,22 +115,9 @@ int main(int argc, char *argv[]) {
    * Start Search
    */
 
-  // Smyoblic Playground
-  symbolic::SymVariables sym_vars(htn);
-  sym_vars.init();
-  BDD init = sym_vars.getStateBDD(htn->s0List, htn->s0Size);
-  sym_vars.bdd_to_dot(init, "init.dot");
-  std::vector<symbolic::TransitionRelation> trs;
-  for (int i = 0; i < htn->numActions; ++i) {
-    std::cout << "Creating TR " << i << std::endl;
-    trs.emplace_back(&sym_vars, i, htn->actionCosts[i]);
-    trs.back().init(htn);
-    //sym_vars.bdd_to_dot(trs.back().getBDD(), "op" + std::to_string(i) + ".dot");
-  }
-
   build_automaton(htn);
 
-  return 0;
+  //return 0;
 
 
   int timeL = TIMELIMIT;
