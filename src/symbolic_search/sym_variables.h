@@ -31,7 +31,8 @@ class SymVariables {
   const long cudd_init_cache_size;       // Initial cache size
   const long cudd_init_available_memory; // Maximum available memory (bytes)
   const bool var_ordering;
-
+  
+public:
   std::unique_ptr<Cudd> manager; // manager associated with this symbolic search
 
   int numBDDVars; // Number of binary variables (just one set, the total number
@@ -137,6 +138,8 @@ public:
   void print_options() const;
 
   void bdd_to_dot(const BDD &bdd, const std::string &file_name) const;
+  
+  int getDomainSize(int var) const;
 
 private:
   // Auxiliar function helping to create precondition and effect BDDs
@@ -161,7 +164,6 @@ private:
 
   inline int getNumBDDVars() const { return numBDDVars; }
 
-  int getDomainSize(int var) const;
 };
 } // namespace symbolic
 

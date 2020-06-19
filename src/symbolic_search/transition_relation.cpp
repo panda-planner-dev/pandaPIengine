@@ -44,7 +44,8 @@ void TransitionRelation::init(progression::Model *model) {
   for (int del_id = 0; del_id < model->numDels[op_id]; ++del_id) {
     int var = model->varOfStateBit[model->delLists[op_id][del_id]];
     int val = model->delLists[op_id][del_id] - model->firstIndex[var];
-    if (std::find(effVars.begin(), effVars.end(), var) == effVars.end()) {
+    if (sV->getDomainSize(var) != 1) continue;
+	if (std::find(effVars.begin(), effVars.end(), var) == effVars.end()) {
       effVars.push_back(var);
     }
 
