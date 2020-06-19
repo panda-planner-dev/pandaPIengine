@@ -117,20 +117,62 @@ void build_automaton(Model * htn){
 	
 	// loop over the outgoing edges of 0, only to those rules can be applied
 
-	std::queue<std::tuple<int,int>> q;
+	std::deque<std::tuple<int,int>> cq; // current
+	std::deque<std::tuple<int,int>> prim_q;
+	std::deque<std::tuple<int,int>> abst_q;
 	std::vector<BDD> eps;
+
 	for (int i = 0; i < number_of_vertices; i++)
 		eps.push_back(sym_vars.zeroBDD());
 
+#define put push_back
+//#define put insert
+
 	for (auto & [task,tos] : edges[0])
 		for (auto & [to,bdd] : tos)
-			q.push({task,to});
+			cq.put({task,to});
+
 
 	int step = 0;
-	while (q.size()){
-		int task = get<0>(q.front());
-		int to   = get<1>(q.front());
-		q.pop();
+	int depth = 1;
+	bool current_abstract = true;
+	
+	auto addQ = [&] (int task, int to) {
+		if (task < htn->numActions == !current_abstract){
+			cq.put({task, to});
+		} else if (task < htn->numActions){
+			prim_q.put({task, to});
+		} else {
+			abst_q.put({task, to});
+		}
+	};
+	
+	while (cq.size() || prim_q.size() || abst_q.size()){
+		if (cq.size() == 0){
+			if (current_abstract){
+				current_abstract = false;
+				cq = prim_q;
+				prim_q.clear();
+				depth++;
+				std::cout << "========================== Depth " << depth << std::endl; 
+			} else {
+				current_abstract = true;
+				cq = abst_q;
+				abst_q.clear();
+				std::cout << "========================== Abstracts Depth " << depth << std::endl; 
+			}
+			
+			//for (auto & [x,y] : cq)
+			//	cout << "\t" << x << " " << vertex_to_method[y] << std::endl;	
+			continue;
+		}
+		
+		int task = get<0>(cq.front());
+		int to   = get<1>(cq.front());
+		cq.pop_front();
+		//int task = get<0>(*cq.begin());
+		//int to   = get<1>(*cq.begin());
+		//cq.erase(cq.begin());
 
 		ensureBDD(task, to, sym_vars); // necessary?
 		BDD state = edges[0][task][to];
@@ -157,12 +199,12 @@ void build_automaton(Model * htn){
 						if (edgeDisjunct != edges[0][task2][to2]){
 					   		edges[0][task2][to2] = edgeDisjunct;
 							std::cout << "\tPrim: " << task2 << " " << vertex_to_method[to2] << std::endl;
-							q.push({task2, to2});
+							addQ(task2, to2);
 						}
 					}
 
 				if (to == 1){
-					std::cout << "Goal reached!" << std::endl;
+					std::cout << "Goal reached! Length=" << depth << std::endl;
 	  				sym_vars.bdd_to_dot(nextState, "goal.dot");
 					exit(0);
 					return;
@@ -190,12 +232,12 @@ void build_automaton(Model * htn){
 								if (edgeDisjunct != edges[0][task2][to2]){
 							   		edges[0][task2][to2] = edgeDisjunct;
 									std::cout << "\tEmpty Method: " << task2 << " " << vertex_to_method[to2] << std::endl;
-									q.push({task2, to2});
+									addQ(task2, to2);
 								}
 							}
 	
 						if (to == 1){
-							std::cout << "Goal reached!" << std::endl;
+							std::cout << "Goal reached! Length=" << depth << std::endl;
 							exit(0);
 							return;
 						}
@@ -209,7 +251,7 @@ void build_automaton(Model * htn){
 					if (disjunct != edges[0][htn->subTasks[method][0]][to]){
 						edges[0][htn->subTasks[method][0]][to] = disjunct;
 						std::cout << "\tUnit: " << htn->subTasks[method][0] << " " << vertex_to_method[to] << std::endl;
-						q.push({htn->subTasks[method][0], to});
+						addQ(htn->subTasks[method][0], to);
 					}
 					
 				} else { // two subtasks
@@ -226,7 +268,7 @@ void build_automaton(Model * htn){
 						if (edges[0][tasks_per_method[method].second][to] != disjunct){
 							edges[0][tasks_per_method[method].second][to] = disjunct;
 							std::cout << "\t2 EPS: " << tasks_per_method[method].second << " " << vertex_to_method[to] << std::endl;
-							q.push({tasks_per_method[method].second, to});
+							addQ(tasks_per_method[method].second, to);
 						}
 					}
 
@@ -237,8 +279,8 @@ void build_automaton(Model * htn){
 					   edges[0][tasks_per_method[method].first][methods_with_two_tasks_vertex[method]] = disjunct;
 						
 					   std::cout << "\t2 normal: " << tasks_per_method[method].first << " " << vertex_to_method[methods_with_two_tasks_vertex[method]] << std::endl;
-					   q.push({tasks_per_method[method].first, methods_with_two_tasks_vertex[method]});
-				   }	
+					   addQ(tasks_per_method[method].first, methods_with_two_tasks_vertex[method]);
+				  }	
 				}
 			}
 		}
