@@ -34,6 +34,7 @@ string StringUtil::cleanStr(string s){
 	std::replace(str.begin(), str.end(), ']', '_');
 	std::replace(str.begin(), str.end(), '[', '_');
 	std::replace(str.begin(), str.end(), '|', '_');
+	std::replace(str.begin(), str.end(), '!', '_');
 	//std::replace(str.begin(), str.end(), '=', '-');
 	//std::replace(str.begin(), str.end(), '_', '-');
 	//std::replace(str.begin(), str.end(), '@', '-');
