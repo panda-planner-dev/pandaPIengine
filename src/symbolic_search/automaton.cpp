@@ -3,6 +3,7 @@
 #include "transition_relation.h"
 #include "cuddObj.hh"
 
+#include <chrono>
 #include <vector>
 #include <string>
 #include <map>
@@ -147,8 +148,16 @@ void build_automaton(Model * htn){
 		}
 	};
 	
+	std::clock_t layer_start = std::clock();
+	
 	while (cq.size() || prim_q.size() || abst_q.size()){
 		if (cq.size() == 0){
+			
+			std::clock_t layer_end = std::clock();
+			double layer_time_in_ms = 1000.0 * (layer_end-layer_start) / CLOCKS_PER_SEC;
+			std::cout << "Layer time: " << layer_time_in_ms << "ms" << std::endl << std::endl;
+			layer_start = layer_end;
+
 			if (current_abstract){
 				current_abstract = false;
 				cq = prim_q;
@@ -180,7 +189,8 @@ void build_automaton(Model * htn){
 		
 		if (state == sym_vars.zeroBDD()) continue; // impossible state, don't treat it
 
-		std::cout << "STEP #" << step << ": " << task << " " << vertex_to_method[to] << std::endl; 
+		if (step % 1000 == 0)
+			std::cout << "STEP #" << step << ": " << task << " " << vertex_to_method[to] << std::endl; 
 
 		if (task < htn->numActions){
 			// apply action to state
@@ -198,13 +208,13 @@ void build_automaton(Model * htn){
 						BDD edgeDisjunct = edges[0][task2][to2] + nextState;
 						if (edgeDisjunct != edges[0][task2][to2]){
 					   		edges[0][task2][to2] = edgeDisjunct;
-							std::cout << "\tPrim: " << task2 << " " << vertex_to_method[to2] << std::endl;
+							//std::cout << "\tPrim: " << task2 << " " << vertex_to_method[to2] << std::endl;
 							addQ(task2, to2);
 						}
 					}
 
 				if (to == 1){
-					std::cout << "Goal reached! Length=" << depth << std::endl;
+					std::cout << "Goal reached! Length=" << depth << " steps=" << step << std::endl;
 	  				sym_vars.bdd_to_dot(nextState, "goal.dot");
 					exit(0);
 					return;
@@ -215,7 +225,7 @@ void build_automaton(Model * htn){
 		
 			for(int mIndex = 0; mIndex < htn->numMethodsForTask[task]; mIndex++){
 				int method = htn->taskToMethods[task][mIndex];
-				std::cout << "\t==Method " << method << std::endl;
+				//std::cout << "\t==Method " << method << std::endl;
 
 				// cases
 				if (htn->numSubTasks[method] == 0){
@@ -231,13 +241,13 @@ void build_automaton(Model * htn){
 								BDD edgeDisjunct = edges[0][task2][to2] + state;
 								if (edgeDisjunct != edges[0][task2][to2]){
 							   		edges[0][task2][to2] = edgeDisjunct;
-									std::cout << "\tEmpty Method: " << task2 << " " << vertex_to_method[to2] << std::endl;
+									//std::cout << "\tEmpty Method: " << task2 << " " << vertex_to_method[to2] << std::endl;
 									addQ(task2, to2);
 								}
 							}
 	
 						if (to == 1){
-							std::cout << "Goal reached! Length=" << depth << std::endl;
+							std::cout << "Goal reached! Length=" << depth << " steps=" << step <<  std::endl;
 							exit(0);
 							return;
 						}
@@ -250,7 +260,7 @@ void build_automaton(Model * htn){
 					BDD disjunct = edges[0][htn->subTasks[method][0]][to] + state;
 					if (disjunct != edges[0][htn->subTasks[method][0]][to]){
 						edges[0][htn->subTasks[method][0]][to] = disjunct;
-						std::cout << "\tUnit: " << htn->subTasks[method][0] << " " << vertex_to_method[to] << std::endl;
+						//std::cout << "\tUnit: " << htn->subTasks[method][0] << " " << vertex_to_method[to] << std::endl;
 						addQ(htn->subTasks[method][0], to);
 					}
 					
@@ -267,7 +277,7 @@ void build_automaton(Model * htn){
 						BDD disjunct = edges[0][tasks_per_method[method].second][to] + conjuct;
 						if (edges[0][tasks_per_method[method].second][to] != disjunct){
 							edges[0][tasks_per_method[method].second][to] = disjunct;
-							std::cout << "\t2 EPS: " << tasks_per_method[method].second << " " << vertex_to_method[to] << std::endl;
+							//std::cout << "\t2 EPS: " << tasks_per_method[method].second << " " << vertex_to_method[to] << std::endl;
 							addQ(tasks_per_method[method].second, to);
 						}
 					}
@@ -278,7 +288,7 @@ void build_automaton(Model * htn){
 				   if (disjunct != edges[0][tasks_per_method[method].first][methods_with_two_tasks_vertex[method]]){
 					   edges[0][tasks_per_method[method].first][methods_with_two_tasks_vertex[method]] = disjunct;
 						
-					   std::cout << "\t2 normal: " << tasks_per_method[method].first << " " << vertex_to_method[methods_with_two_tasks_vertex[method]] << std::endl;
+					   //std::cout << "\t2 normal: " << tasks_per_method[method].first << " " << vertex_to_method[methods_with_two_tasks_vertex[method]] << std::endl;
 					   addQ(tasks_per_method[method].first, methods_with_two_tasks_vertex[method]);
 				  }	
 				}
