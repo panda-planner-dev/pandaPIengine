@@ -42,7 +42,7 @@ public:
   // The variable order must be complete.
   std::vector<int> var_order; // Variable(FD) order in the BDD
   std::vector<std::vector<int>> bdd_index_pre,
-      bdd_index_eff; // vars(BDD) for each var(FD)
+      bdd_index_eff, bdd_index_aux; // vars(BDD) for each var(FD)
 
   std::vector<std::vector<BDD>>
       preconditionBDDs; // BDDs associated with the precondition of a predicate
@@ -54,11 +54,19 @@ public:
       validValues; // BDD that represents the valid values of all the variables
   BDD validBDD;    // BDD that represents the valid values of all the variables
 
-  void init(const std::vector<int> &v_order);
+  std::vector<std::vector<BDD>>
+      auxBDDs; // BDDs associated with auxillary conditions a predicate (e.g.
+               // for fixpoint computations)
+  std::vector<BDD>
+      auxBiimpBDDs; // BDDs associated with the biimplication of
+                    // one variable(FD) from effect to aux variables
+
+
+  void init(const std::vector<int> &v_order, bool aux_variables);
 
 public:
   SymVariables(progression::Model *model);
-  void init();
+  void init(bool aux_variables);
 
   // State getStateFrom(const BDD & bdd) const;
   BDD getStateBDD(const std::vector<int> &state) const;
@@ -74,12 +82,20 @@ public:
     return bdd_index_eff[variable];
   }
 
+  inline const std::vector<int> &vars_index_aux(int variable) const {
+    return bdd_index_aux[variable];
+  }
+
   inline const BDD &preBDD(int variable, int value) const {
     return preconditionBDDs[variable][value];
   }
 
   inline const BDD &effBDD(int variable, int value) const {
     return effectBDDs[variable][value];
+  }
+
+  inline const BDD &auxBDD(int variable, int value) const {
+    return auxBDDs[variable][value];
   }
 
   inline BDD getCubePre(int var) const { return getCube(var, bdd_index_pre); }
@@ -94,7 +110,17 @@ public:
     return getCube(vars, bdd_index_eff);
   }
 
+  inline BDD getCubeAux(int var) const { return getCube(var, bdd_index_aux); }
+
+  inline BDD getCubeAux(const std::set<int> &vars) const {
+    return getCube(vars, bdd_index_aux);
+  }
+
   inline const BDD &biimp(int variable) const { return biimpBDDs[variable]; }
+
+  inline const BDD &auxBiimp(int variable) const {
+    return auxBiimpBDDs[variable];
+  }
 
   inline std::vector<BDD> getBDDVarsPre() const {
     return getBDDVars(var_order, bdd_index_pre);
@@ -104,12 +130,20 @@ public:
     return getBDDVars(var_order, bdd_index_eff);
   }
 
+  inline std::vector<BDD> getBDDVarsAux() const {
+    return getBDDVars(var_order, bdd_index_aux);
+  }
+
   inline std::vector<BDD> getBDDVarsPre(const std::vector<int> &vars) const {
     return getBDDVars(vars, bdd_index_pre);
   }
 
   inline std::vector<BDD> getBDDVarsEff(const std::vector<int> &vars) const {
     return getBDDVars(vars, bdd_index_eff);
+  }
+
+  inline std::vector<BDD> getBDDVarsAux(const std::vector<int> &vars) const {
+    return getBDDVars(vars, bdd_index_aux);
   }
 
   inline BDD zeroBDD() const {
@@ -160,6 +194,10 @@ private:
 
   inline BDD createEffectBDD(int variable, int value) const {
     return generateBDDVar(bdd_index_eff[variable], value);
+  }
+
+  inline BDD createAuxBDD(int variable, int value) const {
+    return generateBDDVar(bdd_index_aux[variable], value);
   }
 
   inline int getNumBDDVars() const { return numBDDVars; }

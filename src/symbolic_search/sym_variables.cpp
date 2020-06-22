@@ -21,7 +21,7 @@ SymVariables::SymVariables(progression::Model *model)
     : model(model), cudd_init_nodes(16000000L), cudd_init_cache_size(16000000L),
       cudd_init_available_memory(0L), var_ordering(false) {}
 
-void SymVariables::init() {
+void SymVariables::init(bool aux_variables) {
   vector<int> var_order;
   if (var_ordering) {
     // InfluenceGraph::compute_gamer_ordering(var_order);
@@ -35,14 +35,19 @@ void SymVariables::init() {
     cout << v << " ";
   cout << endl;
 
-  init(var_order);
+  init(var_order, aux_variables);
 }
 
 // Constructor that makes use of global variables to initialize the
 // symbolic_search structures
 
-void SymVariables::init(const vector<int> &v_order) {
-  cout << "Initializing Symbolic Variables" << endl;
+void SymVariables::init(const vector<int> &v_order, bool aux_variables) {
+  if (!aux_variables) {
+    cout << "Initializing Symbolic Variables" << endl;
+  } else {
+    cout << "Initializing Symbolic Variables (incl. auxillary Variables)"
+         << endl;
+  }
   var_order = vector<int>(v_order);
   int num_fd_vars = var_order.size();
 
@@ -50,6 +55,10 @@ void SymVariables::init(const vector<int> &v_order) {
   numBDDVars = 0;
   bdd_index_pre = vector<vector<int>>(v_order.size());
   bdd_index_eff = vector<vector<int>>(v_order.size());
+
+  if (aux_variables) {
+    bdd_index_aux = vector<vector<int>>(v_order.size());
+  }
   int _numBDDVars = 0; // numBDDVars;
   for (int var : var_order) {
     int var_len = ceil(log2(getDomainSize(var)));
@@ -57,10 +66,18 @@ void SymVariables::init(const vector<int> &v_order) {
     for (int j = 0; j < var_len; j++) {
       bdd_index_pre[var].push_back(_numBDDVars);
       bdd_index_eff[var].push_back(_numBDDVars + 1);
-      _numBDDVars += 2;
+
+      if (aux_variables) {
+        bdd_index_aux[var].push_back(_numBDDVars + 2);
+        _numBDDVars += 3;
+
+      } else {
+        _numBDDVars += 2;
+      }
     }
   }
-  cout << "Num variables: " << var_order.size() << " => " << numBDDVars << endl;
+  cout << "Num variables: " << var_order.size() << " => " << numBDDVars << " ["
+       << _numBDDVars << "]" << endl;
 
   // Initialize manager
   cout << "Initialize Symbolic Manager(" << _numBDDVars << ", "
@@ -82,6 +99,9 @@ void SymVariables::init(const vector<int> &v_order) {
 
   preconditionBDDs.resize(num_fd_vars);
   effectBDDs.resize(num_fd_vars);
+  if (aux_variables) {
+    auxBDDs.resize(num_fd_vars);
+  }
   biimpBDDs.resize(num_fd_vars);
   validValues.resize(num_fd_vars);
   validBDD = oneBDD();
@@ -90,6 +110,9 @@ void SymVariables::init(const vector<int> &v_order) {
     for (int j = 0; j < getDomainSize(var); j++) {
       preconditionBDDs[var].push_back(createPreconditionBDD(var, j));
       effectBDDs[var].push_back(createEffectBDD(var, j));
+      if (aux_variables) {
+        auxBDDs[var].push_back(createAuxBDD(var, j));
+      }
     }
     validValues[var] = zeroBDD();
     for (int j = 0; j < getDomainSize(var); j++) {
@@ -98,6 +121,12 @@ void SymVariables::init(const vector<int> &v_order) {
     validBDD *= validValues[var];
     biimpBDDs[var] =
         createBiimplicationBDD(bdd_index_pre[var], bdd_index_eff[var]);
+
+    if (aux_variables) {
+      auxBiimpBDDs.resize(num_fd_vars);
+      auxBiimpBDDs[var] =
+          createBiimplicationBDD(bdd_index_eff[var], bdd_index_aux[var]);
+    }
   }
 
   cout << "Symbolic Variables... Done." << endl;
@@ -217,13 +246,18 @@ BDD SymVariables::getCube(const set<int> &vars,
 }
 
 std::vector<std::string> SymVariables::get_fd_variable_names() const {
-  std::vector<string> var_names(numBDDVars * 2);
+  int num_vars = auxBDDs.empty() ? numBDDVars * 2 : numBDDVars * 3;
+  std::vector<string> var_names(num_vars);
   for (int v : var_order) {
     int exp = 0;
     for (int j : bdd_index_pre[v]) {
       var_names[j] = "var" + to_string(v) + "_2^" + std::to_string(exp);
       var_names[j + 1] =
-          "var" + to_string(v) + "_2^" + std::to_string(exp++) + "_primed";
+          "var" + to_string(v) + "_2^" + std::to_string(exp) + "_primed";
+      if (!auxBDDs.empty()) {
+        var_names[j + 2] = "var" + to_string(v) + "_2^" + std::to_string(exp) + "_aux";
+      }
+      exp++;
     }
   }
 
@@ -239,7 +273,7 @@ void SymVariables::print_options() const {
 
 void SymVariables::bdd_to_dot(const BDD &bdd,
                               const std::string &file_name) const {
-  int num_vars = numBDDVars * 2;
+  int num_vars = auxBDDs.empty() ? numBDDVars * 2 : numBDDVars * 3;
   std::vector<string> var_names(num_vars);
   for (int v : var_order) {
     int exp = 0;
@@ -247,6 +281,9 @@ void SymVariables::bdd_to_dot(const BDD &bdd,
       var_names[j] = "var" + to_string(v) + "_2^" + std::to_string(exp);
       var_names[j + 1] =
           "var" + to_string(v) + "_2^" + std::to_string(exp) + "_primed";
+      if (!auxBDDs.empty()) {
+        var_names[j + 2] = "var" + to_string(v) + "_2^" + std::to_string(exp) + "_aux";
+      }
       exp++;
     }
   }
