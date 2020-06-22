@@ -125,8 +125,31 @@ void SymVariables::init(const vector<int> &v_order, bool aux_variables) {
     if (aux_variables) {
       auxBiimpBDDs.resize(num_fd_vars);
       auxBiimpBDDs[var] =
-          createBiimplicationBDD(bdd_index_eff[var], bdd_index_aux[var]);
+          createBiimplicationBDD(bdd_index_pre[var], bdd_index_aux[var]);
     }
+  }
+  
+
+  for (int var : var_order) {
+    for (int bdd_var : vars_index_pre(var)) {
+      swapVarsPre.push_back(bddVar(bdd_var));
+    }
+    for (int bdd_var : vars_index_eff(var)) {
+      swapVarsEff.push_back(bddVar(bdd_var));
+    }
+    for (int bdd_var : vars_index_aux(var)) {
+      swapVarsAux.push_back(bddVar(bdd_var));
+    }
+  }
+
+  existsVarsPre = oneBDD();
+  existsVarsEff = oneBDD();
+  existsVarsAux = oneBDD();
+  
+  for (size_t i = 0; i < swapVarsPre.size(); ++i) {
+    existsVarsPre *= swapVarsPre[i];
+    existsVarsEff *= swapVarsEff[i];
+    existsVarsAux *= swapVarsAux[i];
   }
 
   cout << "Symbolic Variables... Done." << endl;

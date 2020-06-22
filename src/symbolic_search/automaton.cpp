@@ -58,6 +58,12 @@ void ensureBDD(int task, int to, symbolic::SymVariables & sym_vars){
 
 }
 
+void ensureBDD(int from, int task, int to, symbolic::SymVariables & sym_vars){
+	if (!edges[from].count(task) || !edges[from][task].count(to))
+		edges[from][task][to] = sym_vars.zeroBDD();
+
+}
+
 void ensureNextBDD(int task, int to, symbolic::SymVariables & sym_vars){
 	if (!nextEdges[0].count(task) || !nextEdges[0][task].count(to))
 		nextEdges[0][task][to] = sym_vars.zeroBDD();
@@ -69,9 +75,9 @@ void build_automaton(Model * htn){
 
 	// Smyoblic Playground
 	symbolic::SymVariables sym_vars(htn);
-	sym_vars.init();
+	sym_vars.init(true);
 	BDD init = sym_vars.getStateBDD(htn->s0List, htn->s0Size);
-	sym_vars.bdd_to_dot(init, "init.dot");
+	//sym_vars.bdd_to_dot(init, "init.dot");
 	std::vector<symbolic::TransitionRelation> trs;
 	for (int i = 0; i < htn->numActions; ++i) {
 	  std::cout << "Creating TR " << i << std::endl;
@@ -113,7 +119,11 @@ void build_automaton(Model * htn){
 		if (htn->ordering[method][0] == 1 && htn->ordering[method][1])
 			std::swap(first,second);
 
-		//edges[0][first][vertex] = sym_vars.zeroBDD();
+		//edges[0][first][vertex] = sym_vars.oneBDD();
+		edges[0][first][vertex] = sym_vars.zeroBDD();
+		//for (int i = 0; i < htn->numVars; i++)
+		//	edges[0][first][vertex] *= sym_vars.auxBiimp(i); // v_i = v_i''
+	  	//sym_vars.bdd_to_dot(edges[0][first][vertex], "m_biimp" + std::to_string(method) + ".dot");
 		tasks_per_method[method] = {first, second};
 	}
 
@@ -165,6 +175,8 @@ void build_automaton(Model * htn){
 	nextEdges = edges;
 	nextEps = eps;
 
+	// separate trans and rel
+
 	while (cq.size() || prim_q.size() || abst_q.size()){
 		if (cq.size() == 0){
 			
@@ -186,14 +198,10 @@ void build_automaton(Model * htn){
 				cq = abst_q;
 				edgesHist.push_back(edges);
 				edges = nextEdges;
-				eps = nextEps;
+				//eps = nextEps;
 				abst_q.clear();
 				std::cout << "========================== Abstracts Depth " << depth << std::endl; 
-				if (depth == 4) exit(0);
 			}
-			
-			//for (auto & [x,y] : cq)
-			//	cout << "\t" << x << " " << vertex_to_method[y] << std::endl;	
 			continue;
 		}
 		
@@ -208,79 +216,57 @@ void build_automaton(Model * htn){
 		BDD state = edges[0][task][to];
 		//sym_vars.bdd_to_dot(state, "state" + std::to_string(step) + ".dot");
 	  	
-		
-		if (task == 30 && vertex_to_method[to] == 87)
-			sym_vars.bdd_to_dot(state, "my-state-30-87-" + std::to_string(step) + ".dot");
-		
-		if (task == 37 && vertex_to_method[to] == 89)
-			sym_vars.bdd_to_dot(state, "my-state-37-89-" + std::to_string(step) + ".dot");
-		
-		if (task == 1 && vertex_to_method[to] == 0)
-			sym_vars.bdd_to_dot(state, "my-state-1-0-" + std::to_string(step) + ".dot");
-		
-		if (task == 54 && vertex_to_method[to] == -2)
-			sym_vars.bdd_to_dot(state, "my-state-54--2-" + std::to_string(step) + ".dot");
-		if (task == 51 && vertex_to_method[to] == 93)
-			sym_vars.bdd_to_dot(state, "my-state-51-93-" + std::to_string(step) + ".dot");
-		if (task == 28 && vertex_to_method[to] == 11)
-			sym_vars.bdd_to_dot(state, "my-state-28-11-" + std::to_string(step) + ".dot");
-		if (task == 51 && vertex_to_method[to] == 9)
-			sym_vars.bdd_to_dot(state, "my-state-51-9-" + std::to_string(step) + ".dot");
-		
-		if (task == 48 && vertex_to_method[to] == 0)
-			sym_vars.bdd_to_dot(state, "my-state-51-9-" + std::to_string(step) + ".dot");
-		
-		if (task == 26 && vertex_to_method[to] == 93){
-			sym_vars.bdd_to_dot(state, "my-state-26-93-" + std::to_string(step) + ".dot");
-			exit(0);
-		}
-		
 		if (state == sym_vars.zeroBDD()) continue; // impossible state, don't treat it
 
-		//if (step % 1000 == 0)
+		if (step % 1000 == 0)
 			std::cout << "STEP #" << step << ": " << task << " " << vertex_to_method[to] << std::endl;
-	   	std::cout << "\t\t" << htn->taskNames[task] << std::endl;		
+	   	//std::cout << "\t\t" << htn->taskNames[task] << std::endl;		
 
 		if (task < htn->numActions){
 			if (htn->taskNames[task][0] != '_'){
-				std::cout << "Prim" << std::endl;
+				//std::cout << "Prim" << std::endl;
 				// apply action to state
 				BDD nextState = trs[task].image(state);
-				if (task == 1 && vertex_to_method[to] == 0)
-	  			sym_vars.bdd_to_dot(nextState, "nextstate" + std::to_string(step) + ".dot");
+				nextState = nextState.SwapVariables(sym_vars.swapVarsEff, sym_vars.swapVarsAux);
+				//sym_vars.bdd_to_dot(nextState, "nextState" + std::to_string(step) + ".dot");
+				//sym_vars.bdd_to_dot(eps[to], "eps" + std::to_string(step) + ".dot");
 
 				// check if already added
-				BDD disjunct = nextEps[to] + nextState;
-				if (disjunct != nextEps[to]){
-					nextEps[to] = disjunct;
+				BDD disjunct = eps[to] + nextState;   // TODO: there is a bit faster code here
+				if (disjunct != eps[to]){
+					eps[to] = disjunct;
 
-					std::cout << "Edges " << edges[to].size() << std::endl;
+					//std::cout << "Edges " << edges[to].size() << std::endl;
 					for (auto & [task2,tos] : edges[to])
 						for (auto & [to2,bdd] : tos){
 							ensureNextBDD(task2,to2,sym_vars);
-							BDD edgeDisjunct = nextEdges[0][task2][to2] + nextState;
+							
+							BDD addState = nextState.AndAbstract(bdd,sym_vars.existsVarsEff);
+							
+							BDD edgeDisjunct = nextEdges[0][task2][to2] + addState;
 							if (edgeDisjunct != nextEdges[0][task2][to2]){
 						   		nextEdges[0][task2][to2] = edgeDisjunct;
-								std::cout << "\tPrim: " << task2 << " " << vertex_to_method[to2] << std::endl;
+								//std::cout << "\tPrim: " << task2 << " " << vertex_to_method[to2] << std::endl;
 								addQ(task2, to2);
 							} else {
-								std::cout << "\tKnown state: " << task2 << " " << vertex_to_method[to2] << std::endl;
+								//std::cout << "\tKnown state: " << task2 << " " << vertex_to_method[to2] << std::endl;
 							}
 						}
 
 					if (to == 1){
-						std::cout << "Goal reached! Length=" << depth << " steps=" << step << std::endl;
+						//std::cout << "Goal reached! Length=" << depth << " steps=" << step << std::endl;
 	  					sym_vars.bdd_to_dot(nextState, "goal.dot");
 						exit(0);
 						return;
 					}
 				} else {
-					std::cout << "\tNot new for Eps" << std::endl;
+					//std::cout << "\tNot new for Eps" << std::endl;
 				}
 			} else {
-				std::cout << "SHOP" << std::endl;
+				//std::cout << "SHOP" << std::endl;
 				// apply action to state
 				BDD nextState = trs[task].image(state);
+				nextState = nextState.SwapVariables(sym_vars.swapVarsEff, sym_vars.swapVarsAux);
 	  			//sym_vars.bdd_to_dot(nextState, "nextstate" + std::to_string(step) + ".dot");
 
 				// check if already added
@@ -288,17 +274,20 @@ void build_automaton(Model * htn){
 				if (disjunct != eps[to]){
 					eps[to] = disjunct;
 
-					std::cout << "Edges " << edges[to].size() << std::endl;
+					//std::cout << "Edges " << edges[to].size() << std::endl;
 					for (auto & [task2,tos] : edges[to])
 						for (auto & [to2,bdd] : tos){
 							ensureBDD(task2,to2,sym_vars);
-							BDD edgeDisjunct = edges[0][task2][to2] + nextState;
+							
+							BDD addState = nextState.AndAbstract(bdd,sym_vars.existsVarsEff);
+							
+							BDD edgeDisjunct = edges[0][task2][to2] + addState;
 							if (edgeDisjunct != edges[0][task2][to2]){
 						   		edges[0][task2][to2] = edgeDisjunct;
-								std::cout << "\tPrim: " << task2 << " " << vertex_to_method[to2] << std::endl;
+								//std::cout << "\tPrim: " << task2 << " " << vertex_to_method[to2] << std::endl;
 								addQ(task2, to2);
 							} else {
-								std::cout << "\tKnown state: " << task2 << " " << vertex_to_method[to2] << std::endl;
+								//std::cout << "\tKnown state: " << task2 << " " << vertex_to_method[to2] << std::endl;
 							}
 						}
 
@@ -309,7 +298,7 @@ void build_automaton(Model * htn){
 						return;
 					}
 				} else {
-					std::cout << "\tNot new for Eps" << std::endl;
+					//std::cout << "\tNot new for Eps" << std::endl;
 				}
 			}
 		} else {
@@ -317,23 +306,29 @@ void build_automaton(Model * htn){
 		
 			for(int mIndex = 0; mIndex < htn->numMethodsForTask[task]; mIndex++){
 				int method = htn->taskToMethods[task][mIndex];
-				std::cout << "\t==Method " << method << std::endl;
+				//std::cout << "\t==Method " << method << std::endl;
 
 				// cases
 				if (htn->numSubTasks[method] == 0){
 
+					BDD nextState = state;
+					nextState = nextState.SwapVariables(sym_vars.swapVarsEff, sym_vars.swapVarsAux);
+
 					// check if already added
-					BDD disjunct = eps[to] + state;
+					BDD disjunct = eps[to] + nextState;
 					if (disjunct != eps[to]){
 						eps[to] = disjunct;
 	
 						for (auto & [task2,tos] : edges[to])
 							for (auto & [to2,bdd] : tos){
 								ensureBDD(task2,to2,sym_vars);
-								BDD edgeDisjunct = edges[0][task2][to2] + state;
+								
+								BDD addState = nextState.AndAbstract(bdd,sym_vars.existsVarsEff);
+								
+								BDD edgeDisjunct = edges[0][task2][to2] + addState;
 								if (edgeDisjunct != edges[0][task2][to2]){
 							   		edges[0][task2][to2] = edgeDisjunct;
-									std::cout << "\tEmpty Method: " << task2 << " " << vertex_to_method[to2] << std::endl;
+									//std::cout << "\tEmpty Method: " << task2 << " " << vertex_to_method[to2] << std::endl;
 									addQ(task2, to2);
 								}
 							}
@@ -352,35 +347,59 @@ void build_automaton(Model * htn){
 					BDD disjunct = edges[0][htn->subTasks[method][0]][to] + state;
 					if (disjunct != edges[0][htn->subTasks[method][0]][to]){
 						edges[0][htn->subTasks[method][0]][to] = disjunct;
-						std::cout << "\tUnit: " << htn->subTasks[method][0] << " " << vertex_to_method[to] << std::endl;
+						//std::cout << "\tUnit: " << htn->subTasks[method][0] << " " << vertex_to_method[to] << std::endl;
 						addQ(htn->subTasks[method][0], to);
 					}
 					
 				} else { // two subtasks
 					assert(htn->numSubTasks[method] == 2);
 					// add edge (state is irrelevant here!!)
-					edges[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to] = sym_vars.zeroBDD();
 				
-					//BDD stateAtRoot = eps[methods_with_two_tasks_vertex[method]];
-					//BDD conjuct = stateAtRoot * state;
-	  				//					
-					//if (conjuct != sym_vars.zeroBDD()){
-					//	ensureBDD(tasks_per_method[method].second, to, sym_vars);
-					//	BDD disjunct = edges[0][tasks_per_method[method].second][to] + conjuct;
-					//	if (edges[0][tasks_per_method[method].second][to] != disjunct){
-					//		edges[0][tasks_per_method[method].second][to] = disjunct;
-					//		std::cout << "\t2 EPS: " << tasks_per_method[method].second << " " << vertex_to_method[to] << std::endl;
-					//		addQ(tasks_per_method[method].second, to);
-					//	}
-					//}
+					BDD r_temp = state.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsEff);
+					ensureBDD(tasks_per_method[method].second, to, sym_vars);
+					ensureBDD(methods_with_two_tasks_vertex[method], tasks_per_method[method].second, to, sym_vars);
+					BDD disjunct_r_temp = edges[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to] + r_temp;
+					if (disjunct_r_temp != edges[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to] ){
+						addQ(tasks_per_method[method].first, methods_with_two_tasks_vertex[method]);
+						edges[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to] = disjunct_r_temp;
+					}
+					
+					
 
+					BDD stateAtRoot = eps[methods_with_two_tasks_vertex[method]];
+					if (stateAtRoot.IsZero()){
+						//std::cout << "\t\t\t\tHUUUUUUPS" << std::endl;
+					}
+					BDD newState = stateAtRoot.AndAbstract(state,sym_vars.existsVarsEff);
+					if (newState.IsZero()){
+						//std::cout << "\t\t\t\tHUUUUUUPS" << std::endl;
+						//sym_vars.bdd_to_dot(stateAtRoot, "sar" + std::to_string(step) + ".dot");
+						//sym_vars.bdd_to_dot(state, "state" + std::to_string(step) + ".dot");
+					}
+				
+					BDD disjunct = edges[0][tasks_per_method[method].second][to] + newState;
+					if (edges[0][tasks_per_method[method].second][to] != disjunct){
+						edges[0][tasks_per_method[method].second][to] = disjunct;
+						//std::cout << "\t2 EPS: " << tasks_per_method[method].second << " " << vertex_to_method[to] << std::endl;
+						addQ(tasks_per_method[method].second, to);
+					}
+
+					
 					// new state for edge to method vertex
 					ensureBDD(tasks_per_method[method].first, methods_with_two_tasks_vertex[method], sym_vars);
-					BDD disjunct = edges[0][tasks_per_method[method].first][methods_with_two_tasks_vertex[method]] + state;
-				   if (disjunct != edges[0][tasks_per_method[method].first][methods_with_two_tasks_vertex[method]]){
-					   edges[0][tasks_per_method[method].first][methods_with_two_tasks_vertex[method]] = disjunct;
+		
+					BDD biimp = sym_vars.oneBDD();
+					for (int i = 0; i < htn->numVars; i++)
+						biimp *= sym_vars.auxBiimp(i); // v_i = v_i''
+
+					BDD ss = state.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux);
+					ss *= biimp;
+		
+					BDD disjunct2 = edges[0][tasks_per_method[method].first][methods_with_two_tasks_vertex[method]] + ss;
+				   	if (disjunct2 != edges[0][tasks_per_method[method].first][methods_with_two_tasks_vertex[method]]){
+					   edges[0][tasks_per_method[method].first][methods_with_two_tasks_vertex[method]] = disjunct2;
 						
-					   std::cout << "\t2 normal: " << tasks_per_method[method].first << " " << vertex_to_method[methods_with_two_tasks_vertex[method]] << std::endl;
+					   //std::cout << "\t2 normal: " << tasks_per_method[method].first << " " << vertex_to_method[methods_with_two_tasks_vertex[method]] << std::endl;
 					   addQ(tasks_per_method[method].first, methods_with_two_tasks_vertex[method]);
 				  }	
 				}
@@ -390,7 +409,7 @@ void build_automaton(Model * htn){
 		//graph_to_file(htn,"graph" + std::to_string(step++) + ".dot");
 		step++;
 	}
-
+	
 	std::cout << "Ending ..." << std::endl;
 	exit(0);
 	//delete sym_vars.manager.release();

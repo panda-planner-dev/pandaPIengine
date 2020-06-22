@@ -61,6 +61,10 @@ public:
       auxBiimpBDDs; // BDDs associated with the biimplication of
                     // one variable(FD) from effect to aux variables
 
+  std::vector<BDD> swapVarsPre, swapVarsEff, swapVarsAux;
+  BDD existsVarsPre;
+  BDD existsVarsEff;
+  BDD existsVarsAux;
 
   void init(const std::vector<int> &v_order, bool aux_variables);
 
