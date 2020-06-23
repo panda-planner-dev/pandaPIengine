@@ -128,7 +128,6 @@ void SymVariables::init(const vector<int> &v_order, bool aux_variables) {
           createBiimplicationBDD(bdd_index_pre[var], bdd_index_aux[var]);
     }
   }
-  
 
   for (int var : var_order) {
     for (int bdd_var : vars_index_pre(var)) {
@@ -145,7 +144,7 @@ void SymVariables::init(const vector<int> &v_order, bool aux_variables) {
   existsVarsPre = oneBDD();
   existsVarsEff = oneBDD();
   existsVarsAux = oneBDD();
-  
+
   for (size_t i = 0; i < swapVarsPre.size(); ++i) {
     existsVarsPre *= swapVarsPre[i];
     existsVarsEff *= swapVarsEff[i];
@@ -249,6 +248,10 @@ int SymVariables::getDomainSize(int var) const {
   return var_domain_size;
 }
 
+bool SymVariables::isStripsVariable(int var) const {
+  return model->firstIndex[var] == model->lastIndex[var];
+}
+
 BDD SymVariables::getCube(int var, const vector<vector<int>> &v_index) const {
   BDD res = oneBDD();
   for (int bddv : v_index[var]) {
@@ -278,7 +281,8 @@ std::vector<std::string> SymVariables::get_fd_variable_names() const {
       var_names[j + 1] =
           "var" + to_string(v) + "_2^" + std::to_string(exp) + "_primed";
       if (!auxBDDs.empty()) {
-        var_names[j + 2] = "var" + to_string(v) + "_2^" + std::to_string(exp) + "_aux";
+        var_names[j + 2] =
+            "var" + to_string(v) + "_2^" + std::to_string(exp) + "_aux";
       }
       exp++;
     }
@@ -305,7 +309,8 @@ void SymVariables::bdd_to_dot(const BDD &bdd,
       var_names[j + 1] =
           "var" + to_string(v) + "_2^" + std::to_string(exp) + "_primed";
       if (!auxBDDs.empty()) {
-        var_names[j + 2] = "var" + to_string(v) + "_2^" + std::to_string(exp) + "_aux";
+        var_names[j + 2] =
+            "var" + to_string(v) + "_2^" + std::to_string(exp) + "_aux";
       }
       exp++;
     }

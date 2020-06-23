@@ -254,7 +254,7 @@ void build_automaton(Model * htn){
 						}
 
 					if (to == 1){
-						//std::cout << "Goal reached! Length=" << depth << " steps=" << step << std::endl;
+						std::cout << "Goal reached! Length=" << depth << " steps=" << step << std::endl;
 	  					sym_vars.bdd_to_dot(nextState, "goal.dot");
 						exit(0);
 						return;

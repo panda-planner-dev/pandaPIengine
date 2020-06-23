@@ -31,7 +31,7 @@ class SymVariables {
   const long cudd_init_cache_size;       // Initial cache size
   const long cudd_init_available_memory; // Maximum available memory (bytes)
   const bool var_ordering;
-  
+
 public:
   std::unique_ptr<Cudd> manager; // manager associated with this symbolic search
 
@@ -41,8 +41,8 @@ public:
 
   // The variable order must be complete.
   std::vector<int> var_order; // Variable(FD) order in the BDD
-  std::vector<std::vector<int>> bdd_index_pre,
-      bdd_index_eff, bdd_index_aux; // vars(BDD) for each var(FD)
+  std::vector<std::vector<int>> bdd_index_pre, bdd_index_eff,
+      bdd_index_aux; // vars(BDD) for each var(FD)
 
   std::vector<std::vector<BDD>>
       preconditionBDDs; // BDDs associated with the precondition of a predicate
@@ -176,8 +176,10 @@ public:
   void print_options() const;
 
   void bdd_to_dot(const BDD &bdd, const std::string &file_name) const;
-  
+
   int getDomainSize(int var) const;
+
+  bool isStripsVariable(int var) const;
 
 private:
   // Auxiliar function helping to create precondition and effect BDDs
@@ -205,7 +207,6 @@ private:
   }
 
   inline int getNumBDDVars() const { return numBDDVars; }
-
 };
 } // namespace symbolic
 
