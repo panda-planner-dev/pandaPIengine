@@ -161,9 +161,17 @@ void build_automaton(Model * htn){
 	
 	auto addQ = [&] (int task, int to) {
 		if ((task >= htn->numActions && current_abstract) || 
-				(task < htn->numActions && htn->taskNames[task][0] == '_' && current_abstract)){
+				(task < htn->numActions && (
+					( htn->taskNames[task][0] == '_') || 
+						(htn->taskNames[task][0] == 'U' &&
+					 	htn->taskNames[task][1] == 'S' && 
+					 	htn->taskNames[task][2] == '_' 
+					 	)) && current_abstract)){
 			cq.put({task, to});
-		} else if (task < htn->numActions && htn->taskNames[task][0] != '_'){
+		} else if (task < htn->numActions && htn->taskNames[task][0] != '_' && (htn->taskNames[task][0] != 'U' ||
+					 htn->taskNames[task][1] != 'S' || 
+					 htn->taskNames[task][2] != '_' 
+					 )){
 			prim_q.put({task, to});
 		} else {
 			abst_q.put({task, to});
@@ -219,13 +227,17 @@ void build_automaton(Model * htn){
 	  	
 		if (state == sym_vars.zeroBDD()) continue; // impossible state, don't treat it
 
-		if (step % 1000 == 0)
+		if (step % 1== 0)
 			std::cout << "STEP #" << step << ": " << task << " " << vertex_to_method[to] << std::endl;
 	   	//std::cout << "\t\t" << htn->taskNames[task] << std::endl;		
 
 		if (task < htn->numActions){
-			if (htn->taskNames[task][0] != '_'){
-				//std::cout << "Prim" << std::endl;
+			if (htn->taskNames[task][0] != '_' && 
+					(htn->taskNames[task][0] != 'U' ||
+					 htn->taskNames[task][1] != 'S' || 
+					 htn->taskNames[task][2] != '_' 
+					 )){
+				std::cout << "Prim: " << htn->taskNames[task] << std::endl;
 				// apply action to state
 				BDD nextState = trs[task].image(state);
 				nextState = nextState.SwapVariables(sym_vars.swapVarsEff, sym_vars.swapVarsAux);
@@ -264,7 +276,7 @@ void build_automaton(Model * htn){
 					//std::cout << "\tNot new for Eps" << std::endl;
 				}
 			} else {
-				//std::cout << "SHOP" << std::endl;
+				std::cout << "SHOP" << std::endl;
 				// apply action to state
 				BDD nextState = trs[task].image(state);
 				nextState = nextState.SwapVariables(sym_vars.swapVarsEff, sym_vars.swapVarsAux);
