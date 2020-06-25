@@ -77,7 +77,8 @@ void build_automaton(Model * htn){
 	symbolic::SymVariables sym_vars(htn);
 	sym_vars.init(true);
 	BDD init = sym_vars.getStateBDD(htn->s0List, htn->s0Size);
-	//sym_vars.bdd_to_dot(init, "init.dot");
+	BDD goal = sym_vars.getPartialStateBDD(htn->gList, htn->gSize);
+	
 	std::vector<symbolic::TransitionRelation> trs;
 	for (int i = 0; i < htn->numActions; ++i) {
 	  std::cout << "Creating TR " << i << std::endl;
@@ -253,7 +254,7 @@ void build_automaton(Model * htn){
 							}
 						}
 
-					if (to == 1){
+					if (to == 1 && nextState * goal != sym_vars.zeroBDD()){
 						std::cout << "Goal reached! Length=" << depth << " steps=" << step << std::endl;
 	  					// sym_vars.bdd_to_dot(nextState, "goal.dot");
 						exit(0);
@@ -291,7 +292,7 @@ void build_automaton(Model * htn){
 							}
 						}
 
-					if (to == 1){
+					if (to == 1 && nextState * goal != sym_vars.zeroBDD()){
 						std::cout << "Goal reached! Length=" << depth << " steps=" << step << std::endl;
 	  					// sym_vars.bdd_to_dot(nextState, "goal.dot");
 						exit(0);
@@ -333,7 +334,7 @@ void build_automaton(Model * htn){
 								}
 							}
 	
-						if (to == 1){
+						if (to == 1 && nextState * goal != sym_vars.zeroBDD()){
 							std::cout << "Goal reached! Length=" << depth << " steps=" << step <<  std::endl;
 							exit(0);
 							return;
@@ -360,12 +361,13 @@ void build_automaton(Model * htn){
 					ensureBDD(methods_with_two_tasks_vertex[method], tasks_per_method[method].second, to, sym_vars);
 					BDD disjunct_r_temp = edges[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to] + r_temp;
 					if (disjunct_r_temp != edges[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to] ){
-						addQ(tasks_per_method[method].first, methods_with_two_tasks_vertex[method]);
+						//addQ(tasks_per_method[method].first, methods_with_two_tasks_vertex[method]);
 						edges[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to] = disjunct_r_temp;
 					}
 					
 					
 
+					// TODO: split epsilon by costs
 					BDD stateAtRoot = eps[methods_with_two_tasks_vertex[method]];
 					if (stateAtRoot.IsZero()){
 						//std::cout << "\t\t\t\tHUUUUUUPS" << std::endl;
