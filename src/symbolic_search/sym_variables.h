@@ -77,6 +77,7 @@ public:
   BDD getStateBDD(const int *state_bits, int state_bits_size) const;
 
   BDD getPartialStateBDD(const std::vector<std::pair<int, int>> &state) const;
+  BDD getPartialStateBDD(const int *state_bits, int state_bits_size) const;
 
   inline const std::vector<int> &vars_index_pre(int variable) const {
     return bdd_index_pre[variable];

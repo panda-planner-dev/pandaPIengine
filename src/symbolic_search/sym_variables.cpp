@@ -182,6 +182,19 @@ BDD SymVariables::getStateBDD(const int *state_bits,
   return res;
 }
 
+
+BDD SymVariables::getPartialStateBDD(const int *state_bits,
+                              int state_bits_size) const {
+  BDD res = oneBDD();
+  for (int i = 0; i < state_bits_size; i++) {
+    int var = model->varOfStateBit[state_bits[i]];
+    int val = state_bits[i] - model->firstIndex[var];
+    res = res * preconditionBDDs[var_order[var]][val];
+  }
+
+  return res;
+}
+
 /*BDD SymVariables::getStateBDD(const GlobalState &state) const {
   BDD res = oneBDD();
   for (int i = var_order.size() - 1; i >= 0; i--) {
