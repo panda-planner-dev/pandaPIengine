@@ -251,9 +251,11 @@ void build_automaton(Model * htn){
 			if (disjunct != eps[to][currentCost][currentDepthInAbstract]){
 				eps[to][currentCost][currentDepthInAbstract] = disjunct; // TODO: check logic here
 
+				std::cout << "LOOP" << std::endl;
 			
 				for (auto & [task2,tos] : edges[to])
 					for (auto & [to2,bdds] : tos){
+						if (!bdds.count(lastCost) || !bdds[lastCost].count(lastDepth)) continue;
 						BDD bdd = bdds[lastCost][lastDepth];
 						BDD addState = nextState.AndAbstract(bdd,sym_vars.existsVarsEff);
 
@@ -299,7 +301,8 @@ void build_automaton(Model * htn){
 	
 						for (auto & [task2,tos] : edges[to])
 							for (auto & [to2,bdds] : tos){
-								BDD bdd = bdds[currentCost][currentDepthInAbstract];
+								if (!bdds.count(lastCost) || !bdds[lastCost].count(lastDepth)) continue;
+								BDD bdd = bdds[lastCost][lastDepth];
 								
 								BDD addState = nextState.AndAbstract(bdd,sym_vars.existsVarsEff);
 								
