@@ -130,10 +130,14 @@ void build_automaton(Model * htn){
 	std::map<int,std::deque<std::tuple<int,int>>> prim_q;
 	std::map<int,std::map<int,std::deque<std::tuple<int,int>>>> abst_q;
 	std::vector<std::map<int,std::map<int,BDD>>> eps;
+	std::vector<std::map<int,BDD>> state_expanded_at_cost;
 
 	std::map<int,std::map<int,BDD>> _empty_eps;
 	_empty_eps[0][0] = sym_vars.zeroBDD();
 	for (int i = 0; i < number_of_vertices; i++) eps.push_back(_empty_eps);
+	std::map<int,BDD> _empty_state;
+	_empty_state[0] = sym_vars.zeroBDD();
+	for (int i = 0; i < number_of_vertices; i++) state_expanded_at_cost.push_back(_empty_state);
 
 #define put push_back
 //#define put insert
@@ -219,6 +223,13 @@ void build_automaton(Model * htn){
 			
 			std::cout << "eps done" << std::endl; 
 			
+			if (currentCost != lastCost)
+				for (int from = 0; from < edges.size(); from++){
+					state_expanded_at_cost[from][currentCost] = state_expanded_at_cost[from][lastCost];
+				}
+			
+			std::cout << "state done" << std::endl; 
+			
 			continue;
 		}
 		
@@ -232,13 +243,18 @@ void build_automaton(Model * htn){
 		//ensureBDD(task, to, sym_vars); // necessary?
 		BDD state = edges[0][task][to][lastCost][lastDepth];
 		//sym_vars.bdd_to_dot(state, "state" + std::to_string(step) + ".dot");
-	  	
-		if (state == sym_vars.zeroBDD()) continue; // impossible state, don't treat it
+	  
+		std::cout << "Got BDD" << std::endl;	
+
+		//std::cout << "\t\t\t\t\ttask ID" << task << std::endl;
+		//std::cout << "\t\t\t\t\tto" << to << std::endl;
 
 		if (step % 1== 0){
 			std::cout << "STEP #" << step << ": " << task << " " << vertex_to_method[to] << std::endl;
 	   		std::cout << "\t\t" << htn->taskNames[task] << std::endl;		
 		}
+		
+		if (state == sym_vars.zeroBDD()) continue; // impossible state, don't treat it
 
 		if (task < htn->numActions){
 			std::cout << "Prim: " << htn->taskNames[task] << std::endl;
@@ -271,6 +287,8 @@ void build_automaton(Model * htn){
 							//std::cout << "\tPrim: " << task2 << " " << vertex_to_method[to2] << std::endl;
 							addQ(task2, to2, 0);
 						} else {
+							// not new but successors might be  ...
+							//addQ(task2,to2,0);
 							//std::cout << "\tKnown state: " << task2 << " " << vertex_to_method[to2] << std::endl;
 						}
 					}
@@ -286,9 +304,10 @@ void build_automaton(Model * htn){
 			}
 		} else {
 			// abstract edge, go over all applicable methods	
-		
+			
 			for(int mIndex = 0; mIndex < htn->numMethodsForTask[task]; mIndex++){
 				int method = htn->taskToMethods[task][mIndex];
+				std::cout << "Method " << htn->methodNames[method] << std::endl;	
 				//std::cout << "\t==Method " << method << std::endl;
 
 				// cases
@@ -315,6 +334,8 @@ void build_automaton(Model * htn){
 							   		edges[0][task2][to2][currentCost][currentDepthInAbstract] = edgeDisjunct;
 									//std::cout << "\tEmpty Method: " << task2 << " " << vertex_to_method[to2] << std::endl;
 									addQ(task2, to2, 0);
+								} else {
+									//addQ(task2, to2, 0);
 								}
 							}
 	
@@ -339,6 +360,8 @@ void build_automaton(Model * htn){
 				} else { // two subtasks
 					assert(htn->numSubTasks[method] == 2);
 					// add edge (state is irrelevant here!!)
+					
+					std::cout << "\tOutgoing edge" << std::endl;
 				
 					BDD r_temp = state.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsEff);
 				
@@ -350,23 +373,50 @@ void build_automaton(Model * htn){
 						edges[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to][currentCost][currentDepthInAbstract] = disjunct_r_temp;
 					}
 					
-					
+					std::cout << "\tEpsilontik" << std::endl;
 					for (int cost = 0; cost <= lastCost; cost++){
 						BDD stateAtRoot = (--eps[methods_with_two_tasks_vertex[method]][cost].end()) -> second;
-						BDD newState = stateAtRoot.AndAbstract(state,sym_vars.existsVarsEff);
-													
-						if (!newState.IsZero()){
-							int targetCost = currentCost + cost;
-							ensureBDD(tasks_per_method[method].second,to,targetCost,0, sym_vars); // add as an edge to the future
-							BDD disjunct = edges[0][tasks_per_method[method].second][to][targetCost][0] + newState;
-							if (edges[0][tasks_per_method[method].second][to][targetCost][0] != disjunct){
-								edges[0][tasks_per_method[method].second][to][targetCost][0] = disjunct;
-								//std::cout << "\t2 EPS: " << tasks_per_method[method].second << " " << vertex_to_method[to] << std::endl;
-								addQ(tasks_per_method[method].second, to, cost); // TODO think about when to add ... the depth in abstract should be irrelevant?
+						BDD intersectState = stateAtRoot.And(state);
+						
+						if (!intersectState.IsZero()){
+							std::cout << "\t\t\tFound intersecting state cost " << cost << std::endl;
+							// find the earliest time we could have gotten here
+							for (int getHere = 0; getHere <= cost; getHere++){
+								//std::cout << "\t\t\t\ttrying source " << getHere << std::endl;
+								// could we have gotten here?
+								BDD newState = intersectState.AndAbstract(
+										state_expanded_at_cost[methods_with_two_tasks_vertex[method]][getHere],
+										sym_vars.existsVarsEff);
+								
+								if (!newState.IsZero()){
+									int actualCost = cost - getHere;
+									std::cout << "\t\tEpsilon with cost " << actualCost << std::endl;
+									int targetCost = currentCost + actualCost;
+								
+									int targetDepth = 0;
+									if (actualCost == 0)
+										targetDepth = currentDepthInAbstract ;	
+									
+									ensureBDD(tasks_per_method[method].second,to,targetCost,targetDepth, sym_vars); // add as an edge to the future
+									
+									
+									BDD disjunct = edges[0][tasks_per_method[method].second][to][targetCost][targetDepth] + newState;
+									if (edges[0][tasks_per_method[method].second][to][targetCost][targetDepth] != disjunct){
+										edges[0][tasks_per_method[method].second][to][targetCost][targetDepth] = disjunct;
+										//std::cout << "\t\t" << edges[0][tasks_per_method[method].second][to][targetCost][targetDepth].IsZero() << std::endl;
+										std::cout << "\t2 EPS: " << tasks_per_method[method].second << " " << vertex_to_method[to] << " cost " << actualCost << std::endl;
+										std::cout << "\tedge " << targetCost << " " << targetDepth << std::endl;
+										addQ(tasks_per_method[method].second, to, actualCost); // TODO think about when to add ... the depth in abstract should be irrelevant?
+									}
+									break;
+								} else {
+									//std::cout << "\t\t\t\t\tis zero" << std::endl;
+								}
 							}
 						}
 					}
 
+					std::cout << "\tIngoing edge" << std::endl;
 					
 					// new state for edge to method vertex
 					ensureBDD(tasks_per_method[method].first, methods_with_two_tasks_vertex[method], currentCost, currentDepthInAbstract, sym_vars);
@@ -377,12 +427,16 @@ void build_automaton(Model * htn){
 
 					BDD ss = state.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux);
 					ss *= biimp;
+					
+					// memorise at which cost we got here, n the v_i' variables
+					state_expanded_at_cost[methods_with_two_tasks_vertex[method]][currentCost] +=
+						ss.SwapVariables(sym_vars.swapVarsEff, sym_vars.swapVarsPre);
 		
 					BDD disjunct2 = edges[0][tasks_per_method[method].first][methods_with_two_tasks_vertex[method]][currentCost][currentDepthInAbstract] + ss;
 				   	if (disjunct2 != edges[0][tasks_per_method[method].first][methods_with_two_tasks_vertex[method]][currentCost][currentDepthInAbstract]){
 					   edges[0][tasks_per_method[method].first][methods_with_two_tasks_vertex[method]][currentCost][currentDepthInAbstract] = disjunct2;
 						
-					   //std::cout << "\t2 normal: " << tasks_per_method[method].first << " " << vertex_to_method[methods_with_two_tasks_vertex[method]] << std::endl;
+					   std::cout << "\t2 normal: " << tasks_per_method[method].first << " " << vertex_to_method[methods_with_two_tasks_vertex[method]] << std::endl;
 					   addQ(tasks_per_method[method].first, methods_with_two_tasks_vertex[method], 0);
 				  }	
 				}
