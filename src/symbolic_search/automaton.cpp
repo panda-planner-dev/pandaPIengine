@@ -147,7 +147,10 @@ void build_automaton(Model * htn){
 	auto addQ = [&] (int task, int to, int extraCost) {
 		if (task >= htn->numActions || htn->actionCosts[task] == 0){
 			// abstract task or zero-cost action
-			abst_q[currentCost + extraCost][currentDepthInAbstract+1].put({task,to});
+			if (!extraCost)
+				abst_q[currentCost][currentDepthInAbstract+1].put({task,to});
+			else
+				abst_q[currentCost + extraCost][1].put({task,to});
 		} else {
 			// primitive with cost
 			prim_q[currentCost + extraCost + htn->actionCosts[task]].put({task,to});
@@ -349,7 +352,7 @@ void build_automaton(Model * htn){
 					
 					
 					for (int cost = 0; cost <= lastCost; cost++){
-						BDD stateAtRoot = eps[methods_with_two_tasks_vertex[method]][cost][0];
+						BDD stateAtRoot = (--eps[methods_with_two_tasks_vertex[method]][cost].end()) -> second;
 						BDD newState = stateAtRoot.AndAbstract(state,sym_vars.existsVarsEff);
 													
 						if (!newState.IsZero()){
@@ -359,7 +362,7 @@ void build_automaton(Model * htn){
 							if (edges[0][tasks_per_method[method].second][to][targetCost][0] != disjunct){
 								edges[0][tasks_per_method[method].second][to][targetCost][0] = disjunct;
 								//std::cout << "\t2 EPS: " << tasks_per_method[method].second << " " << vertex_to_method[to] << std::endl;
-								addQ(tasks_per_method[method].second, to, targetCost); // TODO think about when to add ... the depth in abstract should be irrelevant?
+								addQ(tasks_per_method[method].second, to, cost); // TODO think about when to add ... the depth in abstract should be irrelevant?
 							}
 						}
 					}
