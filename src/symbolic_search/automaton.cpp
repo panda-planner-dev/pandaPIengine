@@ -25,6 +25,7 @@ std::vector<int> vertex_to_method;
 // 4. the BDD
 std::vector<std::map<int,std::map<int, std::map<int, std::map<int, BDD>>>>> edges; 
 
+std::map<int,std::pair<int,int>> tasks_per_method; // first and second
 
 std::string to_string(Model * htn){
 	std::string s = "digraph graphname {\n";
@@ -75,10 +76,13 @@ typedef std::tuple<int,int,int,int,int,int,int> tracingInfo;
 
 std::vector<std::pair<int,std::string>> primitivePlan;
 std::vector<std::tuple<int,std::string,std::string,int,int>> abstractPlan;
+std::map<int,int> stackTasks;
 
+int blup = 0;
 
 void extract(int curCost, int curDepth, int curTask, int curTo,
 	std::stack<int> & taskStack,
+	std::stack<int> & methodStack,
 	BDD state,
 	int method,
 	Model * htn,
@@ -122,35 +126,83 @@ void extract(int curCost, int curDepth, int curTask, int curTo,
 
 
 	// add this thing to the tracing
-	std::cout << "Extracting solution starting " << curCost << " " << curDepth << " " << curTask << " " << curTo << std::endl;
+	std::cout << "Extracting solution starting " << curCost << " " << curDepth << ": " << curTask << " " << vertex_to_method[curTo];
 	if (curTask >= htn->numActions) std::cout << "\t\t\t\t";
 	std::cout << "\t\t\t\t\t" << htn->taskNames[curTask] << std::endl;
 
 	int myTaskID = primitivePlan.size() + abstractPlan.size();
 	if (curTask < htn->numActions) {
 		primitivePlan.push_back({myTaskID, htn->taskNames[curTask]});
+		methodStack.push(curTo);
 	} else {
 		int a = -1;
 		int b = -1;
-		std::cout << "Abstract, stack size = " << taskStack.size() << " " << htn->numSubTasks[method] << std::endl;
-		if (htn->numSubTasks[method] >= 1){
+		std::cout << "\t\tAbstract, stack size = " << taskStack.size() << " " << htn->numSubTasks[method] << std::endl;
+		if (htn->numSubTasks[method] == 0){
+			methodStack.push(curTo);
+		} else if (htn->numSubTasks[method] == 1){
+			if (curTo != methodStack.top()){ // not possible
+				std::cout << "\t\tCan't go to " << vertex_to_method[curTo] << " on stack is " << vertex_to_method[methodStack.top()] << std::endl;
+				return;
+			}
 			a = taskStack.top();
 			taskStack.pop();
-		}
-		if (htn->numSubTasks[method] == 2){ // something else cannot happen
+		} else if (htn->numSubTasks[method] == 2){ // something else cannot happen
+			// pop the first one
+			a = taskStack.top();
+			taskStack.pop();
+			
 			b = taskStack.top();
+			// check if we are on the correct path
+			if (stackTasks[b] != tasks_per_method[method].second){
+				std::cout << "\t\tFAIL " << tasks_per_method[method].second << " " << stackTasks[a] << " " << method << std::endl;
+				taskStack.push(a);
+				return; // we failed!
+			}
+			
+			// method stack, I think it is irrelevant what the intermediate method is
+			int mstack = methodStack.top(); methodStack.pop();
+			
+			if (curTo != methodStack.top()){ // not possible
+				std::cout << "\t\tCan't go to " << vertex_to_method[curTo] << " on stack is " << vertex_to_method[methodStack.top()] << std::endl;
+				methodStack.push(mstack);
+				taskStack.push(a);
+				return;
+			}
+
 			taskStack.pop();
 		}
 		abstractPlan.push_back({myTaskID, htn->taskNames[curTask], htn->methodNames[method], a, b});
 	}
 	taskStack.push(myTaskID);
+	stackTasks[myTaskID] = curTask;
+	std::cout << "\t\tAccept" << std::endl;
 
 
 
 	// look at my sources
 	std::tuple<int,int> tup = {curTask, curTo};
 	auto & myPredecessors = (curDepth == 0) ? prim_q[curCost][tup] : abst_q[curCost][curDepth][tup];
-	std::cout << "Options: " << myPredecessors.size() << std::endl;
+	std::cout << "\t\tOptions: " << myPredecessors.size() << std::endl;
+	for (auto & [preCost, preDepth, preTask, preTo, _method, cost, getHere] : myPredecessors)
+		std::cout << "\t\t\tEdge " << " " << preTask << " " << vertex_to_method[preTo] << std::endl;
+	
+	
+	//if (myPredecessors.size() > 1){
+	//  	blup++;
+	//	if (blup == 3){
+	//		sym_vars.bdd_to_dot(possibleSourceState, "source.dot");
+	//		int i = 0;
+	//		for (auto & [preCost, preDepth, preTask, preTo, _method, cost, getHere] : myPredecessors){
+	//			std::cout << "Edge " << i << " " << preTask << " " << vertex_to_method[preTo] << std::endl;
+	//			
+	//			sym_vars.bdd_to_dot(edges[0][preTask][preTo][preCost][preDepth], "edge" + std::to_string(i++) + ".dot");
+	//		}
+
+	//		exit(0);
+	//	}
+	//}
+	
 	//std::reverse(myPredecessors.begin(), myPredecessors.end());
 	for (auto & [preCost, preDepth, preTask, preTo, _method, cost, getHere] : myPredecessors){
 		if (cost != -1){
@@ -161,9 +213,11 @@ void extract(int curCost, int curDepth, int curTask, int curTo,
 		}
 
 
-		extract(preCost, preDepth, preTask, preTo, taskStack, possibleSourceState, _method, htn, sym_vars, prim_q, abst_q);
+		extract(preCost, preDepth, preTask, preTo, taskStack, methodStack, possibleSourceState, _method, htn, sym_vars, prim_q, abst_q);
 	}
 
+	std::cout << "Backtracking failed at this point ... " << std::endl;
+	exit(0);
 }
 
 void extract(int curCost, int curDepth, int curTask, int curTo,
@@ -174,8 +228,10 @@ void extract(int curCost, int curDepth, int curTask, int curTo,
 	std::map<int,std::map<std::tuple<int,int>, std::vector<tracingInfo> >> prim_q,
 	std::map<int,std::map<int,std::map<std::tuple<int,int>, std::vector<tracingInfo> >>> abst_q
 		){
-	std::stack<int> s;
-	extract(curCost, curDepth, curTask, curTo, s, state, method, htn, sym_vars, prim_q, abst_q);
+	std::stack<int> ss;
+	std::stack<int> sm;
+	extract(curCost, curDepth, curTask, curTo, ss, sm, state, method, htn, sym_vars, prim_q, abst_q);
+	exit(0);
 }
 
 
@@ -218,7 +274,6 @@ void build_automaton(Model * htn){
 	// build the initial version of the graph
 	vertex_names.push_back("start");
 	vertex_names.push_back("end");
-	std::map<int,std::pair<int,int>> tasks_per_method; // first and second
 	for (auto & [method, vertex] : methods_with_two_tasks_vertex){
 		vertex_names.push_back(htn->methodNames[method]);
 
@@ -349,7 +404,7 @@ void build_automaton(Model * htn){
 							BDD edgeDisjunct = edges[0][task2][to2][currentCost][currentDepthInAbstract] + addState;
 							if (edgeDisjunct != edges[0][task2][to2][currentCost][currentDepthInAbstract]){
 						   		edges[0][task2][to2][currentCost][currentDepthInAbstract] = edgeDisjunct;
-								//std::cout << "\tPrim: " << task2 << " " << vertex_to_method[to2] << std::endl;
+								std::cout << "\tPrim: " << task2 << " " << vertex_to_method[to2] << std::endl;
 								addQ(task2, to2, 0, task, to, -1, -1, -1); // no method as primitive
 							} else {
 								// not new but successors might be  ...
@@ -397,7 +452,7 @@ void build_automaton(Model * htn){
 									BDD edgeDisjunct = edges[0][task2][to2][currentCost][currentDepthInAbstract] + addState;
 									if (edgeDisjunct != edges[0][task2][to2][currentCost][currentDepthInAbstract]){
 								   		edges[0][task2][to2][currentCost][currentDepthInAbstract] = edgeDisjunct;
-										//std::cout << "\tEmpty Method: " << task2 << " " << vertex_to_method[to2] << std::endl;
+										std::cout << "\tEmpty Method: " << task2 << " " << vertex_to_method[to2] << std::endl;
 										addQ(task2, to2, 0, task, to, method, -1, -1);
 									} else {
 										//addQ(task2, to2, 0);
@@ -418,7 +473,7 @@ void build_automaton(Model * htn){
 						BDD disjunct = edges[0][htn->subTasks[method][0]][to][currentCost][currentDepthInAbstract] + state;
 						if (disjunct != edges[0][htn->subTasks[method][0]][to][currentCost][currentDepthInAbstract]){
 							edges[0][htn->subTasks[method][0]][to][currentCost][currentDepthInAbstract] = disjunct;
-							//std::cout << "\tUnit: " << htn->subTasks[method][0] << " " << vertex_to_method[to] << std::endl;
+							std::cout << "\tUnit: " << htn->subTasks[method][0] << " " << vertex_to_method[to] << std::endl;
 							addQ(htn->subTasks[method][0], to, 0, task, to, method, -1, -1);
 						}
 						
@@ -497,7 +552,7 @@ void build_automaton(Model * htn){
 							ss.SwapVariables(sym_vars.swapVarsEff, sym_vars.swapVarsPre);
 			
 						BDD disjunct2 = edges[0][tasks_per_method[method].first][methods_with_two_tasks_vertex[method]][currentCost][currentDepthInAbstract] + ss;
-					   	if (disjunct2 != edges[0][tasks_per_method[method].first][methods_with_two_tasks_vertex[method]][currentCost][currentDepthInAbstract]){
+					   	if (true || disjunct2 != edges[0][tasks_per_method[method].first][methods_with_two_tasks_vertex[method]][currentCost][currentDepthInAbstract]){
 						   edges[0][tasks_per_method[method].first][methods_with_two_tasks_vertex[method]][currentCost][currentDepthInAbstract] = disjunct2;
 							
 						   std::cout << "\t2 normal: " << tasks_per_method[method].first << " " << vertex_to_method[methods_with_two_tasks_vertex[method]] << std::endl;
