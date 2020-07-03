@@ -18,6 +18,7 @@
 #endif
 
 #include "Model.h"
+#include "debug.h"
 #if HEURISTIC == RCFF
 #include "heuristics/rcHeuristics/hsAddFF.h"
 #include "heuristics/rcHeuristics/hsFilter.h"
@@ -43,6 +44,7 @@ int main(int argc, char *argv[]) {
 #endif
   // srand(atoi(argv[4]));
 
+  setDebugMode(true);
   string s;
   int seed = 42;
   if (argc == 1) {
