@@ -111,6 +111,13 @@ void extract(int curCost, int curDepth, int curTask, int curTo,
 
 		exit(0);
 	}
+	
+	
+	std::cout << "Extracting solution starting " << curCost << " " << curDepth << ": " << curTask << " " << vertex_to_method[curTo];
+	if (curTask >= htn->numActions) std::cout << "\t\t\t\t";
+	std::cout << "\t\t\t\t\t" << htn->taskNames[curTask] << std::endl;
+
+
 
 	// state contains in v the current state and in v'' something (... ikn)
 	BDD previousState; // compute this
@@ -124,16 +131,27 @@ void extract(int curCost, int curDepth, int curTask, int curTo,
 
 	// check whether we can actually come from here
 	BDD possibleSourceState = previousState.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux) * edges[0][curTask][curTo][curCost][curDepth];
-	if (possibleSourceState.IsZero()) return;
+	if (possibleSourceState.IsZero()) {
+		std::cout << "\t\tBacktracking, state does not fit" << std::endl;
+		return;
+	}
 
 
 	// add this thing to the tracing
-	std::cout << "Extracting solution starting " << curCost << " " << curDepth << ": " << curTask << " " << vertex_to_method[curTo];
-	if (curTask >= htn->numActions) std::cout << "\t\t\t\t";
-	std::cout << "\t\t\t\t\t" << htn->taskNames[curTask] << std::endl;
 
 	int myTaskID = primitivePlan.size() + abstractPlan.size();
 	if (curTask < htn->numActions) {
+		if (methodStack.size()) { // we can't do this check for the first edge
+			// check whether we could have gone these two edges
+			BDD edge1BDD = possibleSourceState.SwapVariables(sym_vars.swapVarsEff, sym_vars.swapVarsAux);
+			BDD edge2BDD = edges[curTo][stackTasks[taskStack.top()]][methodStack.top()][curCost][curDepth];
+
+			possibleSourceState = edge1BDD * edge2BDD;
+			possibleSourceState = possibleSourceState.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsEff);
+			
+			cout << "\t\t\t\t##################### P " << possibleSourceState.IsZero() << endl;
+		}
+		
 		primitivePlan.push_back({myTaskID, htn->taskNames[curTask]});
 		methodStack.push(curTo);
 	} else {
@@ -141,12 +159,26 @@ void extract(int curCost, int curDepth, int curTask, int curTo,
 		int b = -1;
 		std::cout << "\t\tAbstract, stack size = " << taskStack.size() << " " << htn->numSubTasks[method] << std::endl;
 		if (htn->numSubTasks[method] == 0){
+			if (methodStack.size()) { // we can't do this check for the first edge
+				// check whether we could have gone these two edges
+				BDD edge1BDD = possibleSourceState.SwapVariables(sym_vars.swapVarsEff, sym_vars.swapVarsAux);
+				BDD edge2BDD = edges[curTo][stackTasks[taskStack.top()]][methodStack.top()][curCost][curDepth];
+
+				possibleSourceState = edge1BDD * edge2BDD;
+				possibleSourceState = possibleSourceState.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsEff);
+				
+				cout << "\t\t\t\t##################### E " << possibleSourceState.IsZero() << endl;
+			}
+			// push onto method stack
 			methodStack.push(curTo);
 		} else if (htn->numSubTasks[method] == 1){
 			if (curTo != methodStack.top()){ // not possible
 				std::cout << "\t\tCan't go to " << vertex_to_method[curTo] << " on stack is " << vertex_to_method[methodStack.top()] << std::endl;
 				return;
 			}
+
+			// state is already checked above
+			
 			a = taskStack.top();
 			taskStack.pop();
 		} else if (htn->numSubTasks[method] == 2){ // something else cannot happen
@@ -170,6 +202,24 @@ void extract(int curCost, int curDepth, int curTask, int curTo,
 				methodStack.push(mstack);
 				taskStack.push(a);
 				return;
+			}
+
+
+			{
+				// check whether we could have gone these two edges
+				BDD edge1BDD = possibleSourceState.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsEff).SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsAux);
+				BDD edge2BDD = edges[0][curTask][curTo][curCost][curDepth];
+
+				possibleSourceState = edge1BDD * edge2BDD;
+				possibleSourceState = possibleSourceState.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsEff);
+				
+				cout << "\t\t\t\t##################### 2 " << possibleSourceState.IsZero() << endl;
+				
+				if (possibleSourceState.IsZero()){
+					methodStack.push(mstack);
+					taskStack.push(a);
+					return;
+				}
 			}
 
 			taskStack.pop();
@@ -219,6 +269,7 @@ void extract(int curCost, int curDepth, int curTask, int curTo,
 	}
 
 	std::cout << "Backtracking failed at this point ... " << std::endl;
+	
 	exit(0);
 }
 
@@ -569,9 +620,10 @@ void build_automaton(Model * htn){
 				}
 			}
 
-			//graph_to_file(htn,"graph" + std::to_string(step++) + ".dot");
 			step++;
 		}
+		
+		graph_to_file(htn,"layer" + std::to_string(currentCost) + "_" + std::to_string(currentDepthInAbstract) +  ".dot");
 
 		// handled everything in this layer	
 		// switch to next layer	
