@@ -366,7 +366,10 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 		methodStack.push_front(curTo);
 		taskStack.push_front(curTask);
 	} else {
-		if (htn->numSubTasks[method] == 1){
+		if (htn->numSubTasks[method] == 0){
+			methodStack.push_front(curTo);
+			taskStack.push_front(curTask);
+		} else if (htn->numSubTasks[method] == 1){
 			if (taskStack[0] != htn->subTasks[method][0]){
 				std:: cout << color(RED,"\tFirst task on stack does not match method.") << std::endl;
 				return get_fail();
