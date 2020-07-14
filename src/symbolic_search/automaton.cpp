@@ -38,13 +38,12 @@ std::string to_string(Model * htn){
 	
 	s+= "\n\n";
 
+
 	for (int v = 0; v < vertex_names.size(); v++)
 		for (auto & [task,tos] : edges[v])
 			for (auto & [to,bdd] : tos)
-				s += "  v" + std::to_string(v) + " -> v" + std::to_string(to) + " [label=\"" + 
-					//htn->taskNames[task] + "\"]\n";
-					std::to_string(task) + "\"]\n";
-
+				s += "  v" + std::to_string(v) + " -> v" + std::to_string(to) + " [label=\"" + std::to_string(task) + "\"]\n";
+	
 	return s + "}";
 }
 
@@ -76,8 +75,6 @@ std::vector<symbolic::TransitionRelation> trs;
 
 typedef std::tuple<int,int,int,int,int,int,int> tracingInfo;
 
-int blup = 0;
-	
 void printStack(std::deque<int> & taskStack, std::deque<int> & methodStack, int indent){
 	for (size_t i = 0; i < taskStack.size(); i++){
 		for (int j = 0; j < indent; j++) std::cout << "\t";
@@ -87,7 +84,6 @@ void printStack(std::deque<int> & taskStack, std::deque<int> & methodStack, int 
 
 
 int global_id_counter = 0;
-
 
 struct reconstructed_plan {
 	bool success;
@@ -170,30 +166,32 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 	
 	assert(taskStack.size() == methodStack.size());
 	
-	std::cout << "\t" << color(YELLOW,"Extract from ") << curCost << " " << curDepth << ": " << curTask << " " << vertex_to_method[curTo] << " stack size: " << taskStack.size() << " target " << targetTask << std::endl;
+	DEBUG(std::cout << "\t" << color(YELLOW,"Extract from ") << curCost << " " << curDepth << ": " << curTask << " " << vertex_to_method[curTo] << " stack size: " << taskStack.size() << " target " << targetTask << std::endl);
 	if (targetTask != -1 && taskStack.size() == 1 && taskStack[0] == targetTask){
-		std::cout << "\t\t" << color(GREEN,"Got to target task on stack.") << std::endl;
+		DEBUG(std::cout << "\t\t" << color(GREEN,"Got to target task on stack.") << std::endl);
 		return get_empty_success();
 	}
 	
 	// look at my sources
 	std::tuple<int,int> tup = {curTask, curTo};
 	auto & myPredecessors = (curDepth == 0) ? prim_q[curCost][tup] : abst_q[curCost][curDepth][tup];
-	std::cout << "\tOptions: " << myPredecessors.size() << std::endl;
-	for (auto & [preCost, preDepth, preTask, preTo, _method, cost, getHere] : myPredecessors)
-		std::cout << "\t\tEdge " << " " << preTask << " " << vertex_to_method[preTo] << std::endl;
+	DEBUG(
+			std::cout << "\tOptions: " << myPredecessors.size() << std::endl;
+			for (auto & [preCost, preDepth, preTask, preTo, _method, cost, getHere] : myPredecessors)
+				std::cout << "\t\tEdge " << " " << preTask << " " << vertex_to_method[preTo] << std::endl;
+		);
 	
 	for (auto & [preCost, preDepth, preTask, preTo, _method, cost, getHere] : myPredecessors){
-		std::cout << "\t\t" << color(YELLOW, "Trying Edge ") << preCost << " " << preDepth << " " << preTask << " " << vertex_to_method[preTo] << std::endl;
+		DEBUG(std::cout << "\t\t" << color(YELLOW, "Trying Edge ") << preCost << " " << preDepth << " " << preTask << " " << vertex_to_method[preTo] << std::endl);
 		
 		if (cost != -1){
-			std::cout << color(YELLOW,"\t\tThis edge was inserted due to an epsilon application.") << " cost=" << cost << " getHere=" << getHere << " " << vertex_to_method[getHere] << std::endl;
+			DEBUG(std::cout << color(YELLOW,"\t\tThis edge was inserted due to an epsilon application.") << " cost=" << cost << " getHere=" << getHere << " " << vertex_to_method[getHere] << std::endl);
 			
 			int appliedMethod = vertex_to_method[getHere];
 			int abstractTask = htn->decomposedTask[appliedMethod];
-			std::cout << "\t\t\tTask on the main edge is " << htn->taskNames[abstractTask] << " (#" << abstractTask << ")" << std::endl; 
+			DEBUG(std::cout << "\t\t\tTask on the main edge is " << htn->taskNames[abstractTask] << " (#" << abstractTask << ")" << std::endl); 
 			for (auto & [preCost2, preDepth2, preTask2, preTo2, _method2, remainingTask, remainingMethod] : eps_inserted[getHere][cost]){
-				std::cout << "\t\t\t" << preCost2 << " " << preDepth2 << " " << preTask2 << " " << preTo2 << " " << _method2 << " " << remainingTask << " " << remainingMethod << " " << endl;
+				DEBUG(std::cout << "\t\t\t" << preCost2 << " " << preDepth2 << " " << preTask2 << " " << preTo2 << " " << _method2 << " " << remainingTask << " " << remainingMethod << " " << endl);
 			
 				// start reconstruction with empty stack	
 				std::deque<int> ss;
@@ -212,7 +210,7 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 				ss.pop_front();
 				ss.push_front(abstractTask);
 			
-				printStack(ss,sm,8);	
+				DEBUG(printStack(ss,sm,8));
 				assert(ss.front() == preTask);
 
 				reconstructed_plan b = extract2From(preCost, preDepth, ss.front(), sm.front(), targetTask,
@@ -263,7 +261,7 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 			int currentVertex = 0;
 			int lastUnmatchingStack = -1;
 			for (size_t i = 0; i < methodStack.size(); i++){
-				std::cout << "\t\t\t\t\t\t\t\t\tStack (2) pos " << i << "/" << methodStack.size() << std::endl; 
+				DEBUG(std::cout << "\t\t\t\t\t\t\t\t\tStack (2) pos " << i << "/" << methodStack.size() << std::endl);
 				int taskToGo = taskStack[i];
 				int targetVertex = methodStack[i];
 				
@@ -279,8 +277,8 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 					ensureBDD(currentVertex,taskToGo,targetVertex,curCost,curDepth-1,sym_vars); // maybe there isn't even a BDD
 					BDD presentInPrevious = edges[currentVertex][taskToGo][targetVertex][curCost][curDepth-1] * nextBDD;
 					if (presentInPrevious.IsZero()){
-						std::cout << "\t\t\t" << color(RED,"stack element not present in previous round ") << vertex_to_method[currentVertex] << " " << 
-							taskToGo << " " << vertex_to_method[targetVertex] << std::endl;
+						DEBUG(std::cout << "\t\t\t" << color(RED,"stack element not present in previous round ") << vertex_to_method[currentVertex] << " " << 
+							taskToGo << " " << vertex_to_method[targetVertex] << std::endl);
 						lastUnmatchingStack = i;	
 					}
 				}
@@ -294,10 +292,10 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 
 			if (lastUnmatchingStack != -1){
 				// split the stack in two and call separately
-				printStack(taskStack, methodStack, 2);
-				std::cout << color(YELLOW,"\t\tStack does not match") << ", splitting at position " << lastUnmatchingStack << std::endl;
+				DEBUG(printStack(taskStack, methodStack, 2));
+				DEBUG(std::cout << color(YELLOW,"\t\tStack does not match") << ", splitting at position " << lastUnmatchingStack << std::endl);
 				int appliedMethod = vertex_to_method[methodStack[lastUnmatchingStack-1]]; 
-				std::cout << "\t\t\tApplied method is " << htn->methodNames[appliedMethod] << " (#" << appliedMethod << ")" << std::endl;
+				DEBUG(std::cout << "\t\t\tApplied method is " << htn->methodNames[appliedMethod] << " (#" << appliedMethod << ")" << std::endl);
 
 				std::deque<int> firstTaskStack;
 				std::deque<int> firstMethodStack;
@@ -316,11 +314,13 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 					}
 				}
 				
-				std::cout << "\t\t\tStack 1:" << std::endl;
-				printStack(firstTaskStack, firstMethodStack, 2);
-				std::cout << "\t\t\tStack 2:" << std::endl;
-				printStack(secondTaskStack, secondMethodStack, 2);
-				std::cout << "\t\t\tHead task of method " << tasks_per_method[appliedMethod].first << std::endl;
+				DEBUG(
+					std::cout << "\t\t\tStack 1:" << std::endl;
+					printStack(firstTaskStack, firstMethodStack, 2);
+					std::cout << "\t\t\tStack 2:" << std::endl;
+					printStack(secondTaskStack, secondMethodStack, 2);
+					std::cout << "\t\t\tHead task of method " << tasks_per_method[appliedMethod].first << std::endl;
+					);
 				
 				
 				reconstructed_plan a = extract2From(curCost, curDepth, firstTaskStack.front(), firstMethodStack.front(), tasks_per_method[appliedMethod].first,
@@ -355,7 +355,7 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 		if (a.success) return a;
 	}
 
-	std::cout << color(YELLOW,"Backtracking failed at this point ... ") << std::endl;
+	DEBUG(std::cout << color(YELLOW,"Backtracking failed at this point ... ") << std::endl);
 	return get_fail();
 }
 
@@ -376,13 +376,16 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 	assert(taskStack.size() == methodStack.size());
 	
 	if (curCost == -1){
-		std::cout << "DONE" << std::endl;
+		DEBUG(std::cout << "DONE" << std::endl);
 		return get_empty_success();
 	}
 	
-	std::cout << "Extracting solution starting cost=" << curCost << " depth=" << curDepth << " t=" << curTask << " m=" << vertex_to_method[curTo] << std::endl;
-	if (curTask < htn->numActions) std::cout << "\tPRIM " << color(GREEN,htn->taskNames[curTask]) << std::endl;
-	else                           std::cout << "\tABST " << color(BLUE,htn->taskNames[curTask]) << " method " << color(CYAN, htn->methodNames[method]) << " #" << method << std::endl;
+	DEBUG(
+		std::cout << "Extracting solution starting cost=" << curCost << " depth=" << curDepth << " t=" << curTask << " m=" << vertex_to_method[curTo] << std::endl;
+		if (curTask < htn->numActions) std::cout << "\tPRIM " << color(GREEN,htn->taskNames[curTask]) << std::endl;
+		else                           std::cout << "\tABST " << color(BLUE,htn->taskNames[curTask]) << " method " << color(CYAN, htn->methodNames[method]) << 
+													" #" << method << std::endl;
+		);
 
 	// output the stack
 	assert(taskStack.size() == methodStack.size());
@@ -408,9 +411,7 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 
 
 	if (possibleSourceState.IsZero()) {
-	  	//sym_vars.bdd_to_dot(previousState, "prev.dot");
-	  	//sym_vars.bdd_to_dot(edges[0][curTask][curTo][curCost][curDepth], "edge.dot");
-		std::cout << color(RED,"\t\tBacktracking, state does not fit.") << std::endl;
+		DEBUG(std::cout << color(RED,"\t\tBacktracking, state does not fit.") << std::endl);
 		return get_fail();
 	}
 
@@ -427,7 +428,7 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 			possibleSourceState = possibleSourceState.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsEff);
 		
 			if (possibleSourceState.IsZero()){	
-				std:: cout << color(RED,"\tTransition from new edge to previous one is not possible.") << std::endl;
+				DEBUG(std:: cout << color(RED,"\tTransition from new edge to previous one is not possible.") << std::endl);
 				return get_fail();
 			}
 		}
@@ -441,7 +442,7 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 			taskStack.push_front(curTask);
 		} else if (htn->numSubTasks[method] == 1){
 			if (taskStack[0] != htn->subTasks[method][0]){
-				std:: cout << color(RED,"\tFirst task on stack does not match method.") << std::endl;
+				DEBUG(std:: cout << color(RED,"\tFirst task on stack does not match method.") << std::endl);
 				return get_fail();
 			}
 
@@ -450,10 +451,10 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 			taskStack.pop_front();		
 			taskStack.push_front(curTask);
 		} else if (htn->numSubTasks[method] == 2){ // something else cannot happen
-			std::cout << "\tMethod expecting " << tasks_per_method[method].first << " " << tasks_per_method[method].second << " M " << vertex_to_method[curTo] << std::endl;
+			DEBUG(std::cout << "\tMethod expecting " << tasks_per_method[method].first << " " << tasks_per_method[method].second << " M " << vertex_to_method[curTo] << std::endl);
 			
 			if (taskStack[0] != tasks_per_method[method].first){
-				std:: cout << color(RED,"\tFirst task on stack does not match method.") << std::endl;
+				DEBUG(std:: cout << color(RED,"\tFirst task on stack does not match method.") << std::endl);
 				return get_fail();
 			}
 		
@@ -461,39 +462,15 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 			
 			// check whether this method actually does to the vertex we are expecting
 			if (taskStack[1] != tasks_per_method[method].second || curTo != methodStack[1]){
-				if (taskStack[1] != tasks_per_method[method].second)
-					std::cout << color(RED,"\tSecond task on stack does not match method.") << std::endl;
-				else
-					std::cout << color(RED,"\tCan't go to ") << vertex_to_method[curTo] << " on stack is " << vertex_to_method[methodStack[1]] << std::endl;
-				// try a stack cleanup
+				DEBUG(
+					if (taskStack[1] != tasks_per_method[method].second)
+						std::cout << color(RED,"\tSecond task on stack does not match method.") << std::endl;
+					else 
+						std::cout << color(RED,"\tCan't go to ") << vertex_to_method[curTo] << " on stack is " << vertex_to_method[methodStack[1]] << std::endl;
+					);
 				
-				int currentStackPos = 1;
-				bool failedCleanup = false;
-				int currentSecondTask = taskStack[0]; 
-				while (currentStackPos < taskStack.size() && (currentSecondTask != tasks_per_method[method].second || curTo != methodStack[currentStackPos])){
-					int sVertex = methodStack[currentStackPos-1];
-					int sTask = taskStack[currentStackPos];
-					int sVertexNext = methodStack[currentStackPos];
-					std::cout << "\t\ttaking " << vertex_to_method[sVertex] << " " << sTask << " " << vertex_to_method[sVertexNext] << std::endl;
-					// see whether we can go along this edge
-					if (edges[sVertex][sTask][sVertexNext][curCost].count(curDepth+1)){
-						// TODO BDD's??? which method have we applied here?
-						currentStackPos++;
-						// we apply the method of sVertex, so the new head task on the stack will be its AT 
-						//currentSecondTask
-					} else {
-						failedCleanup = true;
-						break;
-					}
-				}
-				
-				if (failedCleanup || currentStackPos == taskStack.size()){
-					std::cout << color(RED,"\tStack cleanup impossible.") << std::endl;
-					return get_fail();
-				}
-
-				std::cout << "\t\t" << color(GREEN,"Stack cleanup successful.") << std::endl;
-				tasksToCleanup = currentStackPos;
+				DEBUG(std::cout << color(RED,"\tStack cleanup impossible.") << std::endl);
+				return get_fail();
 			}
 			
 
@@ -506,7 +483,7 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 				possibleSourceState = edge1BDD * edge2BDD;
 				possibleSourceState = possibleSourceState.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsEff);
 				
-				cout << "\t\t\t\t##################### 2 " << possibleSourceState.IsZero() << endl;
+				DEBUG(cout << "\t\t\t\t##################### 2 " << possibleSourceState.IsZero() << endl);
 				
 				if (possibleSourceState.IsZero()){
 					return get_fail();
@@ -520,23 +497,20 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 				methodStack.pop_front();
 			}
 			
-			
-			
 			taskStack.push_front(curTask);
-		} else {
-			std::cout << color(YELLOW, "unimplemented") << " " << htn->numSubTasks[method] << std::endl;
-			exit(0);
 		}
 	}
 	
-	std::cout << "\tStack (after modification): " << taskStack.size() << std::endl;
-	printStack(taskStack,methodStack,0);
+	DEBUG(
+		std::cout << "\tStack (after modification): " << taskStack.size() << std::endl;
+		printStack(taskStack,methodStack,0)
+	);
 
 	// check at this point whether the stack can actually look as we constructed
 	BDD state = previousState; // stack state, note that this is not the state we are currently in, but the one that is used to connect valid stacks
 	int currentVertex = 0;
 	for (size_t i = 0; i < methodStack.size(); i++){
-		std::cout << "\t\t\t\t\t\t\tStack pos " << i << "/" << methodStack.size() << std::endl; 
+		DEBUG(std::cout << "\t\t\t\t\t\t\tStack pos " << i << "/" << methodStack.size() << std::endl); 
 		int taskToGo = taskStack[i];
 		int targetVertex = methodStack[i];
 		ensureBDD(currentVertex,taskToGo,targetVertex,curCost,curDepth,sym_vars);
@@ -552,7 +526,7 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 		state = nextBDD;
 		currentVertex = targetVertex;
 		if (state.IsZero()){
-			std::cout << color(RED,"\t\tNot a valid stack state.") << std::endl;
+			DEBUG(std::cout << color(RED,"\t\tNot a valid stack state.") << std::endl);
 			return get_fail();
 		}
 	}
@@ -617,7 +591,14 @@ void extract(int curCost, int curDepth, int curTask, int curTo,
 	state = state.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsEff); // remove the effect variables
 	state = state.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux); // remove the auxiliary variables
 	
+	
+	std::clock_t plan_start = std::clock();
 	reconstructed_plan a = extract2(curCost, curDepth, curTask, curTo, -1, ss, sm, state, method, htn, sym_vars, prim_q, abst_q, eps_inserted);
+	std::clock_t plan_end = std::clock();
+	double plan_time_in_ms = 1000.0 * (plan_end-plan_start) / CLOCKS_PER_SEC;
+	std::cout << "Plan reconstruction time: " << plan_time_in_ms  << "ms" << std::endl << std::endl;
+	
+	/// output the found plan
 	if (a.success) std::cout << color(GREEN,"Extracted plan") << std::endl;
 	else           std::cout << color(RED,  "Plan extraction failed") << std::endl;
 	
@@ -629,7 +610,9 @@ void extract(int curCost, int curDepth, int curTask, int curTo,
 //================================================== planning algorithm
 
 void build_automaton(Model * htn){
-
+	std::clock_t preparation_start = std::clock();
+	std::cout << "Building transition relations" << std::endl;
+	
 	// Symbolic Playground
 	symbolic::SymVariables sym_vars(htn);
 	sym_vars.init(true);
@@ -637,7 +620,7 @@ void build_automaton(Model * htn){
 	BDD goal = sym_vars.getPartialStateBDD(htn->gList, htn->gSize);
 	
 	for (int i = 0; i < htn->numActions; ++i) {
-	  std::cout << "Creating TR " << i << std::endl;
+	  DEBUG(std::cout << "Creating TR " << i << std::endl);
 	  trs.emplace_back(&sym_vars, i, htn->actionCosts[i]);
 	  trs.back().init(htn);
 	  //sym_vars.bdd_to_dot(trs.back().getBDD(), "op" + std::to_string(i) + ".dot");
@@ -675,11 +658,6 @@ void build_automaton(Model * htn){
 		if (htn->ordering[method][0] == 1 && htn->ordering[method][1])
 			std::swap(first,second);
 
-		//edges[0][first][vertex] = sym_vars.oneBDD();
-		//edges[0][first][vertex] = sym_vars.zeroBDD();
-		//for (int i = 0; i < htn->numVars; i++)
-		//	edges[0][first][vertex] *= sym_vars.auxBiimp(i); // v_i = v_i''
-	  	//sym_vars.bdd_to_dot(edges[0][first][vertex], "m_biimp" + std::to_string(method) + ".dot");
 		tasks_per_method[method] = {first, second};
 	}
 
@@ -712,6 +690,10 @@ void build_automaton(Model * htn){
 	std::tuple<int,int> _tup = {htn->initialTask, 1};
 	tracingInfo _from = {-1,-1,-1,-1,-1,-1,-1};
 	abst_q[0][1][_tup].push_back(_from);
+		
+	std::clock_t preparation_end = std::clock();
+	double preparation_time_in_ms = 1000.0 * (preparation_end-preparation_start) / CLOCKS_PER_SEC;
+	std::cout << "Preparation time: " << preparation_time_in_ms << "ms" << std::endl << std::endl;
 
 	// cost of current layer and whether we are in abstract or primitive mode
 	int currentCost = 0;
@@ -734,7 +716,7 @@ void build_automaton(Model * htn){
 		}
 
 		if (!insertOnlyIfNonEmpty || insertQueue->size() || (task < htn->numActions && htn->actionCosts[task] != 0)){
-			std::cout << "\t\t\t\t\t\t" << color(GREEN,"Inserting ") << task << " " << vertex_to_method[to] << std::endl; 
+			DEBUG(std::cout << "\t\t\t\t\t\t" << color(GREEN,"Inserting ") << task << " " << vertex_to_method[to] << std::endl);
 			insertQueue->push_back(from);
 		}
 	};
@@ -813,6 +795,11 @@ void build_automaton(Model * htn){
 					if (to == 1 && nextState * goal != sym_vars.zeroBDD()){
 						std::cout << "Goal reached! Length=" << currentCost << " steps=" << step << std::endl;
 	  					// sym_vars.bdd_to_dot(nextState, "goal.dot");
+						
+						std::clock_t search_end = std::clock();
+						double search_time_in_ms = 1000.0 * (search_end-preparation_end) / CLOCKS_PER_SEC;
+						std::cout << "Search time: " << search_time_in_ms << "ms" << std::endl << std::endl;
+						
 						extract(currentCost, currentDepthInAbstract, task, to, nextState * goal, -1, htn, sym_vars, prim_q, abst_q, eps_inserted);
 						return;
 					}
@@ -860,6 +847,11 @@ void build_automaton(Model * htn){
 	
 							if (to == 1 && nextState * goal != sym_vars.zeroBDD()){
 								std::cout << "Goal reached! Length=" << currentCost << " steps=" << step <<  std::endl;
+						
+								std::clock_t search_end = std::clock();
+								double search_time_in_ms = 1000.0 * (search_end-preparation_end) / CLOCKS_PER_SEC;
+								std::cout << "Search time: " << search_time_in_ms << "ms" << std::endl << std::endl;
+						
 								extract(currentCost, currentDepthInAbstract, task, to, nextState * goal, method, htn, sym_vars, prim_q, abst_q, eps_inserted);
 								return;
 							}
@@ -891,7 +883,7 @@ void build_automaton(Model * htn){
 							// add the internal outgoing edge, if it is new
 							edges[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to][currentCost][currentDepthInAbstract] = disjunct_r_temp;
 
-							std::cout << "\t\t" << color(BLUE, "Internal Edge ") << vertex_to_method[methods_with_two_tasks_vertex[method]] << " " << tasks_per_method[method].second << " " << vertex_to_method[to] << std::endl;
+							DEBUG(std::cout << "\t\t" << color(BLUE, "Internal Edge ") << vertex_to_method[methods_with_two_tasks_vertex[method]] << " " << tasks_per_method[method].second << " " << vertex_to_method[to] << std::endl);
 						}
 						
 						DEBUG(std::cout << "\t\t" << color(CYAN,"Epsilontik") << std::endl);
@@ -1006,6 +998,7 @@ void build_automaton(Model * htn){
 			current_queue = next_abstract_layer->second;
 			std::cout << color(CYAN,"==========================") << " Abstract layer of cost " << currentCost << " layer: " << currentDepthInAbstract << std::endl; 
 		}
+		std::cout << "Size of Queue for new layer " << current_queue.size() << std::endl;
 
 		//if (currentDepthInAbstract == 5) exit(0);
 

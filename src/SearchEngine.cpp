@@ -66,6 +66,8 @@ int main(int argc, char *argv[]) {
   htn->read(s);
   assert(htn->isHtnModel);
   searchNode *tnI = htn->prepareTNi(htn);
+  
+  build_automaton(htn);
 
 #ifdef MAINTAINREACHABILITY
   htn->calcSCCs();
@@ -117,7 +119,6 @@ int main(int argc, char *argv[]) {
    * Start Search
    */
 
-  build_automaton(htn);
 
   //return 0;
 
