@@ -102,6 +102,11 @@ struct reconstructed_plan {
 
 
 	void printPlan(Model * htn){
+		if (currentStack.size()){
+			std::cout << "Stack:";
+			for (int x : currentStack) std::cout << " " << x;
+			std::cout << std::endl;
+		}
 		std::cout << "==>" << std::endl;
 		for (std::pair<int,int> p : primitive_plan)
 			std::cout << p.first << " " << htn->taskNames[p.second] << std::endl;
@@ -162,6 +167,9 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 	std::map<int,std::map<int,std::map<std::tuple<int,int>, std::vector<tracingInfo> >>> & abst_q,
 	std::vector<std::map<int,std::vector<tracingInfo> >> & eps_inserted
 		){
+	
+	assert(taskStack.size() == methodStack.size());
+	
 	std::cout << "\t" << color(YELLOW,"Extract from ") << curCost << " " << curDepth << ": " << curTask << " " << vertex_to_method[curTo] << " stack size: " << taskStack.size() << " target " << targetTask << std::endl;
 	if (targetTask != -1 && taskStack.size() == 1 && taskStack[0] == targetTask){
 		std::cout << "\t\t" << color(GREEN,"Got to target task on stack.") << std::endl;
@@ -176,15 +184,75 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 		std::cout << "\t\tEdge " << " " << preTask << " " << vertex_to_method[preTo] << std::endl;
 	
 	for (auto & [preCost, preDepth, preTask, preTo, _method, cost, getHere] : myPredecessors){
-		std::cout << "\t\t" << color(YELLOW, "Trying Edge ") << " " << preTask << " " << vertex_to_method[preTo] << std::endl;
+		std::cout << "\t\t" << color(YELLOW, "Trying Edge ") << preCost << " " << preDepth << " " << preTask << " " << vertex_to_method[preTo] << std::endl;
 		
 		if (cost != -1){
 			std::cout << color(YELLOW,"\t\tThis edge was inserted due to an epsilon application.") << " cost=" << cost << " getHere=" << getHere << " " << vertex_to_method[getHere] << std::endl;
-			for (auto & [preCost2, preDepth2, preTask2, preTo2, _method2, cost2, getHere2] : eps_inserted[getHere][cost]){
-				std::cout << "\t\t\t" << preCost2 << " " << preDepth2 << " " << preTask2 << " " << preTo2 << " " << _method2 << " " << cost2 << " " << getHere2 << " " << endl;
+			
+			int appliedMethod = vertex_to_method[getHere];
+			int abstractTask = htn->decomposedTask[appliedMethod];
+			std::cout << "\t\t\tTask on the main edge is " << htn->taskNames[abstractTask] << " (#" << abstractTask << ")" << std::endl; 
+			for (auto & [preCost2, preDepth2, preTask2, preTo2, _method2, remainingTask, remainingMethod] : eps_inserted[getHere][cost]){
+				std::cout << "\t\t\t" << preCost2 << " " << preDepth2 << " " << preTask2 << " " << preTo2 << " " << _method2 << " " << remainingTask << " " << remainingMethod << " " << endl;
+			
+				// start reconstruction with empty stack	
+				std::deque<int> ss;
+				std::deque<int> sm;
 
-				reconstructed_plan a = extract2(preCost2, preDepth2, preTask2, preTo2, -1, taskStack, methodStack, curState, _method2, htn, sym_vars, prim_q, abst_q, eps_inserted);
-				if (a.success) return a;
+				ss.push_back(remainingTask);
+				sm.push_back(remainingMethod);
+
+				reconstructed_plan a = extract2(preCost2, preDepth2, preTask2, preTo2, abstractTask, ss, sm, curState, _method2, htn, sym_vars, prim_q, abst_q, eps_inserted);
+				
+				// apply the method
+				
+				ss = taskStack;
+				sm = methodStack;
+				
+				ss.pop_front();
+				ss.push_front(abstractTask);
+			
+				printStack(ss,sm,8);	
+				assert(ss.front() == preTask);
+
+				reconstructed_plan b = extract2From(preCost, preDepth, ss.front(), sm.front(), targetTask,
+						ss, sm, curState, htn, sym_vars, prim_q, abst_q, eps_inserted);
+				
+				if (a.success && b.success) {
+					//a.printPlan(htn);
+					//b.printPlan(htn);
+					
+					for (auto x : b.primitive_plan)
+						a.primitive_plan.push_back(x);
+					for (auto x : b.abstract_plan)
+						a.abstract_plan.push_back(x);
+					
+					// the one decomposition we do here
+
+					assert(a.currentStack.size() == 1);
+					assert(b.currentStack.size() >= 1);
+					int aRoot = a.root;
+					int aStackTop = a.currentStack.front();
+					int bStackTop = b.currentStack.front();
+					// replace 
+					for (auto & x : a.primitive_plan)
+						if (get<0>(x) == aRoot)
+							get<0>(x) = bStackTop;
+					for (auto & x : a.abstract_plan)
+						if (get<0>(x) == aRoot)
+							get<0>(x) = bStackTop;
+
+
+					a.currentStack = b.currentStack;
+					a.currentStack.pop_front();
+					a.currentStack.push_front(aStackTop);
+					
+					a.root = b.root;
+				
+					//a.printPlan(htn);
+
+					return a;
+				}
 			}
 			continue;
 		}
@@ -305,6 +373,8 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 	std::map<int,std::map<int,std::map<std::tuple<int,int>, std::vector<tracingInfo> >>> & abst_q,
 	std::vector<std::map<int,std::vector<tracingInfo> >> & eps_inserted
 		){
+	assert(taskStack.size() == methodStack.size());
+	
 	if (curCost == -1){
 		std::cout << "DONE" << std::endl;
 		return get_empty_success();
@@ -481,15 +551,15 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 
 		state = nextBDD;
 		currentVertex = targetVertex;
+		if (state.IsZero()){
+			std::cout << color(RED,"\t\tNot a valid stack state.") << std::endl;
+			return get_fail();
+		}
 	}
 
 	// TODO: maybe the stack tracing has ruled out some of the states????
 
 
-	if (state.IsZero()){
-		std::cout << color(RED,"\t\tNot a valid stack state.") << std::endl;
-		return get_fail();
-	}
 
 	reconstructed_plan a = extract2From(curCost, curDepth, curTask, curTo, targetTask, taskStack, methodStack, possibleSourceState, htn, sym_vars, prim_q, abst_q, eps_inserted);
 
@@ -714,8 +784,6 @@ void build_automaton(Model * htn){
 				if (disjunct != eps[to][currentCost][currentDepthInAbstract]){
 					eps[to][currentCost][currentDepthInAbstract] = disjunct; // TODO: check logic here
 					
-					tracingInfo tracingInf = {currentCost, currentDepthInAbstract, task, to, -1, -1, -1};
-					eps_inserted[to][currentCost].push_back(tracingInf);
 
 					for (auto & [task2,tos] : edges[to])
 						for (auto & [to2,bdds] : tos){
@@ -731,6 +799,10 @@ void build_automaton(Model * htn){
 						   		edges[0][task2][to2][currentCost][currentDepthInAbstract] = edgeDisjunct;
 								DEBUG(std::cout << "\tPrim: " << task2 << " " << vertex_to_method[to2] << std::endl);
 								addQ(task2, to2, 0, task, to, -1, -1, -1, false); // no method as primitive
+					
+								
+								tracingInfo tracingInf = {currentCost, currentDepthInAbstract, task, to, -1, task2, to2};
+								eps_inserted[to][currentCost].push_back(tracingInf);
 							} else {
 								// not new but successors might be  ...
 								//addQ(task2,to2,0);
@@ -765,9 +837,6 @@ void build_automaton(Model * htn){
 						if (disjunct != eps[to][currentCost][currentDepthInAbstract]){
 							eps[to][currentCost][currentDepthInAbstract] = disjunct;
 						
-							tracingInfo tracingInf = {currentCost, currentDepthInAbstract, task, to, -1, -1, -1};
-							eps_inserted[to][currentCost].push_back(tracingInf);
-	
 							for (auto & [task2,tos] : edges[to])
 								for (auto & [to2,bdds] : tos){
 									if (!bdds.count(lastCost) || !bdds[lastCost].count(lastDepth)) continue;
@@ -781,6 +850,9 @@ void build_automaton(Model * htn){
 								   		edges[0][task2][to2][currentCost][currentDepthInAbstract] = edgeDisjunct;
 										DEBUG(std::cout << "\tEmpty Method: " << task2 << " " << vertex_to_method[to2] << std::endl);
 										addQ(task2, to2, 0, task, to, method, -1, -1, false);
+									
+										tracingInfo tracingInf = {currentCost, currentDepthInAbstract, task, to, -1, task2, to2};
+										eps_inserted[to][currentCost].push_back(tracingInf);
 									} else {
 										//addQ(task2, to2, 0);
 									}
