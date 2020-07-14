@@ -962,7 +962,7 @@ void build_automaton(Model * htn){
 			step++;
 		}
 		
-		graph_to_file(htn,"layer" + std::to_string(currentCost) + "_" + std::to_string(currentDepthInAbstract) +  ".dot");
+		//graph_to_file(htn,"layer" + std::to_string(currentCost) + "_" + std::to_string(currentDepthInAbstract) +  ".dot");
 
 		// handled everything in this layer	
 		// switch to next layer	
