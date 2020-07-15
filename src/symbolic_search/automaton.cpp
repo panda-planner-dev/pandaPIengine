@@ -202,54 +202,56 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 
 				reconstructed_plan a = extract2(preCost2, preDepth2, preTask2, preTo2, abstractTask, ss, sm, curState, _method2, htn, sym_vars, prim_q, abst_q, eps_inserted);
 				
-				// apply the method
-				
-				ss = taskStack;
-				sm = methodStack;
-				
-				ss.pop_front();
-				ss.push_front(abstractTask);
-			
-				DEBUG(printStack(ss,sm,8));
-				assert(ss.front() == preTask);
-
-				reconstructed_plan b = extract2From(preCost, preDepth, ss.front(), sm.front(), targetTask,
-						ss, sm, curState, htn, sym_vars, prim_q, abst_q, eps_inserted);
-				
-				if (a.success && b.success) {
-					//a.printPlan(htn);
-					//b.printPlan(htn);
+				if (a.success){
+					// apply the method
 					
-					for (auto x : b.primitive_plan)
-						a.primitive_plan.push_back(x);
-					for (auto x : b.abstract_plan)
-						a.abstract_plan.push_back(x);
+					ss = taskStack;
+					sm = methodStack;
 					
-					// the one decomposition we do here
-
-					assert(a.currentStack.size() == 1);
-					assert(b.currentStack.size() >= 1);
-					int aRoot = a.root;
-					int aStackTop = a.currentStack.front();
-					int bStackTop = b.currentStack.front();
-					// replace 
-					for (auto & x : a.primitive_plan)
-						if (get<0>(x) == aRoot)
-							get<0>(x) = bStackTop;
-					for (auto & x : a.abstract_plan)
-						if (get<0>(x) == aRoot)
-							get<0>(x) = bStackTop;
-
-
-					a.currentStack = b.currentStack;
-					a.currentStack.pop_front();
-					a.currentStack.push_front(aStackTop);
-					
-					a.root = b.root;
+					ss.pop_front();
+					ss.push_front(abstractTask);
 				
-					//a.printPlan(htn);
-
-					return a;
+					DEBUG(printStack(ss,sm,8));
+					assert(ss.front() == preTask);
+	
+					reconstructed_plan b = extract2From(preCost, preDepth, ss.front(), sm.front(), targetTask,
+							ss, sm, curState, htn, sym_vars, prim_q, abst_q, eps_inserted);
+					
+					if (b.success) {
+						//a.printPlan(htn);
+						//b.printPlan(htn);
+						
+						for (auto x : b.primitive_plan)
+							a.primitive_plan.push_back(x);
+						for (auto x : b.abstract_plan)
+							a.abstract_plan.push_back(x);
+						
+						// the one decomposition we do here
+	
+						assert(a.currentStack.size() == 1);
+						assert(b.currentStack.size() >= 1);
+						int aRoot = a.root;
+						int aStackTop = a.currentStack.front();
+						int bStackTop = b.currentStack.front();
+						// replace 
+						for (auto & x : a.primitive_plan)
+							if (get<0>(x) == aRoot)
+								get<0>(x) = bStackTop;
+						for (auto & x : a.abstract_plan)
+							if (get<0>(x) == aRoot)
+								get<0>(x) = bStackTop;
+	
+	
+						a.currentStack = b.currentStack;
+						a.currentStack.pop_front();
+						a.currentStack.push_front(aStackTop);
+						
+						a.root = b.root;
+					
+						//a.printPlan(htn);
+	
+						return a;
+					}
 				}
 			}
 			continue;
@@ -325,27 +327,29 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 				
 				reconstructed_plan a = extract2From(curCost, curDepth, firstTaskStack.front(), firstMethodStack.front(), tasks_per_method[appliedMethod].first,
 						firstTaskStack, firstMethodStack, curState, htn, sym_vars, prim_q, abst_q, eps_inserted);
-				reconstructed_plan b = extract2From(curCost, curDepth, secondTaskStack.front(), secondMethodStack.front(), targetTask,
-						secondTaskStack, secondMethodStack, curState, htn, sym_vars, prim_q, abst_q, eps_inserted);
 				
-				if (a.success && b.success) {
-					
-					for (auto x : b.primitive_plan)
-						a.primitive_plan.push_back(x);
-					for (auto x : b.abstract_plan)
-						a.abstract_plan.push_back(x);
-					
-					// the one decomposition we do here
-					int taskToDecompose = b.currentStack.front(); b.currentStack.pop_front();
-					int sub2 = global_id_counter++;
-					a.abstract_plan.push_back({taskToDecompose, htn->decomposedTask[appliedMethod], appliedMethod, a.root, sub2});
-					
-					a.currentStack.push_back(sub2);
-					for (auto x : b.currentStack)
-						a.currentStack.push_back(x);
-					
-					a.root = b.root;
-					return a;
+				if (a.success) {
+					reconstructed_plan b = extract2From(curCost, curDepth, secondTaskStack.front(), secondMethodStack.front(), targetTask,
+							secondTaskStack, secondMethodStack, curState, htn, sym_vars, prim_q, abst_q, eps_inserted);
+				
+					if (b.success) {
+						for (auto x : b.primitive_plan)
+							a.primitive_plan.push_back(x);
+						for (auto x : b.abstract_plan)
+							a.abstract_plan.push_back(x);
+						
+						// the one decomposition we do here
+						int taskToDecompose = b.currentStack.front(); b.currentStack.pop_front();
+						int sub2 = global_id_counter++;
+						a.abstract_plan.push_back({taskToDecompose, htn->decomposedTask[appliedMethod], appliedMethod, a.root, sub2});
+						
+						a.currentStack.push_back(sub2);
+						for (auto x : b.currentStack)
+							a.currentStack.push_back(x);
+						
+						a.root = b.root;
+						return a;
+					}
 				}
 				continue; // can't use this else ..
 			}
@@ -596,7 +600,7 @@ void extract(int curCost, int curDepth, int curTask, int curTo,
 	reconstructed_plan a = extract2(curCost, curDepth, curTask, curTo, -1, ss, sm, state, method, htn, sym_vars, prim_q, abst_q, eps_inserted);
 	std::clock_t plan_end = std::clock();
 	double plan_time_in_ms = 1000.0 * (plan_end-plan_start) / CLOCKS_PER_SEC;
-	std::cout << "Plan reconstruction time: " << plan_time_in_ms  << "ms" << std::endl << std::endl;
+	std::cout << "Plan reconstruction time: " << fixed << plan_time_in_ms  << "ms " << fixed << plan_time_in_ms/1000 << "s " << fixed << plan_time_in_ms / 60000 << "min" << std::endl << std::endl;
 	
 	/// output the found plan
 	if (a.success) std::cout << color(GREEN,"Extracted plan") << std::endl;
@@ -693,7 +697,7 @@ void build_automaton(Model * htn){
 		
 	std::clock_t preparation_end = std::clock();
 	double preparation_time_in_ms = 1000.0 * (preparation_end-preparation_start) / CLOCKS_PER_SEC;
-	std::cout << "Preparation time: " << preparation_time_in_ms << "ms" << std::endl << std::endl;
+	std::cout << "Preparation time: " << fixed << preparation_time_in_ms << "ms " << fixed << preparation_time_in_ms/1000 << "s " << fixed << preparation_time_in_ms / 60000 << "min" << std::endl << std::endl;
 
 	// cost of current layer and whether we are in abstract or primitive mode
 	int currentCost = 0;
@@ -798,7 +802,7 @@ void build_automaton(Model * htn){
 						
 						std::clock_t search_end = std::clock();
 						double search_time_in_ms = 1000.0 * (search_end-preparation_end) / CLOCKS_PER_SEC;
-						std::cout << "Search time: " << search_time_in_ms << "ms" << std::endl << std::endl;
+						std::cout << "Search time: " << fixed << search_time_in_ms << "ms " << fixed << search_time_in_ms / 1000 << "s " << fixed << search_time_in_ms / 60000 << "min" << std::endl << std::endl;
 						
 						extract(currentCost, currentDepthInAbstract, task, to, nextState * goal, -1, htn, sym_vars, prim_q, abst_q, eps_inserted);
 						return;
@@ -850,7 +854,7 @@ void build_automaton(Model * htn){
 						
 								std::clock_t search_end = std::clock();
 								double search_time_in_ms = 1000.0 * (search_end-preparation_end) / CLOCKS_PER_SEC;
-								std::cout << "Search time: " << search_time_in_ms << "ms" << std::endl << std::endl;
+								std::cout << "Search time: " << fixed << search_time_in_ms << "ms " << fixed << search_time_in_ms / 1000 << "s " << fixed << search_time_in_ms / 60000 << "min" << std::endl << std::endl;
 						
 								extract(currentCost, currentDepthInAbstract, task, to, nextState * goal, method, htn, sym_vars, prim_q, abst_q, eps_inserted);
 								return;
@@ -968,7 +972,7 @@ void build_automaton(Model * htn){
 		// switch to next layer	
 		std::clock_t layer_end = std::clock();
 		double layer_time_in_ms = 1000.0 * (layer_end-layer_start) / CLOCKS_PER_SEC;
-		std::cout << "Layer time: " << layer_time_in_ms << "ms" << std::endl << std::endl;
+		std::cout << "Layer time: " << fixed << layer_time_in_ms << "ms " << fixed << layer_time_in_ms / 1000 << "s " << fixed << layer_time_in_ms / 60000 << "min" << std::endl << std::endl;
 		layer_start = layer_end;
 
 		lastCost = currentCost;
@@ -981,9 +985,9 @@ void build_automaton(Model * htn){
 		} else {
 			next_abstract_layer = abst_q[currentCost].find(currentDepthInAbstract);
 			if (next_abstract_layer != abst_q[currentCost].end()){
-				std::cout << "Non last layer " << next_abstract_layer->first << std::endl;
+				DEBUG(std::cout << "Non last layer " << next_abstract_layer->first << std::endl);
 				next_abstract_layer++;
-				std::cout << "Next last layer " << next_abstract_layer->first << std::endl;
+				DEBUG(std::cout << "Next last layer " << next_abstract_layer->first << std::endl);
 			}
 		}
 		
