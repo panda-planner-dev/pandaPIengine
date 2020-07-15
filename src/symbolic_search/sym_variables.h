@@ -182,6 +182,11 @@ public:
 
   bool isStripsVariable(int var) const;
 
+  double numStates(const BDD &bdd) const {
+    return bdd.CountMinterm(numBDDVars);
+  }
+
+
 private:
   // Auxiliar function helping to create precondition and effect BDDs
   // Generates value for bddVars.
