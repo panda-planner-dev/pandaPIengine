@@ -141,6 +141,8 @@ public:
 	int numTasks;
 	bool* isPrimitive;
 	string* taskNames;
+	
+	int* emptyMethod;
 
 	// initial task
 	int initialTask;

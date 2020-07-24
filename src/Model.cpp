@@ -55,6 +55,7 @@ Model::Model() {
 	gList = nullptr;
 	isPrimitive = nullptr;
 	taskNames = nullptr;
+	emptyMethod = nullptr;
 	decomposedTask = nullptr;
 	numSubTasks = nullptr;
 	numFirstPrimSubTasks = nullptr;
@@ -126,6 +127,7 @@ Model::~Model() {
 	delete[] gList;
 	delete[] isPrimitive;
 	delete[] taskNames;
+	delete[] emptyMethod;
 #if (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
 	for (int i = 0; i < numActions; i++) {
 		delete[] addVectors[i];
@@ -1847,6 +1849,7 @@ void Model::readClassical(istream& domainFile) {
 	*sStream >> numTasks;
 	delete sStream;
 	taskNames = new string[numTasks];
+	emptyMethod = new int[numTasks];
 	isPrimitive = new bool[numTasks];
 	bool isAbstract;
 	for (int i = 0; i < numTasks; i++) {
@@ -1859,6 +1862,7 @@ void Model::readClassical(istream& domainFile) {
 		*sStream >> isAbstract;
 		isPrimitive[i] = !isAbstract;
 		*sStream >> taskNames[i];
+		emptyMethod[i] = -1;
 		delete sStream;
 	}
 }
@@ -1911,6 +1915,8 @@ void Model::readHierarchical(istream& domainFile) {
 		getline(domainFile, line);
 		subTasks[i] = readIntList(line, numSubTasks[i]);
 		if (numSubTasks[i] == 0) {
+			emptyMethod[decomposedTask[i]] = i;
+			// TODO: don't do this for all planners ...
 			cout << "Search engine: Method " << methodNames[i]
 					<< " has no subtasks - please compile this away before search."
 					<< endl;

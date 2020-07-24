@@ -24,8 +24,11 @@ std::vector<int> vertex_to_method;
 // 2. the target vertex
 // 3. the cost
 // 4. the abstract task round + 1   -    or 0 for the primitive round
-// 4. the BDD
+// 5. the BDD
 std::vector<std::map<int,std::map<int, std::map<int, std::map<int, BDD>>>>> edges; 
+
+// 5. with which state do we incur the extra cost of 3.
+std::vector<std::map<int,std::map<int, std::map<int, std::map<int, BDD>>>>> edgesExtraCost;
 
 std::map<int,std::pair<int,int>> tasks_per_method; // first and second
 	
@@ -58,6 +61,12 @@ void graph_to_file(Model* htn, std::string file){
     out.close();
 }
 
+void ensureBDDExtraCost(int from, int task, int to, int cost, int abstractRound, symbolic::SymVariables & sym_vars){
+	if (!edgesExtraCost[from].count(task) || !edgesExtraCost[from][task].count(to) || !edgesExtraCost[from][task][to].count(cost) ||
+			!edgesExtraCost[from][task][to][cost].count(abstractRound))
+		edgesExtraCost[from][task][to][cost][abstractRound] = sym_vars.zeroBDD();
+
+}
 void ensureBDD(int from, int task, int to, int cost, int abstractRound, symbolic::SymVariables & sym_vars){
 	if (!edges[from].count(task) || !edges[from][task].count(to) || !edges[from][task][to].count(cost) || !edges[from][task][to][cost].count(abstractRound))
 		edges[from][task][to][cost][abstractRound] = sym_vars.zeroBDD();
@@ -146,7 +155,7 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 	int targetTask,
 	std::deque<int>  taskStack,
 	std::deque<int>  methodStack,
-	BDD & curState,
+	BDD curState,
 	int method,
 	Model * htn,
 	symbolic::SymVariables & sym_vars,
@@ -384,7 +393,7 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 	int targetTask,
 	std::deque<int>  taskStack,
 	std::deque<int>  methodStack,
-	BDD & curState,
+	BDD curState,
 	int method,
 	Model * htn,
 	symbolic::SymVariables & sym_vars,
@@ -524,6 +533,8 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 		std::cout << "\tStack (after modification): " << taskStack.size() << std::endl;
 		printStack(taskStack,methodStack,0)
 	);
+	
+	assert(taskStack.size() == methodStack.size());
 
 	// check at this point whether the stack can actually look as we constructed
 	BDD state = previousState; // stack state, note that this is not the state we are currently in, but the one that is used to connect valid stacks
@@ -532,18 +543,32 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 		DEBUG(std::cout << "\t\t\t\t\t\t\tStack pos " << i << "/" << methodStack.size() << std::endl); 
 		int taskToGo = taskStack[i];
 		int targetVertex = methodStack[i];
+		DEBUG(std::cout << "\t\t\t\t\t\t\t\t " << vertex_to_method[currentVertex] << " " << taskToGo << " " << vertex_to_method[targetVertex] << " " << curCost << " " << curDepth << std::endl); 
 		ensureBDD(currentVertex,taskToGo,targetVertex,curCost,curDepth,sym_vars);
 		BDD transitionBDD = edges[currentVertex][taskToGo][targetVertex][curCost][curDepth];
+		std::cout << "\t\t\t\t\t\t\t\t\t\tGot Edge" << std::endl;
 		BDD nextBDD;
 		if (i != 0) // state is in v'
 			state = state.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsEff);
+		std::cout << "\t\t\t\t\t\t\t\t\t\tSwapped" << std::endl;
+		
+		
+		std::cout << "\t\t\t\t\t\t\t\t\t\tA2" << std::endl;
+		state.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsAux);
+		std::cout << "\t\t\t\t\t\t\t\t\t\tA3" << std::endl;
+		transitionBDD.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsAux);
+		std::cout << "\t\t\t\t\t\t\t\t\t\tA4" << std::endl;
 		
 		nextBDD = transitionBDD * state; // v'' contains state after the edge
+		std::cout << "\t\t\t\t\t\t\t\t\t\tA" << std::endl;
 		nextBDD = nextBDD.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsAux);
+		std::cout << "\t\t\t\t\t\t\t\t\t\tB" << std::endl;
 		nextBDD = nextBDD.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux);
+		std::cout << "\t\t\t\t\t\t\t\t\t\tC" << std::endl;
 
 		state = nextBDD;
 		currentVertex = targetVertex;
+		std::cout << "\t\t\t\t\t\t\t\t\t\tD" << std::endl;
 		if (state.IsZero()){
 			DEBUG(std::cout << color(RED,"\t\tNot a valid stack state.") << std::endl);
 			return get_fail();
@@ -662,6 +687,7 @@ void build_automaton(Model * htn){
 
 	int number_of_vertices = 2 + methods_with_two_tasks.size();
 	edges.resize(number_of_vertices);
+	edgesExtraCost.resize(number_of_vertices);
 
 	// build the initial version of the graph
 	vertex_names.push_back("start");
@@ -770,60 +796,123 @@ void build_automaton(Model * htn){
 			
 			if (state == sym_vars.zeroBDD()) continue; // impossible state, don't treat it
 
-			if (task < htn->numActions){
-				DEBUG(std::cout << "Prim: " << htn->taskNames[task] << std::endl);
-				// apply action to state
-				BDD nextState = trs[task].image(state);
+			if (task < htn->numActions || htn->emptyMethod[task] != -1){
+				BDD nextState = state;
+				
+				if (task < htn->numActions){
+					DEBUG(std::cout << "Prim: " << htn->taskNames[task] << std::endl);
+					// apply action to state
+					nextState = trs[task].image(state);
+				} else {
+					DEBUG(std::cout << "Empty Method: " << htn->taskNames[task] << std::endl);
+				}
+				
 				nextState = nextState.SwapVariables(sym_vars.swapVarsEff, sym_vars.swapVarsAux);
-				//sym_vars.bdd_to_dot(nextState, "nextState" + std::to_string(step) + ".dot");
-				//sym_vars.bdd_to_dot(eps[to], "eps" + std::to_string(step) + ".dot");
+
 
 				// check if already added
 				// TODO: there is a bit faster code here
  				BDD disjunct = eps[to][currentCost][currentDepthInAbstract] + nextState;  
 				if (disjunct != eps[to][currentCost][currentDepthInAbstract]){
-					eps[to][currentCost][currentDepthInAbstract] = disjunct; // TODO: check logic here
+					eps[to][currentCost][currentDepthInAbstract] = disjunct;
 					
 
 					for (auto & [task2,tos] : edges[to])
 						for (auto & [to2,bdds] : tos){
 							if (!bdds.count(lastCost) || !bdds[lastCost].count(lastDepth)) continue;
 							BDD bdd = bdds[lastCost][lastDepth];
-							BDD addState = nextState.AndAbstract(bdd,sym_vars.existsVarsEff);
+							BDD addStateWithIntermediate = nextState * bdd;
+							BDD originalAddStateWithIntermediate = addStateWithIntermediate;
+							BDD addState = addStateWithIntermediate.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsEff);
 
 							
 							ensureBDD(task2, to2, currentCost, currentDepthInAbstract, sym_vars);
-							
 							BDD edgeDisjunct = edges[0][task2][to2][currentCost][currentDepthInAbstract] + addState;
 							if (edgeDisjunct != edges[0][task2][to2][currentCost][currentDepthInAbstract]){
-						   		edges[0][task2][to2][currentCost][currentDepthInAbstract] = edgeDisjunct;
-								DEBUG(std::cout << "\tPrim: " << task2 << " " << vertex_to_method[to2] << std::endl);
-								addQ(task2, to2, 0, task, to, -1, -1, -1, false); // no method as primitive
+						   		// determine at which cost this is to be inserted ...
+								for (auto [extraCost,other] : edgesExtraCost[to][task2][to2])
+									for (auto [extraDepth, extraBDD] : other){
+										DEBUG(std::cout << "\t\tChecking for hidden extra costs: cost=" << extraCost << " " << extraDepth << std::endl);
+										// now see whether we actually intersect with this state
+										BDD partWithExtraCost = addStateWithIntermediate * extraBDD;
+
+										if (!partWithExtraCost.IsZero()){
+											DEBUG(std::cout << "\t\t\tintersecting ... " << std::endl);
+	
+											// remove the intermediate variables
+											BDD futureAddState = partWithExtraCost.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsEff);
+											// determine where we have to put this one
+
+											DEBUG(std::cout << "\t\t\tFuture cost " << extraCost << std::endl);
+											int targetCost = currentCost + extraCost;
+									
+											// determine where this edge will go to	
+											int targetDepth = 0;
+											if (extraCost)
+												targetDepth = currentDepthInAbstract;
+											
+											ensureBDD(task2, to2, targetCost, targetDepth, sym_vars); // add as an edge to the future
+											
+											BDD futureDisjunct = edges[0][task2][to2][targetCost][targetDepth] + futureAddState;
+											if (edges[0][task2][to2][targetCost][targetDepth] != futureDisjunct){
+												edges[0][task2][to2][targetCost][targetDepth] = futureDisjunct;
+												DEBUG(std::cout << "\t\t\t++ cost: " << task2 << " " << vertex_to_method[to2] << std::endl);
+												DEBUG(std::cout << "\t\t" << color(GREEN,"edge ") << targetCost << " " << targetDepth << std::endl);
+												addQ(task2, to2, extraCost, task, to, vertex_to_method[to], extraCost, extraDepth, false); // TODO think about when to add ... the depth in abstract should be irrelevant?
+											} else {
+												addQ(task2, to2, extraCost, task, to, vertex_to_method[to], extraCost, extraDepth, true);
+											}
+
+											// cut this part away
+											addStateWithIntermediate = addStateWithIntermediate * !partWithExtraCost;
+											if (addStateWithIntermediate.IsZero()){
+												DEBUG(std::cout << "\t\t\tNothing left ... " << std::endl);
+											}
+										}
+									}
+
+								if (addStateWithIntermediate.IsZero())
+									continue;
+
+								if (addStateWithIntermediate != originalAddStateWithIntermediate){
+									addState = addStateWithIntermediate.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsEff);
+									edgeDisjunct = edges[0][task2][to2][currentCost][currentDepthInAbstract] + addState;
+									if (edgeDisjunct == edges[0][task2][to2][currentCost][currentDepthInAbstract])
+										continue;
+								}
+								
+								
+								edges[0][task2][to2][currentCost][currentDepthInAbstract] = edgeDisjunct;
+								DEBUG(if (task < htn->numActions) std::cout << "\tPrim: "; else std::cout << "\tMethod: ";
+										std::cout << task2 << " " << vertex_to_method[to2] << std::endl);
+								addQ(task2, to2, 0, task, to, htn->emptyMethod[task], -1, -1, false); // no method as primitive
 					
 								
 								tracingInfo tracingInf = {currentCost, currentDepthInAbstract, task, to, -1, task2, to2};
 								eps_inserted[to][currentCost][currentDepthInAbstract].push_back(tracingInf);
-							} else {
-								// not new but successors might be  ...
-								//addQ(task2,to2,0);
-								//std::cout << "\tKnown state: " << task2 << " " << vertex_to_method[to2] << std::endl;
 							}
 						}
 
-					if (to == 1 && nextState * goal != sym_vars.zeroBDD()){
-						std::cout << "Goal reached! Length=" << currentCost << " steps=" << step << std::endl;
-	  					// sym_vars.bdd_to_dot(nextState, "goal.dot");
-						
-						std::clock_t search_end = std::clock();
-						double search_time_in_ms = 1000.0 * (search_end-preparation_end) / CLOCKS_PER_SEC;
-						std::cout << "Search time: " << fixed << search_time_in_ms << "ms " << fixed << search_time_in_ms / 1000 << "s " << fixed << search_time_in_ms / 60000 << "min" << std::endl << std::endl;
-						
-						extract(currentCost, currentDepthInAbstract, task, to, nextState * goal, -1, htn, sym_vars, prim_q, abst_q, eps_inserted);
-						return;
+
+					if (to == 1){
+					   	if (nextState * goal != sym_vars.zeroBDD()){
+							std::cout << "Goal reached! Length=" << currentCost << " steps=" << step << std::endl;
+	  						// sym_vars.bdd_to_dot(nextState, "goal.dot");
+							
+							std::clock_t search_end = std::clock();
+							double search_time_in_ms = 1000.0 * (search_end-preparation_end) / CLOCKS_PER_SEC;
+							std::cout << "Search time: " << fixed << search_time_in_ms << "ms " << fixed << search_time_in_ms / 1000 << "s " << fixed << search_time_in_ms / 60000 << "min" << std::endl << std::endl;
+							
+							extract(currentCost, currentDepthInAbstract, task, to, nextState * goal, htn->emptyMethod[task], htn, sym_vars, prim_q, abst_q, eps_inserted);
+							return;
+						} else {
+							std::cout << "Goal not reached!" << std::endl;
+						}
 					}
 				} else {
-					//std::cout << "\tNot new for Eps" << std::endl;
+					DEBUG(std::cout << "\t\t" << color(RED," ... state is not new") << std::endl);
 				}
+
 			} else {
 				// abstract edge, go over all applicable methods	
 				
@@ -832,49 +921,10 @@ void build_automaton(Model * htn){
 					DEBUG(std::cout << "\t" << color(MAGENTA,"Method ") << htn->methodNames[method] << " (#" << method << ")" << std::endl);
 
 					// cases
-					if (htn->numSubTasks[method] == 0){
+					if (htn->numSubTasks[method] == 0)
+						continue;
 
-						BDD nextState = state;
-						nextState = nextState.SwapVariables(sym_vars.swapVarsEff, sym_vars.swapVarsAux);
-
-						// check if already added
-						BDD disjunct = eps[to][currentCost][currentDepthInAbstract] + nextState;
-						if (disjunct != eps[to][currentCost][currentDepthInAbstract]){
-							eps[to][currentCost][currentDepthInAbstract] = disjunct;
-						
-							for (auto & [task2,tos] : edges[to])
-								for (auto & [to2,bdds] : tos){
-									if (!bdds.count(lastCost) || !bdds[lastCost].count(lastDepth)) continue;
-									BDD bdd = bdds[lastCost][lastDepth];
-									
-									BDD addState = nextState.AndAbstract(bdd,sym_vars.existsVarsEff);
-									
-									ensureBDD(task2,to2,currentCost,currentDepthInAbstract,sym_vars);
-									BDD edgeDisjunct = edges[0][task2][to2][currentCost][currentDepthInAbstract] + addState;
-									if (edgeDisjunct != edges[0][task2][to2][currentCost][currentDepthInAbstract]){
-								   		edges[0][task2][to2][currentCost][currentDepthInAbstract] = edgeDisjunct;
-										DEBUG(std::cout << "\tEmpty Method: " << task2 << " " << vertex_to_method[to2] << std::endl);
-										addQ(task2, to2, 0, task, to, method, -1, -1, false);
-									
-										tracingInfo tracingInf = {currentCost, currentDepthInAbstract, task, to, -1, task2, to2};
-										eps_inserted[to][currentCost][currentDepthInAbstract].push_back(tracingInf);
-									} else {
-										//addQ(task2, to2, 0);
-									}
-								}
-	
-							if (to == 1 && nextState * goal != sym_vars.zeroBDD()){
-								std::cout << "Goal reached! Length=" << currentCost << " steps=" << step <<  std::endl;
-						
-								std::clock_t search_end = std::clock();
-								double search_time_in_ms = 1000.0 * (search_end-preparation_end) / CLOCKS_PER_SEC;
-								std::cout << "Search time: " << fixed << search_time_in_ms << "ms " << fixed << search_time_in_ms / 1000 << "s " << fixed << search_time_in_ms / 60000 << "min" << std::endl << std::endl;
-						
-								extract(currentCost, currentDepthInAbstract, task, to, nextState * goal, method, htn, sym_vars, prim_q, abst_q, eps_inserted);
-								return;
-							}
-						}
-					} else if (htn->numSubTasks[method] == 1){
+					if (htn->numSubTasks[method] == 1){
 						// ensure that a BDD is there
 						ensureBDD(htn->subTasks[method][0], to, currentCost, currentDepthInAbstract, sym_vars);
 						
@@ -988,16 +1038,35 @@ void build_automaton(Model * htn){
 						state_expanded_at_cost[methods_with_two_tasks_vertex[method]][currentCost] +=
 							ss.SwapVariables(sym_vars.swapVarsEff, sym_vars.swapVarsPre);
 			
-						BDD disjunct2 = edges[0][tasks_per_method[method].first][methods_with_two_tasks_vertex[method]][currentCost][currentDepthInAbstract] + ss;
+						
+						// determine the already known part of the edge
+						BDD currentBDD = edges[0][tasks_per_method[method].first][methods_with_two_tasks_vertex[method]][currentCost][currentDepthInAbstract];
+						BDD alreadyKnown = ss * currentBDD;
+
+						if (!alreadyKnown.IsZero()){
+							// move the new state to V' (the eff vars)
+							alreadyKnown = alreadyKnown.SwapVariables(sym_vars.swapVarsEff, sym_vars.swapVarsAux);
+							alreadyKnown = alreadyKnown.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsPre);
+							
+							// some part of the edge is not new, so we have to annotate cost to the internal edge
+							DEBUG(std::cout << "\t\t" << color(MAGENTA,"Partially known: ") << tasks_per_method[method].first << " " << vertex_to_method[methods_with_two_tasks_vertex[method]] << std::endl);
+							DEBUG(std::cout << "\t\t" << color(GREEN,"Cost for internal edge: ") << vertex_to_method[methods_with_two_tasks_vertex[method]] << " " << tasks_per_method[method].second << " " << vertex_to_method[to] << std::endl);
+
+							ensureBDDExtraCost(methods_with_two_tasks_vertex[method], tasks_per_method[method].second, to, currentCost, currentDepthInAbstract, sym_vars);
+							edgesExtraCost[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to][currentCost][currentDepthInAbstract] |= alreadyKnown;
+						}
+						
+						
+						BDD disjunct2 = currentBDD + ss;
 					   	if (disjunct2 != edges[0][tasks_per_method[method].first][methods_with_two_tasks_vertex[method]][currentCost][currentDepthInAbstract]){
 						   edges[0][tasks_per_method[method].first][methods_with_two_tasks_vertex[method]][currentCost][currentDepthInAbstract] = disjunct2;
 							
 						   DEBUG(std::cout << "\t\t" << color(GREEN,"2 normal: ") << tasks_per_method[method].first << " " << vertex_to_method[methods_with_two_tasks_vertex[method]] << std::endl);
 						   addQ(tasks_per_method[method].first, methods_with_two_tasks_vertex[method], 0, task, to, method, -1, -1, false);
-					  }	else {
-						   DEBUG(std::cout << "\t\t" << color(YELLOW,"Already known: ") << tasks_per_method[method].first << " " << vertex_to_method[methods_with_two_tasks_vertex[method]] << std::endl);
-						   addQ(tasks_per_method[method].first, methods_with_two_tasks_vertex[method], 0, task, to, method, -1, -1, true);
-					  }
+					 	} else {
+					  		DEBUG(std::cout << "\t\t" << color(YELLOW,"Already known: ") << tasks_per_method[method].first << " " << vertex_to_method[methods_with_two_tasks_vertex[method]] << std::endl);
+					  		addQ(tasks_per_method[method].first, methods_with_two_tasks_vertex[method], 0, task, to, method, -1, -1, true);
+					  	}
 					}
 				}
 			}
@@ -1032,7 +1101,13 @@ void build_automaton(Model * htn){
 		
 		if (next_abstract_layer == abst_q[currentCost].end()){
 			// transition to primitive layer
-			currentCost = (++prim_q.find(currentCost))->first;
+			auto findIt = prim_q.find(currentCost);
+			findIt++;
+			if (findIt == prim_q.end()){
+				std::cout << color(RED,"Problem is unsolvable") << std::endl;
+				exit(0);
+			}
+			currentCost = findIt->first;
 			currentDepthInAbstract = 0; // the primitive layer
 			current_queue = prim_q[currentCost];
 			std::cout << color(CYAN,"==========================") << " Cost Layer " << currentCost << std::endl; 
