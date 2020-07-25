@@ -248,8 +248,9 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 						//a.printPlan(htn);
 						//b.printPlan(htn);
 						
-						for (auto x : b.primitive_plan)
-							a.primitive_plan.push_back(x);
+						for (auto x : a.primitive_plan)
+							b.primitive_plan.push_back(x);
+						a.primitive_plan = b.primitive_plan;
 						for (auto x : b.abstract_plan)
 							a.abstract_plan.push_back(x);
 						
@@ -334,6 +335,7 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 						a.currentStack.push_front(sub2);
 						
 						a.root = b.root;
+						//a.printPlan(htn);
 						return a;
 					}
 				}
