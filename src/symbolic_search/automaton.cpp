@@ -29,6 +29,7 @@ std::vector<std::map<int,std::map<int, std::map<int, std::map<int, BDD>>>>> edge
 
 // 5. with which state do we incur the extra cost of 3.
 std::vector<std::map<int,std::map<int, std::map<int, BDD>>>> edgesExtraCost;
+std::vector<std::map<int,std::map<int, std::map<int, std::vector<std::pair<int,int>>>>>> edgesExtraCostSource;
 
 std::map<int,std::pair<int,int>> tasks_per_method; // first and second
 	
@@ -105,9 +106,10 @@ struct reconstructed_plan {
 	std::deque<std::pair<int,int>> primitive_plan;
 	std::deque<std::tuple<int,int,int,int,int>> abstract_plan;
 	
-	
+
 	std::deque<int> currentStack;
 
+	BDD endState;
 
 	void printPlan(Model * htn){
 		if (currentStack.size()){
@@ -146,11 +148,12 @@ reconstructed_plan get_fail(){
 	return r;
 }
 
-reconstructed_plan get_empty_success(){
+reconstructed_plan get_empty_success(BDD state){
 	reconstructed_plan r;
 	r.success = true;
 	r.root = global_id_counter;
 	r.currentStack.push_front(global_id_counter++);
+	r.endState = state;
 	return r;
 }
 
@@ -188,7 +191,7 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 	DEBUG(std::cout << "\t" << color(YELLOW,"Extract from ") << curCost << " " << curDepth << ": " << curTask << " " << vertex_to_method[curTo] << " stack size: " << taskStack.size() << " target " << targetTask << std::endl);
 	if (targetTask != -1 && taskStack.size() == 1 && taskStack[0] == targetTask){
 		DEBUG(std::cout << "\t\t" << color(GREEN,"Got to target task on stack.") << std::endl);
-		return get_empty_success();
+		return get_empty_success(curState);
 	}
 	
 	// look at my sources
@@ -205,8 +208,8 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 		
 		int appliedMethod = _method;
 		
-		if (cost != -1){
-			DEBUG(std::cout << "\t\t" << color(YELLOW,"This edge was inserted due to an epsilon application.") << " cost=" << cost << " depth=" << depth << " " << appliedMethod << std::endl);
+		if (cost != -1 && depth >= 0){
+			DEBUG(std::cout << "\t\t" << color(YELLOW,"This edge was inserted due to an epsilon application.") << " cost=" << cost << " depth=" << depth << " m=" << appliedMethod << std::endl);
 
 			int toVertex = methods_with_two_tasks_vertex[appliedMethod];
 			int abstractTask = htn->decomposedTask[appliedMethod];
@@ -239,7 +242,7 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 					assert(ss.front() == preTask);
 	
 					reconstructed_plan b = extract2From(preCost, preDepth, ss.front(), sm.front(), targetTask,
-							ss, sm, curState, htn, sym_vars, prim_q, abst_q, eps_inserted);
+							ss, sm, a.endState, htn, sym_vars, prim_q, abst_q, eps_inserted);
 					
 					if (b.success) {
 						//a.printPlan(htn);
@@ -278,6 +281,64 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 					}
 				}
 			}
+			continue;
+		}
+		
+		if (cost != -1 && depth < 0){
+			DEBUG(std::cout << "\t\t" << color(YELLOW,"This edge carries additional cost.") << " cost=" << cost << " m=" << appliedMethod << " " << htn->methodNames[appliedMethod] << std::endl);
+	
+			// first part: extract the plan that decomposed 
+			std::deque<int> ss;
+			std::deque<int> sm;
+
+			int firstTask = tasks_per_method[appliedMethod].first;
+			reconstructed_plan a = extract2(preCost, preDepth, preTask, preTo, firstTask, ss, sm, curState, _method, htn, sym_vars, prim_q, abst_q, eps_inserted);
+			
+			if (a.success){
+				int toVertex = methods_with_two_tasks_vertex[appliedMethod];
+				int abstractTask = htn->decomposedTask[appliedMethod];
+
+				for (auto & [extraCost,extraDepth] : edgesExtraCostSource[methods_with_two_tasks_vertex[appliedMethod]][tasks_per_method[appliedMethod].second][-depth-1][cost]){
+					ss = taskStack;
+					sm = methodStack;
+							
+					ss.pop_front();
+					ss.push_front(abstractTask);
+
+					reconstructed_plan b = extract2From(extraCost, extraDepth, ss.front(), sm.front(), targetTask,
+							ss, sm, a.endState, htn, sym_vars, prim_q, abst_q, eps_inserted);
+					
+					if (b.success){
+						//a.printPlan(htn);
+						//b.printPlan(htn);
+						
+						for (auto x : a.primitive_plan)
+							b.primitive_plan.push_back(x);
+						a.primitive_plan = b.primitive_plan;
+
+						for (auto x : b.abstract_plan)
+							a.abstract_plan.push_back(x);
+						
+						// the one decomposition we do here
+	
+						assert(a.currentStack.size() == 0);
+						assert(b.currentStack.size() >= 1);
+						int aRoot = a.root;
+						
+						int sub2 = global_id_counter++;
+						int taskToDecompose = b.currentStack.front();
+						a.abstract_plan.push_back({taskToDecompose, htn->decomposedTask[appliedMethod], appliedMethod, a.root, sub2});
+	
+						a.currentStack = b.currentStack;
+						a.currentStack.pop_front();
+						a.currentStack.push_front(sub2);
+						
+						a.root = b.root;
+						return a;
+					}
+				}
+			}
+
 			continue;
 		}
 
@@ -411,7 +472,7 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 	
 	if (curCost == -1){
 		DEBUG(std::cout << "DONE" << std::endl);
-		return get_empty_success();
+		return get_empty_success(curState);
 	}
 	
 	DEBUG(
@@ -552,29 +613,20 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 		DEBUG(std::cout << "\t\t\t\t\t\t\t\t " << vertex_to_method[currentVertex] << " " << taskToGo << " " << vertex_to_method[targetVertex] << " " << curCost << " " << curDepth << std::endl); 
 		ensureBDD(currentVertex,taskToGo,targetVertex,curCost,curDepth,sym_vars);
 		BDD transitionBDD = edges[currentVertex][taskToGo][targetVertex][curCost][curDepth];
-		std::cout << "\t\t\t\t\t\t\t\t\t\tGot Edge" << std::endl;
 		BDD nextBDD;
 		if (i != 0) // state is in v'
 			state = state.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsEff);
-		std::cout << "\t\t\t\t\t\t\t\t\t\tSwapped" << std::endl;
 		
 		
-		std::cout << "\t\t\t\t\t\t\t\t\t\tA2" << std::endl;
 		state.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsAux);
-		std::cout << "\t\t\t\t\t\t\t\t\t\tA3" << std::endl;
 		transitionBDD.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsAux);
-		std::cout << "\t\t\t\t\t\t\t\t\t\tA4" << std::endl;
 		
 		nextBDD = transitionBDD * state; // v'' contains state after the edge
-		std::cout << "\t\t\t\t\t\t\t\t\t\tA" << std::endl;
 		nextBDD = nextBDD.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsAux);
-		std::cout << "\t\t\t\t\t\t\t\t\t\tB" << std::endl;
 		nextBDD = nextBDD.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux);
-		std::cout << "\t\t\t\t\t\t\t\t\t\tC" << std::endl;
 
 		state = nextBDD;
 		currentVertex = targetVertex;
-		std::cout << "\t\t\t\t\t\t\t\t\t\tD" << std::endl;
 		if (state.IsZero()){
 			DEBUG(std::cout << color(RED,"\t\tNot a valid stack state.") << std::endl);
 			return get_fail();
@@ -697,6 +749,7 @@ void build_automaton(Model * htn){
 	int number_of_vertices = 2 + methods_with_two_tasks.size();
 	edges.resize(number_of_vertices);
 	edgesExtraCost.resize(number_of_vertices);
+	edgesExtraCostSource.resize(number_of_vertices);
 
 	// build the initial version of the graph
 	vertex_names.push_back("start");
@@ -880,9 +933,9 @@ void build_automaton(Model * htn){
 											edges[0][task2][to2][targetCost][targetDepth] = futureDisjunct;
 											DEBUG(std::cout << "\t\t\t++ cost: " << task2 << " " << vertex_to_method[to2] << std::endl);
 											DEBUG(std::cout << "\t\t\t" << color(GREEN,"edge ") << targetCost << " " << targetDepth << std::endl);
-											addQ(task2, to2, extraCost, task, to, vertex_to_method[to], extraCost, -2, false); // TODO think about when to add ... the depth in abstract should be irrelevant?
+											addQ(task2, to2, extraCost, task, to, vertex_to_method[to], extraCost, -to2-1, false); // TODO think about when to add ... the depth in abstract should be irrelevant?
 										} else {
-											addQ(task2, to2, extraCost, task, to, vertex_to_method[to], extraCost, -2, true);
+											addQ(task2, to2, extraCost, task, to, vertex_to_method[to], extraCost, -to2-1, true);
 										}
 
 										// cut this part away
@@ -1101,6 +1154,8 @@ void build_automaton(Model * htn){
 									ensureBDDExtraCost(methods_with_two_tasks_vertex[method], tasks_per_method[method].second, to, extraCost, sym_vars);
 									// add state in V'
 									edgesExtraCost[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to][extraCost] |= sIntersect;
+									edgesExtraCostSource[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to][extraCost].push_back(
+											std::make_pair(currentCost, currentDepthInAbstract));
 								}
 	
 
@@ -1110,18 +1165,6 @@ void build_automaton(Model * htn){
 									break;
 								}
 							}
-
-
-
-
-
-
-
-
-							
-							
-							
-							
 						}
 						
 						
