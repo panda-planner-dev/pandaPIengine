@@ -1025,19 +1025,13 @@ void build_automaton(Model * htn){
 						
 						DEBUG(std::cout << "\t\ttwo element method into " << tasks_per_method[method].first << " " << tasks_per_method[method].second << std::endl);
 					
+						// This is what we would add to the internal edge
+						// we have the current state in v' and the stack state in v''
 						BDD r_temp = state.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsEff);
-					
 						ensureBDD(methods_with_two_tasks_vertex[method], tasks_per_method[method].second, to, currentCost, currentDepthInAbstract, sym_vars);
-					
-						BDD disjunct_r_temp = edges[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to][currentCost][currentDepthInAbstract] + r_temp;
-						if (disjunct_r_temp != edges[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to][currentCost][currentDepthInAbstract]){
-							// add the internal outgoing edge, if it is new
-							edges[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to][currentCost][currentDepthInAbstract] = disjunct_r_temp;
+						BDD actually_new_r_temp = r_temp * !edges[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to][currentCost][currentDepthInAbstract];
+						BDD actually_new_r_temp_only_source = actually_new_r_temp.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux);
 
-							DEBUG(std::cout << "\t\t" << color(BLUE, "Internal Edge ") << vertex_to_method[methods_with_two_tasks_vertex[method]] << " " << tasks_per_method[method].second << " " << vertex_to_method[to] << std::endl);
-						}
-						
-					
 						// new state for edge to method vertex
 						BDD biimp = sym_vars.oneBDD();
 						for (int i = 0; i < htn->numVars; i++)
@@ -1149,19 +1143,24 @@ void build_automaton(Model * htn){
 									sIntersect = sIntersect.SwapVariables(sym_vars.swapVarsEff, sym_vars.swapVarsAux);
 									sIntersect = sIntersect.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsPre);
 								
-									
-
-									// some part of the edge is not new, so we have to annotate cost to the internal edge
-									DEBUG(std::cout << "\t\t\t\t" << color(MAGENTA,"Partially known: ") << tasks_per_method[method].first << " " << vertex_to_method[methods_with_two_tasks_vertex[method]] << std::endl);
-									DEBUG(std::cout << "\t\t\t\t" << color(GREEN,"Cost for internal edge: ") << vertex_to_method[methods_with_two_tasks_vertex[method]] << " " << tasks_per_method[method].second << " " << vertex_to_method[to] << std::endl);
+									// remove things that are already present at this edge
+									sIntersect = sIntersect * actually_new_r_temp_only_source;
+									if (sIntersect.IsZero()){
+										DEBUG(std::cout << "\t\t\t\t" << color(RED, "intersection is not new for outgoing edge, so no extra cost.") << std::endl);
+									} else {
+										// some part of the edge is not new, so we have to annotate cost to the internal edge
+										DEBUG(std::cout << "\t\t\t\t" << color(MAGENTA,"Partially known: ") << tasks_per_method[method].first << " " << vertex_to_method[methods_with_two_tasks_vertex[method]] << std::endl);
+										DEBUG(std::cout << "\t\t\t\t" << color(GREEN,"Cost for internal edge: ") << vertex_to_method[methods_with_two_tasks_vertex[method]] << " " << tasks_per_method[method].second << " " << vertex_to_method[to] << std::endl);
 		
-									int extraCost = currentCost - getHere;
+										int extraCost = currentCost - getHere;
 
-									ensureBDDExtraCost(methods_with_two_tasks_vertex[method], tasks_per_method[method].second, to, extraCost, sym_vars);
-									// add state in V'
-									edgesExtraCost[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to][extraCost] |= sIntersect;
-									edgesExtraCostSource[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to][extraCost].push_back(
-											std::make_pair(currentCost, currentDepthInAbstract));
+										
+										ensureBDDExtraCost(methods_with_two_tasks_vertex[method], tasks_per_method[method].second, to, extraCost, sym_vars);
+										// add state in V'
+										edgesExtraCost[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to][extraCost] |= sIntersect;
+										edgesExtraCostSource[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to][extraCost].push_back(
+												std::make_pair(currentCost, currentDepthInAbstract));
+									}
 								}
 	
 
@@ -1172,8 +1171,18 @@ void build_automaton(Model * htn){
 								}
 							}
 						}
-						
-						
+
+					
+						ensureBDD(methods_with_two_tasks_vertex[method], tasks_per_method[method].second, to, currentCost, currentDepthInAbstract, sym_vars);
+					
+						BDD disjunct_r_temp = edges[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to][currentCost][currentDepthInAbstract] + r_temp;
+						if (disjunct_r_temp != edges[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to][currentCost][currentDepthInAbstract]){
+							// add the internal outgoing edge, if it is new
+							edges[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to][currentCost][currentDepthInAbstract] = disjunct_r_temp;
+
+							DEBUG(std::cout << "\t\t" << color(BLUE, "Internal Edge ") << vertex_to_method[methods_with_two_tasks_vertex[method]] << " " << tasks_per_method[method].second << " " << vertex_to_method[to] << std::endl);
+						}
+		
 						// check whether we have something new here
 						BDD disjunct2 = currentBDD + ss;
 					   	if (disjunct2 != currentBDD){
