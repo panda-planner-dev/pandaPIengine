@@ -859,13 +859,18 @@ void build_automaton(Model * htn){
 #ifndef NDEBUG
 			if (step % 1 == 0){
 #else
-			if (step % 10000 == 0){
+			//if (step % 10000 == 0){
+			if (step % 1 == 0){
 #endif
 				std::cout << color(BLUE,"STEP") << " #" << step << ": " << task << " " << vertex_to_method[to];
 	   			std::cout << "\t\tTask: " << htn->taskNames[task] << std::endl;		
 			}
 			
-			if (state == sym_vars.zeroBDD()) continue; // impossible state, don't treat it
+			if (state == sym_vars.zeroBDD()) {
+				std::cout << color(RED,"state attached to edge is empty ... bug!") << std::endl;
+				exit(0);
+				continue; // impossible state, don't treat it
+			}
 
 			if (task < htn->numActions || htn->emptyMethod[task] != -1){
 				BDD nextState = state;
@@ -925,16 +930,15 @@ void build_automaton(Model * htn){
 									
 										// determine where this edge will go to	
 										int targetDepth = 0;
-										if (extraCost)
+										if (extraCost == 0)
 											targetDepth = currentDepthInAbstract;
 										
 										ensureBDD(task2, to2, targetCost, targetDepth, sym_vars); // add as an edge to the future
-										
 										BDD futureDisjunct = edges[0][task2][to2][targetCost][targetDepth] + futureAddState;
 										if (edges[0][task2][to2][targetCost][targetDepth] != futureDisjunct){
 											edges[0][task2][to2][targetCost][targetDepth] = futureDisjunct;
-											DEBUG(std::cout << "\t\t\t++ cost: " << task2 << " " << vertex_to_method[to2] << std::endl);
-											DEBUG(std::cout << "\t\t\t" << color(GREEN,"edge ") << targetCost << " " << targetDepth << std::endl);
+											DEBUG(std::cout << "\t\t\t++ edge: " << task2 << " " << vertex_to_method[to2] << std::endl);
+											DEBUG(std::cout << "\t\t\t" << color(GREEN,"cost ") << extraCost << " -> " << targetCost << " " << targetDepth << std::endl);
 											addQ(task2, to2, extraCost, task, to, vertex_to_method[to], extraCost, -to2-1, false); // TODO think about when to add ... the depth in abstract should be irrelevant?
 										} else {
 											addQ(task2, to2, extraCost, task, to, vertex_to_method[to], extraCost, -to2-1, true);
@@ -1085,7 +1089,7 @@ void build_automaton(Model * htn){
 								for (int cost = getHere; cost <= lastCost; cost++){
 									for (int depth = 0; depth < eps[methods_with_two_tasks_vertex[method]][cost].size(); depth++){
 										if (cost == currentCost && depth == currentDepthInAbstract) break; // don't take epsilons from current layer, they will be handled elsewhere ...?
-		
+										
 										// there is no reason to consider this, as there was no newly inserted epsilon state
 										if (eps_inserted[methods_with_two_tasks_vertex[method]][cost][depth].size() == 0) continue; 
 	
