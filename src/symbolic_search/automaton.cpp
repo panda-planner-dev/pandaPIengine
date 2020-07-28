@@ -362,7 +362,7 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 				
 				if (a.success){
 					if (a.primitiveCost(htn) != preCost2 - cost){
-						pc(mc); std::cout << "Epsilon: I was expecting " << preCost2 - cost << " " << preCost2 << " " << cost << " but got " << a.primitiveCost(htn) << std::endl;
+						DEBUG(pc(mc)); std::cout << "Epsilon: I was expecting " << preCost2 - cost << " " << preCost2 << " " << cost << " but got " << a.primitiveCost(htn) << std::endl;
 						exit(0);	
 					}
 					// apply the method
@@ -441,7 +441,7 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 				reconstructed_plan a = extract2(preCost, preDepth, preTask, preTo, firstTask, preCost - additionCost, nextTargetState, ss, sm, curState, _method, htn, sym_vars, prim_q, abst_q, eps_inserted);
 				
 				if (a.success && a.primitiveCost(htn) != additionCost){
-					pc(mc);
+					DEBUG(pc(mc));
 					std::cout << "Cost I was expecting " << additionCost << " but got " << a.primitiveCost(htn) << std::endl;
 					exit(0);
 				}
