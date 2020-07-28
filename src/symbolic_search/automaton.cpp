@@ -724,7 +724,7 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 
 
 	//a.printPlan(htn);
-	std::cout << a.primitiveCost(htn) << " " << curCost << " " << targetCost << std::endl;
+	DEBUG(std::cout << a.primitiveCost(htn) << " " << curCost << " " << targetCost << std::endl);
 	if (a.primitiveCost(htn) != curCost - targetCost){
 		std::cout << color(RED,"Does not fit") << std::endl;
 	}
