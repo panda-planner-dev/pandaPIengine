@@ -191,7 +191,7 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 	BDD targetState,
 	std::deque<int>  taskStack,
 	std::deque<int>  methodStack,
-	BDD & curState,
+	BDD curState,
 	Model * htn,
 	symbolic::SymVariables & sym_vars,
 	std::map<int,std::map<std::tuple<int,int>, std::vector<tracingInfo> >> & prim_q,
@@ -204,6 +204,40 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 	assert(taskStack.size() == methodStack.size());
 	
 	DEBUG(pc(mc); std::cout << "\t" << color(YELLOW,"Extract from ") << curCost << " " << curDepth << ": " << curTask << " " << vertex_to_method[curTo] << " stack size: " << taskStack.size() << " target " << targetTask << " target cost " << targetCost << std::endl);
+
+	if (curCost == 180 && curDepth == 0){
+	  	//sym_vars.bdd_to_dot(curState, "curStateFail.dot");
+		BDD cur = edges[0][curTask][curTo][179][0];
+		BDD prev = edges[0][curTask][curTo][178][0];
+		if ((cur * curState).IsZero()){
+			std::cout << "State is not in edge" << std::endl;
+		} else {
+			std::cout << "State is in edge" << std::endl;
+		}
+		
+		if ((prev * curState).IsZero()){
+			std::cout << "State is new" << std::endl;
+		} else {
+			std::cout << "State is not new" << std::endl;
+		}
+
+		BDD foo = cur * !prev;
+		if (!(foo * curState).IsZero()){
+			std::cout << "Continuation is new" << std::endl;
+		} else {
+			std::cout << "Continuation is not new" << std::endl;
+		}
+
+		if ((foo).IsZero()){
+			std::cout << "Nothing is new" << std::endl;
+		} else {
+			std::cout << "Something is new" << std::endl;
+		}
+	
+		exit(0);
+	}
+
+
 	if (targetCost != -1 && curCost < targetCost){
 		DEBUG(pc(mc); std::cout << "\t\t" << color(RED,"too expensive") << std::endl);
 		//exit(0);
@@ -545,6 +579,57 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 }
 
 
+
+BDD checkStack(
+#ifndef NDEBUG
+	int mc,
+#endif	
+	BDD state,
+	int curCost,
+	int curDepth,
+	std::deque<int>  taskStack,
+	std::deque<int>  methodStack,
+	Model * htn,
+	symbolic::SymVariables & sym_vars
+		){
+
+	DEBUG(std::cout << "\t\t\t" << color(YELLOW,"Checking stack") << " at c=" << curCost << " d=" << curDepth << std::endl);
+
+	BDD biimp = sym_vars.oneBDD();
+	for (int i = 0; i < htn->numVars; i++)
+		biimp *= sym_vars.biimp(i); // v_i = v_i'
+	state = state * biimp;
+
+
+	int currentVertex = 0;
+	for (size_t i = 0; i < methodStack.size(); i++){
+		DEBUG(pc(mc); std::cout << "\t\t\t\t\t\t\tStack pos " << i << "/" << methodStack.size() << std::endl); 
+		int taskToGo = taskStack[i];
+		int targetVertex = methodStack[i];
+		DEBUG(pc(mc); std::cout << "\t\t\t\t\t\t\t\t " << vertex_to_method[currentVertex] << " " << taskToGo << " " << vertex_to_method[targetVertex] << std::endl); 
+		ensureBDD(currentVertex,taskToGo,targetVertex,curCost,curDepth,sym_vars);
+		BDD transitionBDD = edges[currentVertex][taskToGo][targetVertex][curCost][curDepth];
+		
+		BDD nextBDD = transitionBDD * state; // v'' contains state after the edge
+		nextBDD = nextBDD.SwapVariables(sym_vars.swapVarsEff, sym_vars.swapVarsAux);
+		nextBDD = nextBDD.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux);
+
+		state = nextBDD;
+		currentVertex = targetVertex;
+		if (state.IsZero()){
+			DEBUG(pc(mc); std::cout << color(RED,"\t\t\tNot a valid stack state.") << std::endl);
+			return state;
+		}
+	}
+	DEBUG(pc(mc); std::cout << color(GREEN,"\t\t\tValid stack state.") << std::endl);
+
+	return state.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsEff);
+}
+
+
+
+
+
 ////////////// CORRECTS THE STACK TO FIT TO CURRENT LAYER
 reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 	int targetTask,
@@ -582,6 +667,8 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 		else                           std::cout << "\tABST " << color(BLUE,htn->taskNames[curTask]) << " method " << color(CYAN, htn->methodNames[method]) << 
 													" #" << method << std::endl;
 		);
+
+
 
 	// output the stack
 	assert(taskStack.size() == methodStack.size());
@@ -662,8 +749,6 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 					else 
 						std::cout << color(RED,"\tCan't go to ") << vertex_to_method[curTo] << " on stack is " << vertex_to_method[methodStack[1]] << std::endl;
 					);
-				
-				DEBUG(pc(mc); std::cout << color(RED,"\tStack cleanup impossible.") << std::endl);
 				return get_fail();
 			}
 			
@@ -703,37 +788,13 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 	assert(taskStack.size() == methodStack.size());
 
 	// check at this point whether the stack can actually look as we constructed
-	BDD state = previousState; // stack state, note that this is not the state we are currently in, but the one that is used to connect valid stacks
-	int currentVertex = 0;
-	for (size_t i = 0; i < methodStack.size(); i++){
-		DEBUG(pc(mc); std::cout << "\t\t\t\t\t\t\tStack pos " << i << "/" << methodStack.size() << std::endl); 
-		int taskToGo = taskStack[i];
-		int targetVertex = methodStack[i];
-		DEBUG(pc(mc); std::cout << "\t\t\t\t\t\t\t\t " << vertex_to_method[currentVertex] << " " << taskToGo << " " << vertex_to_method[targetVertex] << " " << curCost << " " << curDepth << std::endl); 
-		ensureBDD(currentVertex,taskToGo,targetVertex,curCost,curDepth,sym_vars);
-		BDD transitionBDD = edges[currentVertex][taskToGo][targetVertex][curCost][curDepth];
-		BDD nextBDD;
-		if (i != 0) // state is in v'
-			state = state.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsEff);
-		
-		
-		state.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsAux);
-		transitionBDD.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsAux);
-		
-		nextBDD = transitionBDD * state; // v'' contains state after the edge
-		nextBDD = nextBDD.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsAux);
-		nextBDD = nextBDD.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux);
-
-		state = nextBDD;
-		currentVertex = targetVertex;
-		if (state.IsZero()){
-			DEBUG(pc(mc); std::cout << color(RED,"\t\tNot a valid stack state.") << std::endl);
-			return get_fail();
-		}
+	possibleSourceState = checkStack(mc,possibleSourceState,curCost,curDepth,taskStack,methodStack,htn,sym_vars);
+	if (possibleSourceState.IsZero()){
+		//exit(0);
+		return get_fail();
 	}
 
 	// TODO: maybe the stack tracing has ruled out some of the states????
-
 	reconstructed_plan a = extract2From(curCost, curDepth, curTask, curTo, targetTask, targetCost, targetState, taskStack, methodStack, possibleSourceState, htn, sym_vars, prim_q, abst_q, eps_inserted);
 
 	if (!a.success) return a;
