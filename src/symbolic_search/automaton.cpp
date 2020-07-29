@@ -211,7 +211,7 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 	if (targetTask != -1 && taskStack.size() == 1 && taskStack[0] == targetTask){
 		if (!(targetState * curState).IsZero()){
 			DEBUG(pc(mc); std::cout << "\t\t" << color(GREEN,"Got to target task on stack.") << std::endl);
-			return get_empty_success(curState);
+			return get_empty_success(curState * targetState);
 		} else {
 			DEBUG(pc(mc); std::cout << "\t\t" << color(RED,"Got to target task on stack, but state does not fit.") << std::endl);
 			return get_fail();
@@ -234,6 +234,174 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 		
 		int appliedMethod = _method;
 	
+	
+		if (cost != -1 && depth >= 0){
+			DEBUG(pc(mc); std::cout << "\t\t" << color(YELLOW,"This edge was inserted due to an epsilon application.") << " cost=" << cost << " depth=" << depth << " m=" << appliedMethod << std::endl);
+
+			int toVertex = methods_with_two_tasks_vertex[appliedMethod];
+			int abstractTask = htn->decomposedTask[appliedMethod];
+
+			assert(preTask == abstractTask);
+			
+			DEBUG(pc(mc); std::cout << "\t\t\tTask on the main edge is " << htn->taskNames[abstractTask] << " (#" << abstractTask << ")" << std::endl);
+			DEBUG(pc(mc); std::cout << "\t\t\t\tOptions:" << eps_inserted[toVertex][cost][depth].size() << std::endl);
+
+			for (auto & [preCost2, preDepth2, preTask2, preTo2, _method2, remainingTask, remainingMethod] : eps_inserted[toVertex][cost][depth]){
+				DEBUG(pc(mc); std::cout << "\t\t\t" << preCost2 << " " << preDepth2 << " " << preTask2 << " " << preTo2 << " " << _method2 << " " << remainingTask << " " << vertex_to_method[remainingMethod] << " " << endl);
+			
+				// start reconstruction with empty stack	
+				std::deque<int> ss;
+				std::deque<int> sm;
+
+				ss.push_back(remainingTask);
+				sm.push_back(remainingMethod);
+
+				
+				BDD edgeBDD = edges[0][abstractTask][methodStack.front()][curCost][curDepth];
+				edgeBDD = edgeBDD.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsAux);
+
+
+				BDD nextTargetState = curState * edgeBDD;
+				nextTargetState = nextTargetState.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsPre);
+				nextTargetState = nextTargetState.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsAux);
+				reconstructed_plan a = extract2(preCost2, preDepth2, preTask2, preTo2, abstractTask, cost, nextTargetState, ss, sm, curState, _method2, htn, sym_vars, prim_q, abst_q, eps_inserted);
+				
+				if (a.success){
+					if (a.primitiveCost(htn) != preCost2 - cost){
+						DEBUG(pc(mc)); std::cout << "Epsilon: I was expecting " << preCost2 - cost << " " << preCost2 << " " << cost << " but got " << a.primitiveCost(htn) << std::endl;
+						exit(0);	
+					} else {
+						DEBUG(pc(mc)); std::cout << "\t\t\tEpsilon: I got the correct cost " << a.primitiveCost(htn) << " going on " << preCost << " " << preDepth << " " << preTask << " " << sm.front() << std::endl;
+					}
+					// apply the method
+					
+					ss = taskStack;
+					sm = methodStack;
+					
+					ss.pop_front();
+					ss.push_front(abstractTask);
+				
+					DEBUG(printStack(ss,sm,8));
+					assert(ss.front() == preTask);
+	
+					reconstructed_plan b = extract2From(preCost, preDepth, ss.front(), sm.front(), targetTask, targetCost, targetState,
+							ss, sm, a.endState, htn, sym_vars, prim_q, abst_q, eps_inserted);
+					
+					if (b.success) {
+						//a.printPlan(htn);
+						//b.printPlan(htn);
+						
+						for (auto x : a.primitive_plan)
+							b.primitive_plan.push_back(x);
+						a.primitive_plan = b.primitive_plan;
+						for (auto x : b.abstract_plan)
+							a.abstract_plan.push_back(x);
+						
+						// the one decomposition we do here
+	
+						assert(a.currentStack.size() == 1);
+						assert(b.currentStack.size() >= 1);
+						int aRoot = a.root;
+						int aStackTop = a.currentStack.front();
+						int bStackTop = b.currentStack.front();
+						// replace 
+						for (auto & x : a.primitive_plan)
+							if (get<0>(x) == aRoot)
+								get<0>(x) = bStackTop;
+						for (auto & x : a.abstract_plan)
+							if (get<0>(x) == aRoot)
+								get<0>(x) = bStackTop;
+	
+	
+						a.currentStack = b.currentStack;
+						a.currentStack.pop_front();
+						a.currentStack.push_front(aStackTop);
+						
+						a.root = b.root;
+					
+						//a.printPlan(htn);
+	
+						return a;
+					}
+				}
+			}
+			continue;
+		}
+		
+		if (cost != -1 && depth < 0){
+			exit(0);
+			int toVertex = methods_with_two_tasks_vertex[appliedMethod];
+			int abstractTask = htn->decomposedTask[appliedMethod];
+
+			for (auto & [extraCost,extraDepth] : edgesExtraCostSource[toVertex][tasks_per_method[appliedMethod].second][-depth-1][cost]){
+				int additionCost = preCost - extraCost;
+				if (additionCost < 0) continue;
+				
+				DEBUG(pc(mc); std::cout << "\t\t" << color(YELLOW,"This edge carries additional cost.") << " cost=" << additionCost << " m=" << appliedMethod << " " << htn->methodNames[appliedMethod] << std::endl);
+				DEBUG(pc(mc); std::cout << "Cost I am expecting " << curCost << " " << preCost << " " << extraCost << " " << cost << std::endl);
+	
+				// first part: extract the plan that decomposed 
+				std::deque<int> ss;
+				std::deque<int> sm;
+
+				int firstTask = tasks_per_method[appliedMethod].first;
+				// the state I am going to next ...
+				BDD nextTargetState = edges[0][abstractTask][methodStack.front()][extraCost][extraDepth].AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux);
+				reconstructed_plan a = extract2(preCost, preDepth, preTask, preTo, firstTask, preCost - additionCost, nextTargetState, ss, sm, curState, _method, htn, sym_vars, prim_q, abst_q, eps_inserted);
+				
+				if (a.success && a.primitiveCost(htn) != additionCost){
+					DEBUG(pc(mc));
+					std::cout << "Cost I was expecting " << additionCost << " but got " << a.primitiveCost(htn) << std::endl;
+					exit(0);
+				}
+
+				
+				if (a.success && a.primitiveCost(htn) == additionCost){
+					ss = taskStack;
+					sm = methodStack;
+							
+					ss.pop_front();
+					ss.push_front(abstractTask);
+
+
+					DEBUG(pc(mc); std::cout << "\t\t" << color(MAGENTA,"Main continuation ") << extraCost << " " << extraDepth << std::endl);
+					reconstructed_plan b = extract2From(extraCost, extraDepth, ss.front(), sm.front(), targetTask, targetCost, targetState,
+							ss, sm, a.endState, htn, sym_vars, prim_q, abst_q, eps_inserted);
+					
+					if (b.success){
+						//a.printPlan(htn);
+						//b.printPlan(htn);
+						
+						for (auto x : a.primitive_plan)
+							b.primitive_plan.push_back(x);
+						a.primitive_plan = b.primitive_plan;
+
+						for (auto x : b.abstract_plan)
+							a.abstract_plan.push_back(x);
+						
+						// the one decomposition we do here
+	
+						assert(a.currentStack.size() == 0);
+						assert(b.currentStack.size() >= 1);
+						int aRoot = a.root;
+						
+						int sub2 = global_id_counter++;
+						int taskToDecompose = b.currentStack.front();
+						a.abstract_plan.push_back({taskToDecompose, htn->decomposedTask[appliedMethod], appliedMethod, a.root, sub2});
+	
+						a.currentStack = b.currentStack;
+						a.currentStack.pop_front();
+						a.currentStack.push_front(sub2);
+						
+						a.root = b.root;
+						//a.printPlan(htn);
+						return a;
+					}
+				}
+			}
+			continue;
+		}
+
 		if (preCost == curCost){
 			// the current layer is an abstract one. Then going to the previous layer internal parts of the stack may vanish.
 			BDD state = curState; // stack state, note that this is not the state we are currently in, but the one that is used to connect valid stacks
@@ -334,166 +502,9 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 						return a;
 					}
 				}
-				//continue; // can't use this else ..
+				continue; // can't use this else ..
 			}
 		}
-	
-		if (cost != -1 && depth >= 0){
-			DEBUG(pc(mc); std::cout << "\t\t" << color(YELLOW,"This edge was inserted due to an epsilon application.") << " cost=" << cost << " depth=" << depth << " m=" << appliedMethod << std::endl);
-
-			int toVertex = methods_with_two_tasks_vertex[appliedMethod];
-			int abstractTask = htn->decomposedTask[appliedMethod];
-			
-			DEBUG(pc(mc); std::cout << "\t\t\tTask on the main edge is " << htn->taskNames[abstractTask] << " (#" << abstractTask << ")" << std::endl);
-			DEBUG(pc(mc); std::cout << "\t\t\t\tOptions:" << eps_inserted[toVertex][cost][depth].size() << std::endl);
-
-			for (auto & [preCost2, preDepth2, preTask2, preTo2, _method2, remainingTask, remainingMethod] : eps_inserted[toVertex][cost][depth]){
-				DEBUG(pc(mc); std::cout << "\t\t\t" << preCost2 << " " << preDepth2 << " " << preTask2 << " " << preTo2 << " " << _method2 << " " << remainingTask << " " << vertex_to_method[remainingMethod] << " " << endl);
-			
-				// start reconstruction with empty stack	
-				std::deque<int> ss;
-				std::deque<int> sm;
-
-				ss.push_back(remainingTask);
-				sm.push_back(remainingMethod);
-
-				BDD nextTargetState = edges[0][abstractTask][methodStack.front()][preCost][preDepth].AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux);
-				reconstructed_plan a = extract2(preCost2, preDepth2, preTask2, preTo2, abstractTask, cost, nextTargetState, ss, sm, curState, _method2, htn, sym_vars, prim_q, abst_q, eps_inserted);
-				
-				if (a.success){
-					if (a.primitiveCost(htn) != preCost2 - cost){
-						DEBUG(pc(mc)); std::cout << "Epsilon: I was expecting " << preCost2 - cost << " " << preCost2 << " " << cost << " but got " << a.primitiveCost(htn) << std::endl;
-						exit(0);	
-					}
-					// apply the method
-					
-					ss = taskStack;
-					sm = methodStack;
-					
-					ss.pop_front();
-					ss.push_front(abstractTask);
-				
-					DEBUG(printStack(ss,sm,8));
-					assert(ss.front() == preTask);
-	
-					reconstructed_plan b = extract2From(preCost, preDepth, ss.front(), sm.front(), targetTask, targetCost, targetState,
-							ss, sm, a.endState, htn, sym_vars, prim_q, abst_q, eps_inserted);
-					
-					if (b.success) {
-						//a.printPlan(htn);
-						//b.printPlan(htn);
-						
-						for (auto x : a.primitive_plan)
-							b.primitive_plan.push_back(x);
-						a.primitive_plan = b.primitive_plan;
-						for (auto x : b.abstract_plan)
-							a.abstract_plan.push_back(x);
-						
-						// the one decomposition we do here
-	
-						assert(a.currentStack.size() == 1);
-						assert(b.currentStack.size() >= 1);
-						int aRoot = a.root;
-						int aStackTop = a.currentStack.front();
-						int bStackTop = b.currentStack.front();
-						// replace 
-						for (auto & x : a.primitive_plan)
-							if (get<0>(x) == aRoot)
-								get<0>(x) = bStackTop;
-						for (auto & x : a.abstract_plan)
-							if (get<0>(x) == aRoot)
-								get<0>(x) = bStackTop;
-	
-	
-						a.currentStack = b.currentStack;
-						a.currentStack.pop_front();
-						a.currentStack.push_front(aStackTop);
-						
-						a.root = b.root;
-					
-						//a.printPlan(htn);
-	
-						return a;
-					}
-				}
-			}
-			//continue;
-		}
-		
-		if (cost != -1 && depth < 0){
-			int toVertex = methods_with_two_tasks_vertex[appliedMethod];
-			int abstractTask = htn->decomposedTask[appliedMethod];
-
-			for (auto & [extraCost,extraDepth] : edgesExtraCostSource[toVertex][tasks_per_method[appliedMethod].second][-depth-1][cost]){
-				int additionCost = preCost - extraCost;
-				if (additionCost < 0) continue;
-				
-				DEBUG(pc(mc); std::cout << "\t\t" << color(YELLOW,"This edge carries additional cost.") << " cost=" << additionCost << " m=" << appliedMethod << " " << htn->methodNames[appliedMethod] << std::endl);
-				DEBUG(pc(mc); std::cout << "Cost I am expecting " << curCost << " " << preCost << " " << extraCost << " " << cost << std::endl);
-	
-				// first part: extract the plan that decomposed 
-				std::deque<int> ss;
-				std::deque<int> sm;
-
-				int firstTask = tasks_per_method[appliedMethod].first;
-				// the state I am going to next ...
-				BDD nextTargetState = edges[0][abstractTask][methodStack.front()][extraCost][extraDepth].AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux);
-				reconstructed_plan a = extract2(preCost, preDepth, preTask, preTo, firstTask, preCost - additionCost, nextTargetState, ss, sm, curState, _method, htn, sym_vars, prim_q, abst_q, eps_inserted);
-				
-				if (a.success && a.primitiveCost(htn) != additionCost){
-					DEBUG(pc(mc));
-					std::cout << "Cost I was expecting " << additionCost << " but got " << a.primitiveCost(htn) << std::endl;
-					exit(0);
-				}
-
-				
-				if (a.success && a.primitiveCost(htn) == additionCost){
-					ss = taskStack;
-					sm = methodStack;
-							
-					ss.pop_front();
-					ss.push_front(abstractTask);
-
-
-					DEBUG(pc(mc); std::cout << "\t\t" << color(MAGENTA,"Main continuation ") << extraCost << " " << extraDepth << std::endl);
-					reconstructed_plan b = extract2From(extraCost, extraDepth, ss.front(), sm.front(), targetTask, targetCost, targetState,
-							ss, sm, a.endState, htn, sym_vars, prim_q, abst_q, eps_inserted);
-					
-					if (b.success){
-						//a.printPlan(htn);
-						//b.printPlan(htn);
-						
-						for (auto x : a.primitive_plan)
-							b.primitive_plan.push_back(x);
-						a.primitive_plan = b.primitive_plan;
-
-						for (auto x : b.abstract_plan)
-							a.abstract_plan.push_back(x);
-						
-						// the one decomposition we do here
-	
-						assert(a.currentStack.size() == 0);
-						assert(b.currentStack.size() >= 1);
-						int aRoot = a.root;
-						
-						int sub2 = global_id_counter++;
-						int taskToDecompose = b.currentStack.front();
-						a.abstract_plan.push_back({taskToDecompose, htn->decomposedTask[appliedMethod], appliedMethod, a.root, sub2});
-	
-						a.currentStack = b.currentStack;
-						a.currentStack.pop_front();
-						a.currentStack.push_front(sub2);
-						
-						a.root = b.root;
-						//a.printPlan(htn);
-						return a;
-					}
-				}
-			}
-
-			//continue;
-		}
-
 
 		reconstructed_plan a = extract2(preCost, preDepth, preTask, preTo, targetTask, targetCost, targetState, taskStack, methodStack, curState, _method, htn, sym_vars, prim_q, abst_q, eps_inserted);
 		if (a.success) return a;
@@ -527,7 +538,7 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 	if (curCost == -1){
 		if (!(targetState * curState).IsZero()){
 			DEBUG(pc(mc); std::cout << "DONE" << std::endl);
-			return get_empty_success(curState);
+			return get_empty_success(curState * targetState);
 		} else {
 			DEBUG(pc(mc); std::cout << "Target state does not fit" << std::endl);
 			return get_fail();
@@ -912,9 +923,13 @@ void build_automaton(Model * htn){
 	// TODO separate trans and rel
 	while (true){ // TODO: detect unsolvability
 		for (auto & entry : current_queue){
-			if (entry.second.size() == 0) continue;
 			int task = get<0>(entry.first);
 			int to   = get<1>(entry.first);
+			
+			if (entry.second.size() == 0) {
+				std::cout << "Ignoring " << task << " " << vertex_to_method[to] << std::endl;
+				continue;
+			}
 		
 
 			BDD state = edges[0][task][to][lastCost][lastDepth];
@@ -1091,6 +1106,10 @@ void build_automaton(Model * htn){
 						ensureBDD(methods_with_two_tasks_vertex[method], tasks_per_method[method].second, to, currentCost, currentDepthInAbstract, sym_vars);
 						BDD actually_new_r_temp = r_temp * !edges[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to][currentCost][currentDepthInAbstract];
 						BDD actually_new_r_temp_only_source = actually_new_r_temp.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux);
+						
+						ensureBDD(methods_with_two_tasks_vertex[method], tasks_per_method[method].second, to, lastCost, lastDepth, sym_vars);
+						//BDD bddR = r_temp * !edges[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to][lastCost][lastDepth];
+						BDD bddR = r_temp * !edges[methods_with_two_tasks_vertex[method]][tasks_per_method[method].second][to][currentCost][currentDepthInAbstract];
 
 						// new state for edge to method vertex
 						BDD biimp = sym_vars.oneBDD();
@@ -1171,7 +1190,7 @@ void build_automaton(Model * htn){
 									
 										// remove the v'
 										BDD newState = epsilonIntersect.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux);
-										newState = newState * actually_new_r_temp;
+										newState = newState * bddR; //actually_new_r_temp;
 										newState = newState.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsEff);
 										//newState = newState * biimp;
 										
@@ -1195,6 +1214,8 @@ void build_automaton(Model * htn){
 										break;
 									}
 								}
+
+								continue;
 
 								// case 2: unfinished transitions
 								// add this to the internal edge ... we will go through it at some point
@@ -1306,6 +1327,7 @@ void build_automaton(Model * htn){
 			currentDepthInAbstract = 0; // the primitive layer
 			current_queue = prim_q[currentCost];
 			std::cout << color(CYAN,"==========================") << " Cost Layer " << currentCost << std::endl; 
+			//if (currentCost == 29) exit(0);
 		} else {
 			currentDepthInAbstract = next_abstract_layer->first;
 			current_queue = next_abstract_layer->second;
