@@ -351,7 +351,7 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 
 			if (eps_inserted[toVertex][cost][depth].size() == zeroInter){
 				std::cout << "No intersection in any option!" << std::endl;
-				exit(0);
+				//exit(0);
 			}
 			continue;
 		}
@@ -538,7 +538,9 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 		if (a.success) return a;
 	}
 
-	DEBUG(pc(mc); std::cout << color(YELLOW,"Backtracking failed at this point ... ") << std::endl);
+	DEBUG(pc(mc));
+	std::cout << color(YELLOW,"Backtracking failed at this point ... ") << std::endl;
+	exit(0);
 	return get_fail();
 }
 
