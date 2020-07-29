@@ -34,6 +34,7 @@ std::vector<std::map<int,std::map<int, std::map<int, std::vector<std::pair<int,i
 
 std::map<int,std::pair<int,int>> tasks_per_method; // first and second
 	
+std::vector<std::map<int,std::map<int,BDD>>> eps;
 
 // XXX hacky
 std::map<int,int> methods_with_two_tasks_vertex;
@@ -87,7 +88,7 @@ std::vector<symbolic::TransitionRelation> trs;
 //================================================== extract solution
 
 
-typedef std::tuple<int,int,int,int,int,int,int> tracingInfo;
+typedef std::tuple<int,int,int,int,int,int,int,int> tracingInfo;
 
 void printStack(std::deque<int> & taskStack, std::deque<int> & methodStack, int indent){
 	for (size_t i = 0; i < taskStack.size(); i++){
@@ -202,9 +203,10 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 #endif	
 	assert(taskStack.size() == methodStack.size());
 	
-	DEBUG(pc(mc); std::cout << "\t" << color(YELLOW,"Extract from ") << curCost << " " << curDepth << ": " << curTask << " " << vertex_to_method[curTo] << " stack size: " << taskStack.size() << " target " << targetTask << std::endl);
+	DEBUG(pc(mc); std::cout << "\t" << color(YELLOW,"Extract from ") << curCost << " " << curDepth << ": " << curTask << " " << vertex_to_method[curTo] << " stack size: " << taskStack.size() << " target " << targetTask << " target cost " << targetCost << std::endl);
 	if (targetCost != -1 && curCost < targetCost){
 		DEBUG(pc(mc); std::cout << "\t\t" << color(RED,"too expensive") << std::endl);
+		//exit(0);
 		return get_fail();
 	}
 	
@@ -214,6 +216,8 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 			return get_empty_success(curState * targetState);
 		} else {
 			DEBUG(pc(mc); std::cout << "\t\t" << color(RED,"Got to target task on stack, but state does not fit.") << std::endl);
+	  		//sym_vars.bdd_to_dot(curState, "curStateFail.dot");
+			//exit(0);
 			return get_fail();
 		}
 	}
@@ -223,20 +227,20 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 	auto & myPredecessors = (curDepth == 0) ? prim_q[curCost][tup] : abst_q[curCost][curDepth][tup];
 	DEBUG(
 			pc(mc); std::cout << "\tOptions: " << myPredecessors.size() << std::endl;
-			for (auto & [preCost, preDepth, preTask, preTo, _method, cost, getHere] : myPredecessors){
+			for (auto & [preCost, preDepth, preTask, preTo, _method, cost, getHere, _] : myPredecessors){
 				pc(mc);
 				std::cout << "\t\tEdge " << " " << preTask << " " << (preTo != -1 ? vertex_to_method[preTo] : -1) << std::endl;
 			}
 		);
 	
-	for (auto & [preCost, preDepth, preTask, preTo, _method, cost, depth] : myPredecessors){
+	for (auto & [preCost, preDepth, preTask, preTo, _method, cost, depth, extraCost] : myPredecessors){
 		DEBUG(pc(mc); std::cout << "\t\t" << color(YELLOW, "Trying Edge ") << preCost << " " << preDepth << " " << preTask << " " << (preTo != -1 ? vertex_to_method[preTo] : -1) << std::endl);
 		
 		int appliedMethod = _method;
 	
 	
 		if (cost != -1 && depth >= 0){
-			DEBUG(pc(mc); std::cout << "\t\t" << color(YELLOW,"This edge was inserted due to an epsilon application.") << " cost=" << cost << " depth=" << depth << " m=" << appliedMethod << std::endl);
+			DEBUG(pc(mc); std::cout << "\t\t" << color(YELLOW,"This edge was inserted due to an epsilon application.") << " cost=" << cost << " depth=" << depth << " delta=" << extraCost << " m=" << appliedMethod << std::endl);
 
 			int toVertex = methods_with_two_tasks_vertex[appliedMethod];
 			int abstractTask = htn->decomposedTask[appliedMethod];
@@ -246,7 +250,9 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 			DEBUG(pc(mc); std::cout << "\t\t\tTask on the main edge is " << htn->taskNames[abstractTask] << " (#" << abstractTask << ")" << std::endl);
 			DEBUG(pc(mc); std::cout << "\t\t\t\tOptions:" << eps_inserted[toVertex][cost][depth].size() << std::endl);
 
-			for (auto & [preCost2, preDepth2, preTask2, preTo2, _method2, remainingTask, remainingMethod] : eps_inserted[toVertex][cost][depth]){
+			int zeroInter = 0;
+
+			for (auto & [preCost2, preDepth2, preTask2, preTo2, _method2, remainingTask, remainingMethod, _] : eps_inserted[toVertex][cost][depth]){
 				DEBUG(pc(mc); std::cout << "\t\t\t" << preCost2 << " " << preDepth2 << " " << preTask2 << " " << preTo2 << " " << _method2 << " " << remainingTask << " " << vertex_to_method[remainingMethod] << " " << endl);
 			
 				// start reconstruction with empty stack	
@@ -257,17 +263,34 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 				sm.push_back(remainingMethod);
 
 				
-				BDD edgeBDD = edges[0][abstractTask][methodStack.front()][curCost][curDepth];
-				edgeBDD = edgeBDD.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsAux);
+				BDD edgeBDD = eps[toVertex][cost][depth];
+				//edgeBDD = edgeBDD.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsAux);
 
 
 				BDD nextTargetState = curState * edgeBDD;
+				if (nextTargetState.IsZero()){
+					std::cout << "Intersection is Zero!" << std::endl;
+					zeroInter++;
+					continue;
+					exit(0);
+				}
 				nextTargetState = nextTargetState.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsPre);
-				nextTargetState = nextTargetState.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsAux);
-				reconstructed_plan a = extract2(preCost2, preDepth2, preTask2, preTo2, abstractTask, cost, nextTargetState, ss, sm, curState, _method2, htn, sym_vars, prim_q, abst_q, eps_inserted);
+				nextTargetState = nextTargetState.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsEff);
+				
+				if (nextTargetState.IsZero()){
+					std::cout << "Target state is Zero!" << std::endl;
+					exit(0);
+				}
+
+	  			//sym_vars.bdd_to_dot(edgeBDD, "edgeBDD.dot");
+	  			//sym_vars.bdd_to_dot(nextTargetState, "nextTargetState.dot");
+	  			//sym_vars.bdd_to_dot(curState, "curStateStart.dot");
+				
+				
+				reconstructed_plan a = extract2(preCost2, preDepth2, preTask2, preTo2, abstractTask, cost - extraCost, nextTargetState, ss, sm, curState, _method2, htn, sym_vars, prim_q, abst_q, eps_inserted);
 				
 				if (a.success){
-					if (a.primitiveCost(htn) != preCost2 - cost){
+					if (a.primitiveCost(htn) != preCost2 - cost + extraCost){
 						DEBUG(pc(mc)); std::cout << "Epsilon: I was expecting " << preCost2 - cost << " " << preCost2 << " " << cost << " but got " << a.primitiveCost(htn) << std::endl;
 						exit(0);	
 					} else {
@@ -324,6 +347,11 @@ reconstructed_plan extract2From(int curCost, int curDepth, int curTask, int curT
 						return a;
 					}
 				}
+			}
+
+			if (eps_inserted[toVertex][cost][depth].size() == zeroInter){
+				std::cout << "No intersection in any option!" << std::endl;
+				exit(0);
 			}
 			continue;
 		}
@@ -548,7 +576,7 @@ reconstructed_plan extract2(int curCost, int curDepth, int curTask, int curTo,
 	DEBUG(
 		pc(mc); std::cout << "Extracting solution starting cost=" << curCost << " depth=" << curDepth << " t=" << curTask << " m=" << vertex_to_method[curTo] << std::endl;
 		pc(mc);
-	   	if (curTask < htn->numActions) std::cout << "\tPRIM " << color(GREEN,htn->taskNames[curTask]) << std::endl;
+	   	if (curTask < htn->numActions) std::cout << "\tPRIM " << color(GREEN,htn->taskNames[curTask]) << " c=" << htn->actionCosts[curTask] << std::endl;
 		else                           std::cout << "\tABST " << color(BLUE,htn->taskNames[curTask]) << " method " << color(CYAN, htn->methodNames[method]) << 
 													" #" << method << std::endl;
 		);
@@ -857,7 +885,6 @@ void build_automaton(Model * htn){
 
 	std::map<int,std::map<std::tuple<int,int>, std::vector<tracingInfo> >> prim_q;
 	std::map<int,std::map<int,std::map<std::tuple<int,int>, std::vector<tracingInfo> >>> abst_q;
-	std::vector<std::map<int,std::map<int,BDD>>> eps;
 	std::vector<std::map<int,std::map<int,std::vector<tracingInfo>> >> eps_inserted (number_of_vertices);
 	std::vector<std::map<int,BDD>> state_expanded_at_cost;
 
@@ -872,7 +899,7 @@ void build_automaton(Model * htn){
 //#define put insert
 
 	std::tuple<int,int> _tup = {htn->initialTask, 1};
-	tracingInfo _from = {-1,-1,-1,-1,-1,-1,-1};
+	tracingInfo _from = {-1,-1,-1,-1,-1,-1,-1,-1};
 	abst_q[0][1][_tup].push_back(_from);
 		
 	std::clock_t preparation_end = std::clock();
@@ -885,7 +912,7 @@ void build_automaton(Model * htn){
 	
 	auto addQ = [&] (int task, int to, int extraCost, int fromTask, int fromTo, int method, int cost, int depth, bool insertOnlyIfNonEmpty) {
 		std::tuple<int,int> tup = {task, to};
-		tracingInfo from = {currentCost, currentDepthInAbstract, fromTask, fromTo, method, cost, depth};
+		tracingInfo from = {currentCost, currentDepthInAbstract, fromTask, fromTo, method, cost, depth, extraCost};
 
 		std::vector<tracingInfo> * insertQueue;
 #ifndef NDEBUG
@@ -1045,7 +1072,7 @@ void build_automaton(Model * htn){
 								addQ(task2, to2, 0, task, to, htn->emptyMethod[task], -1, -1, false); // no method as primitive
 					
 							
-								tracingInfo tracingInf = {currentCost, currentDepthInAbstract, task, to, htn->emptyMethod[task], task2, to2};
+								tracingInfo tracingInf = {currentCost, currentDepthInAbstract, task, to, htn->emptyMethod[task], task2, to2, -1};
 								eps_inserted[to][currentCost][currentDepthInAbstract].push_back(tracingInf);
 							}
 						}
@@ -1215,11 +1242,10 @@ void build_automaton(Model * htn){
 									}
 								}
 
-								continue;
-
+								
 								// case 2: unfinished transitions
 								// add this to the internal edge ... we will go through it at some point
-								if (!sIntersect.IsZero()){
+								if (false && !sIntersect.IsZero()){
 									DEBUG(std::cout << "\t\t\t\t" << color(RED,"intersection remaining that is not yet progressed to epsilon.") << std::endl);
 									
 									// for this, only the current state in which we push is interesting
@@ -1286,6 +1312,9 @@ void build_automaton(Model * htn){
 					}
 				}
 			}
+
+			//if (step == 71) exit(0);
+			//if (step == 204) exit(0);
 
 			step++;
 		}
