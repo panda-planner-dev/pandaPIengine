@@ -353,7 +353,11 @@ bool generatePredecessor(int curCost, int curDepth, int curTask, int curTo,
 		return false;
 	}
 
-	BDD sourceState = checkStack(mc,previousState,prevCost,prevDepth,taskStack,methodStack,htn,sym_vars);
+	BDD sourceState = checkStack(
+#ifndef NDEBUG
+			mc,
+#endif
+			previousState,prevCost,prevDepth,taskStack,methodStack,htn,sym_vars);
 	if (sourceState.IsZero()){
 		DEBUG(pc(mc); std::cout << "\t\t" << color(RED,"Source stack does not exist") << std::endl;);
 		return false;
@@ -459,7 +463,12 @@ reconstructed_plan extract2From(int curCost, int curDepth,
 		newPartOfTheState = newPartOfTheState.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux);
 		
 		// check whether the stack is possible in total
-		BDD newPartOfTheStateX = checkStack(mc,newPartOfTheState,preCost,preDepth,taskStack,methodStack,htn,sym_vars);
+		BDD newPartOfTheStateX = checkStack(
+#ifndef NDEBUG
+			mc,
+#endif
+			newPartOfTheState,preCost,preDepth,taskStack,methodStack,htn,sym_vars);
+		
 		if (newPartOfTheStateX.IsZero()){
 			DEBUG(pc(mc); std::cout << "\t\t" << color(RED,"Source stack does not exist") << std::endl;);
 
