@@ -91,10 +91,25 @@ std::vector<symbolic::TransitionRelation> trs;
 
 //================================================== extract solution
 
+#ifndef NDEBUG
+	int debug_counter = 0;
+	void pc(int myCounter){
+		std::cout << "===" << std::setfill('0') << std::setw(5) << myCounter << "=== ";
+	}
+#endif
 
 
-void printStack(std::deque<int> & taskStack, std::deque<int> & methodStack, int indent){
+
+
+void printStack(
+#ifndef NDEBUG
+	int mc,
+#endif
+	std::deque<int> & taskStack, std::deque<int> & methodStack, int indent){
 	for (size_t i = 0; i < taskStack.size(); i++){
+#ifndef NDEBUG
+		pc(mc);
+#endif
 		for (int j = 0; j < indent; j++) std::cout << "\t";
 		std::cout << "\t\t#" << i << " " << taskStack[i] << " " << vertex_to_method[methodStack[i]] << std::endl;
 	}
@@ -163,13 +178,6 @@ reconstructed_plan get_empty_success(BDD state){
 }
 
 
-#ifndef NDEBUG
-	int debug_counter = 0;
-	void pc(int myCounter){
-		std::cout << "===" << std::setfill('0') << std::setw(5) << myCounter << "===";
-	}
-#endif
-
 
 BDD checkStack(
 #ifndef NDEBUG
@@ -194,10 +202,10 @@ BDD checkStack(
 
 	int currentVertex = 0;
 	for (size_t i = 0; i < methodStack.size(); i++){
-		DEBUG(pc(mc); std::cout << "\t\t\t\t\t\t\tStack pos " << i << "/" << methodStack.size() << std::endl); 
+		DEBUG(pc(mc); std::cout << "\t\t\t\tStack pos " << i << "/" << methodStack.size();); 
 		int taskToGo = taskStack[i];
 		int targetVertex = methodStack[i];
-		DEBUG(pc(mc); std::cout << "\t\t\t\t\t\t\t\t " << vertex_to_method[currentVertex] << " " << taskToGo << " " << vertex_to_method[targetVertex] << std::endl); 
+		DEBUG(std::cout << "\t " << vertex_to_method[currentVertex] << " " << taskToGo << " " << vertex_to_method[targetVertex] << std::endl); 
 		ensureBDD(currentVertex,taskToGo,targetVertex,curCost,curDepth,sym_vars);
 		BDD transitionBDD = edges[currentVertex][taskToGo][targetVertex][curCost][curDepth];
 		
@@ -332,7 +340,7 @@ bool generatePredecessor(int curCost, int curDepth, int curTask, int curTo,
 	
 	DEBUG(
 		pc(mc); std::cout << "\t\tStack (after modification): " << taskStack.size() << std::endl;
-		printStack(taskStack,methodStack,0)
+		printStack(mc,taskStack,methodStack,1)
 	);
 	
 	assert(taskStack.size() == methodStack.size());
@@ -341,16 +349,15 @@ bool generatePredecessor(int curCost, int curDepth, int curTask, int curTo,
 	previousState = previousState * edges[0][taskStack.front()][methodStack.front()][prevCost][prevDepth];
 	previousState.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux);
 	if (previousState.IsZero()){
-		DEBUG(pc(mc); std::cout << "\t\t\t" << color(RED,"Source stack does not exist") << std::endl;);
+		DEBUG(pc(mc); std::cout << "\t\t" << color(RED,"Source state does not exist") << std::endl;);
 		return false;
 	}
 
 	BDD sourceState = checkStack(mc,previousState,prevCost,prevDepth,taskStack,methodStack,htn,sym_vars);
 	if (sourceState.IsZero()){
-		DEBUG(pc(mc); std::cout << "\t\t\t" << color(RED,"Source stack does not exist") << std::endl;);
+		DEBUG(pc(mc); std::cout << "\t\t" << color(RED,"Source stack does not exist") << std::endl;);
 		return false;
 	}
-
 
 	resultState = sourceState;
 	return true;
@@ -378,7 +385,8 @@ reconstructed_plan extract2From(int curCost, int curDepth,
 	int toStackHead = methodStack.front();
 
 
-	DEBUG(pc(mc); std::cout <<  color(YELLOW,"Extract from ") << curCost << " " << curDepth << ": " << taskStackHead << " " << vertex_to_method[toStackHead] << " stack size: " << taskStack.size() << " target " << targetTask << " target cost " << targetCost << std::endl);
+	DEBUG(pc(mc); std::cout << color(YELLOW,"New edge at") << " c=" << curCost << " d=" << curDepth << " with causing stack. Where was it new?" << std::endl);
+	DEBUG(pc(mc); std::cout << "\t\ttarget " << targetTask << " target cost " << targetCost << std::endl);
 
 	if (targetCost != -1 && curCost < targetCost){
 		DEBUG(pc(mc); std::cout << "\t\t" << color(RED,"too expensive") << std::endl);
@@ -409,85 +417,250 @@ reconstructed_plan extract2From(int curCost, int curDepth,
 	// look at my sources
 	std::tuple<int,int> tup = {taskStackHead, toStackHead};
 	auto & myPredecessors = (curDepth == 0) ? prim_q[curCost][tup] : abst_q[curCost][curDepth][tup];
-	DEBUG(
-			pc(mc); std::cout << "\tOptions: " << myPredecessors.size() << std::endl;
-			for (auto & [preCost, preDepth, preTask, preTo, _method, cost, getHere, _] : myPredecessors){
-						pc(mc); std::cout << "\t\tEdge t=" << preTask << " m=" << (preTo != -1?vertex_to_method[preTo]:-1) << " c=" << preCost << " d=" << preDepth << std::endl;
-			}
-		  );
+	DEBUG(pc(mc); std::cout << "\tKnown causes: " << myPredecessors.size() << std::endl);
+	std::map<std::pair<int,int>,std::vector<tracingInfo> > groupedTraces;
+	std::pair<int,int> pp = {-1,-1};
+	for (auto & preItem : myPredecessors){
+		auto & [preCost, preDepth, preTask, preTo, _method, cost, getHere, _] = preItem;
+		groupedTraces[std::make_pair(preCost, preDepth)].push_back(preItem);
+		DEBUG(pc(mc); std::cout << "\t\tEdge c=" << preCost << " d=" << preDepth << " t=" << preTask << " m=" << (preTo != -1?vertex_to_method[preTo]:-1) << " ec=" << cost << " ed=" << getHere << std::endl;);
 
-	// try out the different options
-	for (auto & [preCost, preDepth, preTask, preTo, appliedMethod, cost, depth, extraCost] : myPredecessors){
-		DEBUG(pc(mc); std::cout << "\t" << color(YELLOW, "I could have come from ") << " c=" << preCost << " d=" << preDepth << 
-				" t=" << preTask << " m=" << (preTo != -1 ? vertex_to_method[preTo] : -1) << std::endl);
-		
-		if (cost != -1){
-			std::cout << "NYI" << std::endl;
-			exit(0);
-		}
+		if (cost != -1)
+			pp = {preCost,preDepth};
 
-		// check at this point whether the stack can actually look as we constructed
-		BDD sourceState = checkStack(mc,curState,preCost,preDepth,taskStack,methodStack,htn,sym_vars);
-		if (sourceState.IsZero()){
-			DEBUG(pc(mc); std::cout << "\t\t\t" << color(RED,"Source stack does not exist") << std::endl;);
-			continue;
-		}
-	
-		std::deque<int> taskStackPredecessor = taskStack;
-		std::deque<int> methodStackPredecessor = methodStack;
-		BDD prevState;
-
-		// see whether we can generate the predecessor and it is there
-		bool predecessorsIsPossible = generatePredecessor(preCost,preDepth,preTask,preTo,targetTask,targetCost,curState,
-				prevState,taskStackPredecessor,methodStackPredecessor,
-				appliedMethod,htn,sym_vars,eps_inserted);
-
-		if (!predecessorsIsPossible) continue;
-
-		reconstructed_plan a = extract2From(preCost, preDepth, targetTask, targetCost, targetState, taskStackPredecessor, methodStackPredecessor, prevState, htn, sym_vars, eps_inserted);
-		if (!a.success){
-			std::cout << color(RED,"While having commitment, extraction was not possible ...") << std::endl;
-			exit(0);
-		}
-		
-		if (preTask < htn->numActions) {
-			int stackTask = a.currentStack.front(); a.currentStack.pop_front();
-			// add a primitive action
-			a.primitive_plan.push_back({stackTask,preTask});
-		} else {
-			if (htn->numSubTasks[appliedMethod] == 1){
-				int stackTask = a.currentStack.front(); a.currentStack.pop_front();
-				int sub1 = global_id_counter++;
-	
-				a.abstract_plan.push_back({stackTask, preTask, appliedMethod, sub1, -1});
-				a.currentStack.push_front(sub1);
-			} else if (htn->numSubTasks[appliedMethod] == 2){ // something else cannot happen
-				int stackTask = a.currentStack.front(); a.currentStack.pop_front();
-				int sub1 = global_id_counter++;
-				int sub2 = global_id_counter++;
-	
-				a.abstract_plan.push_back({stackTask, preTask, appliedMethod, sub1, sub2});
-				a.currentStack.push_front(sub2);
-				a.currentStack.push_front(sub1);
-			} else {
-				int stackTask = a.currentStack.front(); a.currentStack.pop_front();
-				a.abstract_plan.push_back({stackTask, preTask, appliedMethod, -1, -1});
-			}
-		}
-
-
-		if (a.primitiveCost(htn) != preCost - targetCost){
-			DEBUG(std::cout << a.primitiveCost(htn) << " " << preCost << " " << targetCost << std::endl);
-			std::cout << color(RED,"Cost does not fit") << std::endl;
-		}
-		assert(a.primitiveCost(htn) == preCost - targetCost);
-		return a;
 	}
 
-	// backtracking is not allowed to fail, since we know that getting to this point is possible with the new state
-	DEBUG(pc(mc)); std::cout << color(RED,"Backtracking failed at this point ... ") << std::endl;
-	exit(0);
-	//return get_fail();
+	std::vector<std::pair<std::pair<int,int>,std::vector<tracingInfo>>> groupedTraces2;
+	if (pp.first != -1){
+		groupedTraces2.push_back(std::make_pair(pp,groupedTraces[pp]));
+	}
+	for (auto & [_pre, tracings] : groupedTraces) if (_pre != pp) groupedTraces2.push_back(std::make_pair(_pre,tracings));
+
+
+	// try out the different options
+	for (auto & [_pre, tracings] : groupedTraces2){
+		auto & [preCost, preDepth] = _pre;
+		DEBUG(pc(mc); std::cout << "\t" << color(YELLOW, "Current stack might have been new at") << " c=" << preCost << " d=" << preDepth << std::endl);
+
+		
+		// the state has to be in the edge where we think it originated
+		BDD newPartOfTheState = curState * edges[0][taskStack.front()][methodStack.front()][preCost][preDepth];
+		auto [p2Cost, p2Depth] = prev(preCost, preDepth);
+		ensureBDD(taskStack.front(), methodStack.front(), p2Cost, p2Depth, sym_vars); // edge might be fully new
+		// and not in the one before
+		newPartOfTheState = newPartOfTheState * !edges[0][taskStack.front()][methodStack.front()][p2Cost][p2Depth];
+		if (newPartOfTheState.IsZero()){
+			DEBUG(pc(mc); std::cout << "\t\t" << color(RED,"Source state is not new") << std::endl;);
+			continue;
+		} else {
+			DEBUG(pc(mc); std::cout << "\t\t" << color(GREEN,"Source state is new") << std::endl;);
+		}
+	
+		newPartOfTheState = newPartOfTheState.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux);
+		
+		// check whether the stack is possible in total
+		BDD newPartOfTheStateX = checkStack(mc,newPartOfTheState,preCost,preDepth,taskStack,methodStack,htn,sym_vars);
+		if (newPartOfTheStateX.IsZero()){
+			DEBUG(pc(mc); std::cout << "\t\t" << color(RED,"Source stack does not exist") << std::endl;);
+
+			//if (curCost == 180){
+			//	checkStack(mc,newPartOfTheState,179,1,taskStack,methodStack,htn,sym_vars);
+			//}
+			continue;
+		}
+
+		newPartOfTheState = newPartOfTheStateX;
+
+
+		DEBUG(
+				pc(mc); std::cout << color(GREEN,"POINT OF NO RETURN") << std::endl;
+				pc(mc); std::cout << "I have a state and a stack that were newly inserted at" << std::endl;
+				pc(mc); std::cout << "c=" << preCost << " d=" << preDepth << std::endl;
+				printStack(mc,taskStack,methodStack,1);
+				std::cout << "#####################################################################################" << std::endl;
+				std::cout << "#####################################################################################" << std::endl;
+		);
+		
+		
+
+		for (auto & [_1, _2, preTask, preTo, appliedMethod, cost, depth, extraCost] : tracings){
+			DEBUG(pc(mc); std::cout << color(YELLOW, "I could have come from ") << " c=" << preCost << " d=" << preDepth << 
+					" t=" << preTask << " m=" << (preTo != -1 ? vertex_to_method[preTo] : -1) << std::endl);
+		
+			////////////////////////////////////////////////////////////////////////////////////////////////	
+			// inserted by epsilon application
+			////////////////////////////////////////////////////////////////////////////////////////////////	
+			if (cost != -1 && depth >= 0){
+				DEBUG(pc(mc); std::cout << "\t\t" << color(YELLOW,"This edge was inserted due to an epsilon application.") << " cost=" << cost << " depth=" << depth << " delta=" << extraCost << " m=" << appliedMethod << std::endl);
+
+
+				int toVertex = methods_with_two_tasks_vertex[appliedMethod];
+				assert(preTask == htn->decomposedTask[appliedMethod]);
+				
+				DEBUG(pc(mc); std::cout << "\t\t\tTask on the main edge is " << htn->taskNames[preTask] << " (#" << preTask << ")" << std::endl);
+				DEBUG(pc(mc); std::cout << "\t\t\t\tOptions:" << eps_inserted[toVertex][cost][depth].size() << std::endl);
+
+
+				for (auto & [preCost2, preDepth2, preTask2, preTo2, _method2, remainingTask, remainingMethod, _] : eps_inserted[toVertex][cost][depth]){
+					DEBUG(pc(mc); std::cout << "\t\t\t" << preCost2 << " " << preDepth2 << " " << preTask2 << " " << preTo2 << " " << _method2 << " " << remainingTask << " " << vertex_to_method[remainingMethod] << " " << endl);
+				
+					// start reconstruction with empty stack	
+					std::deque<int> ss;
+					std::deque<int> sm;
+
+					ss.push_back(remainingTask);
+					sm.push_back(remainingMethod);
+
+					/// eps contains in v the state after the epsilon application
+					// and in v' the state in which the base task was pushed
+					BDD edgeBDD = eps[toVertex][cost][depth];
+					edgeBDD = edgeBDD.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsEff);
+
+					// now determine what the base state in from which we have to reconstruct the epsilon
+					BDD nextTargetState = curState * edgeBDD;
+					if (nextTargetState.IsZero()){
+						std::cout << "Intersection is Zero!" << std::endl;
+						continue;
+					}
+					nextTargetState = nextTargetState.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsPre);
+					nextTargetState = nextTargetState.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsEff);
+					
+					if (nextTargetState.IsZero()){
+						std::cout << "Target state is Zero!" << std::endl;
+						continue;
+					}
+
+					exit(0);
+
+					
+					reconstructed_plan a = extract2From(preCost2, preDepth2, preTask, cost - extraCost, nextTargetState, ss, sm, curState, htn, sym_vars, eps_inserted);
+					/*
+					if (a.success){
+						if (a.primitiveCost(htn) != preCost2 - cost + extraCost){
+							DEBUG(pc(mc)); std::cout << "Epsilon: I was expecting " << preCost2 - cost << " " << preCost2 << " " << cost << " but got " << a.primitiveCost(htn) << std::endl;
+							exit(0);	
+						} else {
+							DEBUG(pc(mc)); std::cout << "\t\t\tEpsilon: I got the correct cost " << a.primitiveCost(htn) << " going on " << preCost << " " << preDepth << " " << preTask << " " << sm.front() << std::endl;
+						}
+						// apply the method
+						
+						ss = taskStack;
+						sm = methodStack;
+						
+						ss.pop_front();
+						ss.push_front(abstractTask);
+					
+						DEBUG(printStack(ss,sm,8));
+						assert(ss.front() == preTask);
+		
+						reconstructed_plan b = extract2From(preCost, preDepth, ss.front(), sm.front(), targetTask, targetCost, targetState,
+								ss, sm, a.endState, htn, sym_vars, prim_q, abst_q, eps_inserted);
+						
+						if (b.success) {
+							//a.printPlan(htn);
+							//b.printPlan(htn);
+							
+							for (auto x : a.primitive_plan)
+								b.primitive_plan.push_back(x);
+							a.primitive_plan = b.primitive_plan;
+							for (auto x : b.abstract_plan)
+								a.abstract_plan.push_back(x);
+							
+							// the one decomposition we do here
+		
+							assert(a.currentStack.size() == 1);
+							assert(b.currentStack.size() >= 1);
+							int aRoot = a.root;
+							int aStackTop = a.currentStack.front();
+							int bStackTop = b.currentStack.front();
+							// replace 
+							for (auto & x : a.primitive_plan)
+								if (get<0>(x) == aRoot)
+									get<0>(x) = bStackTop;
+							for (auto & x : a.abstract_plan)
+								if (get<0>(x) == aRoot)
+									get<0>(x) = bStackTop;
+		
+		
+							a.currentStack = b.currentStack;
+							a.currentStack.pop_front();
+							a.currentStack.push_front(aStackTop);
+							
+							a.root = b.root;
+						
+							//a.printPlan(htn);
+		
+							return a;
+						}
+					}
+					*/
+				}
+			} else if (cost != -1) {
+				std::cout << "NYI" << std::endl;
+				exit(0);
+			} else {
+				std::deque<int> taskStackPredecessor = taskStack;
+				std::deque<int> methodStackPredecessor = methodStack;
+				BDD prevState;
+
+				// see whether we can generate the predecessor and it is there
+				bool predecessorsIsPossible = generatePredecessor(preCost,preDepth,preTask,preTo,targetTask,targetCost,newPartOfTheState,
+						prevState,taskStackPredecessor,methodStackPredecessor,
+						appliedMethod,htn,sym_vars,eps_inserted);
+
+				if (!predecessorsIsPossible) {
+					DEBUG(pc(mc); std::cout << "\t" << color(RED,"Predecessor cannot account for the new state.") << std::endl;);
+					continue;
+				}
+
+				reconstructed_plan a = extract2From(preCost, preDepth, targetTask, targetCost, targetState, taskStackPredecessor, methodStackPredecessor, prevState, htn, sym_vars, eps_inserted);
+				if (!a.success){
+					std::cout << "\t" << color(RED,"Not new in previous round. Trying the next possibility.") << std::endl;
+					continue;
+				}
+				
+				if (preTask < htn->numActions) {
+					int stackTask = a.currentStack.front(); a.currentStack.pop_front();
+					// add a primitive action
+					a.primitive_plan.push_back({stackTask,preTask});
+				} else {
+					if (htn->numSubTasks[appliedMethod] == 1){
+						int stackTask = a.currentStack.front(); a.currentStack.pop_front();
+						int sub1 = global_id_counter++;
+		
+						a.abstract_plan.push_back({stackTask, preTask, appliedMethod, sub1, -1});
+						a.currentStack.push_front(sub1);
+					} else if (htn->numSubTasks[appliedMethod] == 2){ // something else cannot happen
+						int stackTask = a.currentStack.front(); a.currentStack.pop_front();
+						int sub1 = global_id_counter++;
+						int sub2 = global_id_counter++;
+		
+						a.abstract_plan.push_back({stackTask, preTask, appliedMethod, sub1, sub2});
+						a.currentStack.push_front(sub2);
+						a.currentStack.push_front(sub1);
+					} else {
+						int stackTask = a.currentStack.front(); a.currentStack.pop_front();
+						a.abstract_plan.push_back({stackTask, preTask, appliedMethod, -1, -1});
+					}
+				}
+
+
+				if (a.primitiveCost(htn) != preCost - targetCost){
+					DEBUG(std::cout << a.primitiveCost(htn) << " " << preCost << " " << targetCost << std::endl);
+					std::cout << color(RED,"Cost does not fit") << std::endl;
+				}
+				assert(a.primitiveCost(htn) == preCost - targetCost);
+				return a;
+			}
+		}
+		
+		
+		// backtracking is not allowed to fail, since we know that getting to this point is possible with the new state
+		DEBUG(pc(mc)); std::cout << color(RED,"Backtracking failed at this point ... ") << std::endl;
+		exit(0);
+	}
+	// what to do? Nothing is new here
+	return get_fail();
 }
 
 
