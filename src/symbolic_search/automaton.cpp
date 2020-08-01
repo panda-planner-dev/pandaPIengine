@@ -258,6 +258,7 @@ std::deque<BDD> checkStack(
 		int taskToGo = taskStack[i];
 		int targetVertex = methodStack[i];
 		DEBUG(std::cout << "\t " << vertex_to_method[currentVertex] << " " << taskToGo << " " << vertex_to_method[targetVertex] << std::endl); 
+		ensureBDD(currentVertex,taskToGo,targetVertex,curCost,curDepth,sym_vars);
 		BDD transitionBDD = edges[currentVertex][taskToGo][targetVertex][curCost][curDepth];
 		stateStack[i] *= transitionBDD; // go only those transitions that are actually on the stack
 		stateStack[i] *= state;
