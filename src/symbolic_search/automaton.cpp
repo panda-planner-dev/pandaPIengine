@@ -377,7 +377,7 @@ bool generatePredecessor(int curTask, int curTo,
 			taskStack.push_front(curTask);
 		} else if (htn->numSubTasks[method] == 2){ // something else cannot happen
 			DEBUG(pc(mc); std::cout << "\tMethod expecting " << tasks_per_method[method].first << " " << tasks_per_method[method].second << " M " << vertex_to_method[curTo] << std::endl);
-			
+			assert(taskStack.size() >= 2);
 			if (taskStack[0] != tasks_per_method[method].first){
 				DEBUG(pc(mc); std:: cout << color(RED,"\tFirst task on stack does not match method.") << std::endl);
 				return false;
@@ -535,8 +535,10 @@ reconstructed_plan extract2From(int curCost, int curDepth,
 				return get_fail();
 			}
 		}
-		
-		if (targetTask != -1 && taskStack.size() == 1 && taskStack[0] == targetTask && targetCost == curCost){
+
+
+		//std::cout << "CC " << targetTask << " " << taskStack.size() << " " << taskStack[0] << " " << targetCost << " " << curCost << std::endl;
+		if (targetTask != -1 && taskStack.size() == 1 && taskStack[0] == targetTask && targetCost == preCost){
 			if (!(newStateStack.front() * targetState).IsZero()){
 				DEBUG(pc(mc); std::cout << "\t\t" << color(GREEN,"Got to target task on stack.") << std::endl);
 				return get_empty_success(newStateStack.front() * targetState);
