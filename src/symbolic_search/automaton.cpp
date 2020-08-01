@@ -230,10 +230,7 @@ std::deque<BDD> checkStack(
 		
 		if (nextBDD.IsZero()) {
 			DEBUG(pc(mc); std::cout << color(RED,"\t\t\tNot a valid stack state.") << std::endl);
-	  		sym_vars.bdd_to_dot(state, "state.dot");
-	  		sym_vars.bdd_to_dot(transitionBDD, "trans.dot");
-			
-			
+			state = sym_vars.zeroBDD();
 			break;
 		}
 
@@ -357,6 +354,7 @@ bool generatePredecessor(int curTask, int curTo,
 				
 			return false;
 		}
+		DEBUG(pc(mc); std::cout << "\t\tRegressed through state." << std::endl);
 		BDD secondStackState = stateStack.front().AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsPre); // remove v, push state is in v', but this is already 1
 
 		// push the state onto the stack
@@ -377,7 +375,10 @@ bool generatePredecessor(int curTask, int curTo,
 			taskStack.push_front(curTask);
 		} else if (htn->numSubTasks[method] == 2){ // something else cannot happen
 			DEBUG(pc(mc); std::cout << "\tMethod expecting " << tasks_per_method[method].first << " " << tasks_per_method[method].second << " M " << vertex_to_method[curTo] << std::endl);
-			assert(taskStack.size() >= 2);
+			if (taskStack.size() < 2) {
+				DEBUG(pc(mc); std:: cout << color(RED,"\tStack not large enough.") << std::endl);
+				return false;
+			}
 			if (taskStack[0] != tasks_per_method[method].first){
 				DEBUG(pc(mc); std:: cout << color(RED,"\tFirst task on stack does not match method.") << std::endl);
 				return false;
@@ -395,6 +396,11 @@ bool generatePredecessor(int curTask, int curTo,
 			}
 
 			BDD previousState = stateStack.front() * biimp;
+			if (previousState.IsZero()){
+				DEBUG(pc(mc); std::cout << color(RED,"\t\tNo unpushable state exists.") << std::endl);
+				return false;
+			}
+	
 			previousState = previousState.SwapVariables(sym_vars.swapVarsEff, sym_vars.swapVarsAux); // get v <=> v'
 			stateStack.pop_front();
 			previousState *= stateStack.front();
@@ -458,27 +464,26 @@ reconstructed_plan extract2From(int curCost, int curDepth,
 	std::tuple<int,int> tup = {taskStackHead, toStackHead};
 	auto & myPredecessors = (curDepth == 0) ? prim_q[curCost][tup] : abst_q[curCost][curDepth][tup];
 	DEBUG(pc(mc); std::cout << "\tKnown causes: " << myPredecessors.size() << std::endl);
-	std::map<std::pair<int,int>,std::vector<tracingInfo> > groupedTraces;
-	std::pair<int,int> pp = {-1,-1};
+	if (myPredecessors.size() == 0){
+		DEBUG(pc(mc); std::cout << "\t" << color(RED,"Stack has no known causes. This is not possible as we got here somehow.") << std::endl);
+		exit(0);
+	}
+	std::map<std::pair<int,int>,std::vector<tracingInfo> > groupedTracesOrdinary;
+	std::vector<tracingInfo> tracesEpsilon;
 	for (auto & preItem : myPredecessors){
 		auto & [preCost, preDepth, preTask, preTo, _method, cost, getHere, _] = preItem;
-		groupedTraces[std::make_pair(preCost, preDepth)].push_back(preItem);
+		
+		if (cost != -1 && getHere >= 0)
+			tracesEpsilon.push_back(preItem);
+		else
+			groupedTracesOrdinary[std::make_pair(preCost, preDepth)].push_back(preItem);
+		
+		
 		DEBUG(pc(mc); std::cout << "\t\tEdge c=" << preCost << " d=" << preDepth << " t=" << preTask << " m=" << (preTo != -1?vertex_to_method[preTo]:-1) << " ec=" << cost << " ed=" << getHere << std::endl;);
-
-		if (cost != -1)
-			pp = {preCost,preDepth};
-
 	}
-
-	std::vector<std::pair<std::pair<int,int>,std::vector<tracingInfo>>> groupedTraces2;
-	if (pp.first != -1){
-		groupedTraces2.push_back(std::make_pair(pp,groupedTraces[pp]));
-	}
-	for (auto & [_pre, tracings] : groupedTraces) if (_pre != pp) groupedTraces2.push_back(std::make_pair(_pre,tracings));
-
 
 	// try out the different options
-	for (auto & [_pre, tracings] : groupedTraces2){
+	for (auto & [_pre, tracings] : groupedTracesOrdinary){
 		auto & [preCost, preDepth] = _pre;
 		DEBUG(pc(mc); std::cout << "\t" << color(YELLOW, "Current stack might have been new at") << " c=" << preCost << " d=" << preDepth << std::endl);
 
@@ -552,116 +557,9 @@ reconstructed_plan extract2From(int curCost, int curDepth,
 		for (auto & [_1, _2, preTask, preTo, appliedMethod, cost, depth, extraCost] : tracings){
 			DEBUG(pc(mc); std::cout << color(YELLOW, "I could have been inserted by ") << " c=" << preCost << " d=" << preDepth << 
 					" t=" << preTask << " m=" << (preTo != -1 ? vertex_to_method[preTo] : -1) << std::endl);
+			assert(!(cost != -1 && depth >= 0));
 		
-			////////////////////////////////////////////////////////////////////////////////////////////////	
-			// inserted by epsilon application
-			////////////////////////////////////////////////////////////////////////////////////////////////	
-			if (cost != -1 && depth >= 0){
-				DEBUG(pc(mc); std::cout << "\t\t" << color(YELLOW,"This edge was inserted due to an epsilon application.") << " cost=" << cost << " depth=" << depth << " delta=" << extraCost << " m=" << appliedMethod << std::endl);
-
-
-				int toVertex = methods_with_two_tasks_vertex[appliedMethod];
-				assert(preTask == htn->decomposedTask[appliedMethod]);
-				
-				DEBUG(pc(mc); std::cout << "\t\t\tTask on the main edge is " << htn->taskNames[preTask] << " (#" << preTask << ")" << std::endl);
-				DEBUG(pc(mc); std::cout << "\t\t\t\tOptions:" << eps_inserted[toVertex][cost][depth].size() << std::endl);
-
-
-				for (auto & [preCost2, preDepth2, preTask2, preTo2, _method2, remainingTask, remainingMethod, _] : eps_inserted[toVertex][cost][depth]){
-					DEBUG(pc(mc); std::cout << "\t\t\t" << preCost2 << " " << preDepth2 << " " << preTask2 << " " << preTo2 << " " << _method2 << " " << remainingTask << " " << vertex_to_method[remainingMethod] << " " << endl);
-				
-					// start reconstruction with empty stack	
-					std::deque<int> ss;
-					std::deque<int> sm;
-
-					ss.push_back(remainingTask);
-					sm.push_back(remainingMethod);
-
-					/// eps contains in v the state after the epsilon application
-					// and in v' the state in which the base task was pushed
-					BDD edgeBDD = eps[toVertex][cost][depth];
-					edgeBDD = edgeBDD.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsEff);
-					
-					exit(0);
-					/*
-
-					// now determine what the base state in from which we have to reconstruct the epsilon
-					BDD nextTargetState = curState * edgeBDD;
-					if (nextTargetState.IsZero()){
-						std::cout << "Intersection is Zero!" << std::endl;
-						continue;
-					}
-					nextTargetState = nextTargetState.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsPre);
-					nextTargetState = nextTargetState.SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsEff);
-					
-					if (nextTargetState.IsZero()){
-						std::cout << "Target state is Zero!" << std::endl;
-						continue;
-					}
-
-
-					
-					reconstructed_plan a = extract2From(preCost2, preDepth2, preTask, cost - extraCost, nextTargetState, ss, sm, curState, htn, sym_vars);
-					if (a.success){
-						if (a.primitiveCost(htn) != preCost2 - cost + extraCost){
-							DEBUG(pc(mc)); std::cout << "Epsilon: I was expecting " << preCost2 - cost << " " << preCost2 << " " << cost << " but got " << a.primitiveCost(htn) << std::endl;
-							exit(0);	
-						} else {
-							DEBUG(pc(mc)); std::cout << "\t\t\tEpsilon: I got the correct cost " << a.primitiveCost(htn) << " going on " << preCost << " " << preDepth << " " << preTask << " " << sm.front() << std::endl;
-						}
-						// apply the method
-						
-						ss = taskStack;
-						sm = methodStack;
-						
-						ss.pop_front();
-						ss.push_front(abstractTask);
-					
-						DEBUG(printStack(ss,sm,8));
-						assert(ss.front() == preTask);
-		
-						reconstructed_plan b = extract2From(preCost, preDepth, ss.front(), sm.front(), targetTask, targetCost, targetState,
-								ss, sm, a.endState, htn, sym_vars);
-						
-						if (b.success) {
-							//a.printPlan(htn);
-							//b.printPlan(htn);
-							
-							for (auto x : a.primitive_plan)
-								b.primitive_plan.push_back(x);
-							a.primitive_plan = b.primitive_plan;
-							for (auto x : b.abstract_plan)
-								a.abstract_plan.push_back(x);
-							
-							// the one decomposition we do here
-		
-							assert(a.currentStack.size() == 1);
-							assert(b.currentStack.size() >= 1);
-							int aRoot = a.root;
-							int aStackTop = a.currentStack.front();
-							int bStackTop = b.currentStack.front();
-							// replace 
-							for (auto & x : a.primitive_plan)
-								if (get<0>(x) == aRoot)
-									get<0>(x) = bStackTop;
-							for (auto & x : a.abstract_plan)
-								if (get<0>(x) == aRoot)
-									get<0>(x) = bStackTop;
-		
-		
-							a.currentStack = b.currentStack;
-							a.currentStack.pop_front();
-							a.currentStack.push_front(aStackTop);
-							
-							a.root = b.root;
-						
-							//a.printPlan(htn);
-		
-							return a;
-}
-					*/
-				}
-			} else if (cost != -1) { // depth < 0, indicates additional cost edge
+			if (cost != -1) { // depth < 0, indicates additional cost edge
 				int costCarriedByTheEdge = cost;
 				
 				DEBUG(pc(mc); std::cout << "\t" << color(YELLOW,"This edge carries additional cost.") << " cost=" << cost << " depth=" << depth << " delta=" << costCarriedByTheEdge << " m=" << appliedMethod << std::endl);
@@ -726,6 +624,7 @@ reconstructed_plan extract2From(int curCost, int curDepth,
 				
 				// iterate over all possible source states
 				for (auto & [sourceCost,sourceDepth,continueCost,continueDepth] : edgesExtraCostSource[preTo][tasks_per_method[appliedMethod].second][toStackHead][cost]){
+					if (costCarriedByTheEdge != preCost - sourceCost - htn->actionCosts[preTask]) continue;
 					//int additionCost = preCost - extraCost;
 					//if (additionCost < 0) continue;
 
@@ -758,7 +657,8 @@ reconstructed_plan extract2From(int curCost, int curDepth,
 
 					if (!a.success){
 						DEBUG(pc(mc); std::cout << "Extraction of the first part failed. This cannot happen." << std::endl;);
-						return get_fail();	
+						//exit(0);
+						return get_fail();
 					}
 					
 					int prefixExpectedCost = preCost - sourceCost - htn->actionCosts[preTask];
@@ -801,6 +701,7 @@ reconstructed_plan extract2From(int curCost, int curDepth,
 					
 					if (!b.success){
 						DEBUG(pc(mc); std::cout << "Extraction of the second part failed. This cannot happen." << std::endl;);
+						//exit(0);
 						return get_fail();	
 					}
 					DEBUG(pc(mc); std::cout << color(GREEN,"Extraction of the second part successful.") << std::endl;);
@@ -837,6 +738,7 @@ reconstructed_plan extract2From(int curCost, int curDepth,
 				}
 
 				DEBUG(pc(mc); std::cout << "Backtracking beyond decision to take cost edge. This cannot be wrong as the causing stack existed." << std::endl;);
+				//exit(0);
 				return get_fail();
 			} else {
 				std::deque<int> taskStackPredecessor = taskStack;
@@ -874,9 +776,200 @@ reconstructed_plan extract2From(int curCost, int curDepth,
 		
 		
 		// backtracking is not allowed to fail, since we know that getting to this point is possible with the new state
-		DEBUG(pc(mc)); std::cout << color(RED,"Backtracking failed at this point ... ") << std::endl;
+		DEBUG(pc(mc); std::cout << color(RED,"Backtracking failed at this point ... ") << std::endl);
 		//exit(0);
 	}
+
+
+
+
+	for (auto & [preCost, preDepth, preTask, preTo, appliedMethod, cost, depth, extraCost] : tracesEpsilon){
+		DEBUG(pc(mc); std::cout << color(YELLOW, "I could have been inserted by ") << " c=" << preCost << " d=" << preDepth << 
+				" t=" << preTask << " m=" << (preTo != -1 ? vertex_to_method[preTo] : -1) << std::endl);
+		
+		assert(cost != -1 && depth >= 0);
+	
+		////////////////////////////////////////////////////////////////////////////////////////////////	
+		// inserted by epsilon application
+		////////////////////////////////////////////////////////////////////////////////////////////////	
+		DEBUG(pc(mc); std::cout << "\t" << color(YELLOW,"This edge was inserted due to an epsilon application.") << " cost=" << cost << " depth=" << depth << " delta=" << extraCost << " m=" << appliedMethod << std::endl);
+
+
+		int toVertex = methods_with_two_tasks_vertex[appliedMethod];
+		assert(preTask == htn->decomposedTask[appliedMethod]);
+		
+		DEBUG(pc(mc); std::cout << "\t\tTask on the main edge is " << htn->taskNames[preTask] << " (#" << preTask << ")" << std::endl);
+		DEBUG(pc(mc); std::cout << "\t\t\tOptions:" << eps_inserted[toVertex][cost][depth].size() << std::endl);
+
+		/// eps contains in v the state after the epsilon application
+		// and in v' the state in which the base task was pushed
+		BDD edgeBDD = eps[toVertex][cost][depth];
+		auto [pCost, pDepth] = prev(cost, depth);
+		edgeBDD = edgeBDD * !eps[toVertex][pCost][pDepth]; // only the new epsilon states are interesting
+		// and of the new ones only the ones that will lead to the current stack head
+		edgeBDD *= stateStack.front(); // this has now v (current state) v' (stack push state) v'' (stack continuation)
+		DEBUG(pc(mc); std::cout << "\t\t\tEdgeBDD is" << cost << " " << depth << " / " << pCost << " " << pDepth << std::endl);
+		
+		if (edgeBDD.IsZero()){
+			DEBUG(pc(mc); std::cout << "\t\t\t" << color(RED,"Epsilon could not have caused current stack head.") << std::endl;);
+			continue;
+		}
+
+		// how would the stack have looked like before this operation?
+		std::deque<int> taskStackPredecessor = taskStack;
+		std::deque<int> methodStackPredecessor = methodStack;
+		std::deque<BDD> stateStackPredecessor = stateStack;
+		// add the edge that was replaced by epsilon
+		int firstTask = tasks_per_method[appliedMethod].first;
+		taskStackPredecessor.push_front(firstTask);
+		methodStackPredecessor.push_front(toVertex);
+		stateStackPredecessor.pop_front();
+		stateStackPredecessor.push_front(edgeBDD.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsPre));
+		stateStackPredecessor.push_front(
+				edgeBDD.
+					AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux).
+					AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsPre).
+					SwapVariables(sym_vars.swapVarsEff, sym_vars.swapVarsAux) * biimp
+					);
+		
+		
+		//printStack(mc,taskStackPredecessor,methodStackPredecessor,1);
+	
+		bool predecessorsIsPossible = generatePredecessor(preTask,preTo,
+				taskStackPredecessor,methodStackPredecessor,stateStackPredecessor,
+				appliedMethod,htn,sym_vars);
+		if (!predecessorsIsPossible) {
+			DEBUG(pc(mc); std::cout << "\t" << color(RED,"Predecessor cannot account for the new state.") << std::endl;);
+			continue;
+		}
+
+		DEBUG(pc(mc); std::cout << color(GREEN,"\t\tValid stack state.") << std::endl);
+
+		DEBUG(
+				pc(mc); std::cout << color(GREEN,"POINT OF NO RETURN") << std::endl;
+				pc(mc); std::cout << "Edge Inserted based on epsilon progression" << std::endl;
+				pc(mc); std::cout << "c=" << preCost << " d=" << preDepth << std::endl;
+				std::cout << "#####################################################################################" << std::endl;
+				std::cout << "#####################################################################################" << std::endl;
+		);
+
+
+		for (auto & [_preCost2, _preDepth2, lastTask, _toAgain, method2, remainingTask, remainingMethod, _] : eps_inserted[toVertex][cost][depth]){
+			DEBUG(pc(mc); std::cout << color(YELLOW,"Vertex was reachable with Epsilon when ") << " next on stack: t=" << remainingTask << " m=" << remainingMethod << " previous task: " << lastTask << " method: " << method2 << " " << endl);
+		
+
+			//////////////////////////////////////////////// Reconstruct a plan for the epsilon transition
+			// start reconstruction with empty stack	
+			std::deque<int> epsilonTaskStack;
+			std::deque<int> epsilonMethodStack;
+			std::deque<BDD> epsilonStateStack;
+
+			epsilonTaskStack.push_back(remainingTask);
+			epsilonMethodStack.push_back(remainingMethod);
+			ensureBDD(remainingTask, remainingMethod, pCost, pDepth, sym_vars);
+			epsilonStateStack.push_back(edges[0][remainingTask][remainingMethod][cost][depth] * !edges[0][remainingTask][remainingMethod][pCost][pDepth]);
+		
+			// regress through the last operation that we performed
+			predecessorsIsPossible = generatePredecessor(lastTask,toVertex,
+				epsilonTaskStack,epsilonMethodStack,epsilonStateStack,
+				method2,htn,sym_vars);
+
+			if (!predecessorsIsPossible) {
+				DEBUG(pc(mc); std::cout << "\t" << color(RED,"Predecessor cannot account for the new state.") << std::endl;);
+				continue;
+			}
+
+			epsilonTaskStack.pop_back();
+			epsilonMethodStack.pop_back();
+			epsilonStateStack.pop_back();
+
+			// only a target state if push and current are identical	
+			BDD nextTargetState = edgeBDD.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsPre).
+				AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux).
+				SwapVariables(sym_vars.swapVarsPre, sym_vars.swapVarsEff) * biimp;
+			
+			reconstructed_plan a = extract2From(cost, depth, firstTask, cost - extraCost, nextTargetState, 
+					epsilonTaskStack, epsilonMethodStack, epsilonStateStack, htn, sym_vars);
+		
+			if (!a.success){
+				DEBUG(pc(mc); std::cout << "Extraction of the epsilon reduction failed. This cannot happen." << std::endl;);
+				//exit(0);
+				return get_fail();	
+			}
+			
+			/*if (a.primitiveCost(htn) != extraCost){
+				DEBUG(pc(mc)); std::cout << "Epsilon: I was expecting " << extraCost << " but got " << a.primitiveCost(htn) << std::endl;
+				exit(0);	
+			}*/
+			DEBUG(pc(mc); std::cout << color(GREEN,"Extraction of the epsilon reduction succeeded.") << std::endl;);
+			
+			//DEBUG(pc(mc)); std::cout << "\t\t\tEpsilon: I got the correct cost " << a.primitiveCost(htn) << " going on " << preCost << " " << preDepth << " " << preTask << " " << sm.front() << std::endl;
+		
+			// clean re-initialisation of stacks
+			stateStackPredecessor[0] *= a.endState.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux);
+		
+			if (stateStackPredecessor[0].IsZero()) {
+				DEBUG(pc(mc); std::cout << "\t" << color(RED,"Predecessor cannot account for the new state.") << std::endl;);
+				continue;
+			}
+		
+			
+			DEBUG(
+				pc(mc); std::cout << "Extracting remaining plan from c=" << preCost << " d=" << preDepth << std::endl;
+				printStack(mc,taskStackPredecessor,methodStackPredecessor,1);
+			);
+			reconstructed_plan b = extract2From(preCost, preDepth, targetTask, targetCost, targetState,
+					taskStackPredecessor, methodStackPredecessor, stateStackPredecessor, 
+					htn, sym_vars);
+		
+			if (!b.success) {
+				DEBUG(pc(mc); std::cout << "Extraction of epsilon reminder failed. This cannot happen." << std::endl;);
+				//exit(0);
+				return get_fail();	
+			}
+			
+			
+			a = addToPlan(a, lastTask, method2, htn);
+			b = addToPlan(b, preTask, appliedMethod, htn);
+
+			//a.printPlan(htn);
+			//b.printPlan(htn);
+			
+			for (auto x : a.primitive_plan)
+				b.primitive_plan.push_back(x);
+			a.primitive_plan = b.primitive_plan;
+			for (auto x : b.abstract_plan)
+				a.abstract_plan.push_back(x);
+			
+			// the one decomposition we do here
+
+			assert(a.currentStack.size() == 0);
+			assert(b.currentStack.size() >= 1);
+			int aRoot = a.root;
+			int bStackTop = b.currentStack.front();
+			b.currentStack.pop_front();
+			// replace 
+			for (auto & x : a.primitive_plan)
+				if (get<0>(x) == aRoot)
+					get<0>(x) = bStackTop;
+			for (auto & x : a.abstract_plan)
+				if (get<0>(x) == aRoot)
+					get<0>(x) = bStackTop;
+			
+			
+			a.currentStack = b.currentStack;
+			a.root = b.root;
+			
+			//a.printPlan(htn);
+
+			return a;
+		}
+
+		DEBUG(pc(mc); std::cout << color(RED,"Backtracking failed at this point ... ") << std::endl);
+		//exit(0);
+	}
+
+
 	// what to do? Nothing is new here
 	return get_fail();
 }
@@ -1075,7 +1168,7 @@ void build_automaton(Model * htn){
 			int to   = get<1>(entry.first);
 			
 			if (entry.second.size() == 0) {
-				std::cout << "Ignoring " << task << " " << vertex_to_method[to] << std::endl;
+				DEBUG(std::cout << "Ignoring " << task << " " << vertex_to_method[to] << std::endl);
 				continue;
 			}
 		
