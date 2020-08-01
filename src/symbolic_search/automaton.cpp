@@ -759,13 +759,13 @@ reconstructed_plan extract2From(int curCost, int curDepth,
 						return get_fail();	
 					}
 					
-					int prefixExpectedCost = preCost - sourceCost;
+					int prefixExpectedCost = preCost - sourceCost - htn->actionCosts[preTask];
 
-					/*if (a.primitiveCost(htn) != prefixExpectedCost){
+					if (a.primitiveCost(htn) != prefixExpectedCost){
 						DEBUG(pc(mc));
-						std::cout << "Cost I was expecting " << prefixExpectedCost << " but got " << a.primitiveCost(htn) << std::endl;
+						std::cout << "Cost I was expecting " << prefixExpectedCost << " (=" << preCost << "-" << sourceCost << ") but got " << a.primitiveCost(htn) << std::endl;
 						exit(0);
-					}*/
+					}
 
 					// after the additional cost path has been explored, the head of the stack is now the head of the cost path when it finished
 					stateStackPredecessor[0] = a.endState;
