@@ -190,8 +190,7 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 			// -> continuing search makes not really sense here
 			gettimeofday(&tp, NULL);
 			currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-			//tnSol =	handleNewSolution(n2, tnSol, currentT - startT);
-			exit(-1);
+			tnSol =	handleNewSolution(n, tnSol, currentT - startT);
 			continueSearch = this->optimzeSol;
 			if(!continueSearch)
 				break;
