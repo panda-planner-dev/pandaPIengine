@@ -146,6 +146,39 @@ void atMostOne(void* solver, sat_capsule & capsule, std::vector<int> & is){
 	}
 }
 
+
+void atMostK(void* solver, sat_capsule & capsule, int K, std::vector<int> & is){
+	std::vector<int> vars;
+	for (int x : is){
+		vars.push_back(capsule.new_variable());
+		for (int i = 1; i <= K+1; i++)
+			capsule.new_variable(); // id will not be needed
+	}
+
+	vars.push_back(capsule.new_variable());
+	for (int i = 1; i <= K+1; i++)
+		capsule.new_variable(); // id will not be needed
+
+
+	for (int i = 0; i < is.size(); i++){
+		for (int j = 0; j <= K; j++){
+			ipasir_add(solver,-is[i]);
+			ipasir_add(solver,-(vars[i] + j));
+			ipasir_add(solver,(vars[i+1] + j + 1));
+			ipasir_add(solver,0);
+			
+			ipasir_add(solver,-(vars[i] + j));
+			ipasir_add(solver,(vars[i+1] + j));
+			ipasir_add(solver,0);
+		}
+		ipasir_add(solver,-(vars[i+1]+K+1));
+		ipasir_add(solver,0);
+	}
+	
+	ipasir_add(solver,vars[0]);
+	ipasir_add(solver,0);
+}
+
 void atLeastOne(void* solver, sat_capsule & capsule, std::vector<int> & is){
 	for (int & i : is)
 		ipasir_add(solver, i);

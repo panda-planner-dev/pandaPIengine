@@ -144,11 +144,12 @@ void createFormulaForDepth(void* solver, PDT* pdt, graph * dg, Model * htn, sat_
 
 
 
-/*
+
 	map<int,string> names;
-	//for (int i = 0; i < htn->numActions; i++)
-	//	names[i] = htn->taskNames[i];
-	
+	for (int i = 0; i < htn->numActions; i++)
+		names[i] = htn->taskNames[i];
+
+/*	
 	map<int,string> style;
 	for (int prim : leafs[0]->possiblePrimitives)
 		style[prim] = "style=filled,fillcolor=green";
@@ -188,13 +189,121 @@ void createFormulaForDepth(void* solver, PDT* pdt, graph * dg, Model * htn, sat_
 			style[prim] = "style=filled,fillcolor=gray";
 	}*/
 	
-/*	ofstream out("dg.dot");
-    //out << dg->dot_string(names);
-    out << dg->dot_string(names,style);
+	/*ofstream out("dg.dot");
+    out << dg->dot_string(names);
+    //out << dg->dot_string(names,style);
     out.close();
-	system("dot -Tpdf dg.dot > dg.pdf");
-*/	
+	system("dot -Tpdf dg.dot > dg.pdf");*/
 	
+	
+}
+
+namespace std {
+template <> struct hash<std::pair<int, int>> {
+    inline size_t operator()(const std::pair<int, int> &v) const {
+        std::hash<int> int_hasher;
+        return int_hasher(v.first) ^ int_hasher(v.second);
+    }
+};
+
+}
+
+
+void bdfs(Model * htn, PDT * cur, PDT * source, vector<pair<int,int>> possibleAssignments, map<PDT*, vector<pair<int,int>>> & overallAssignments){
+	overallAssignments[cur] = possibleAssignments;
+	/*cout << "\t\t" << cur;
+	for (auto [task,method] : possibleAssignments)
+		cout << " (" << task << "," << method << ")";
+	cout << endl;*/
+
+	// only propagate to the children, if we have actually computed some already ...
+	if (cur->expanded){
+		// we know that for cur the possibleAssignments are possible
+		// the assignments are pairs of present task and applied method
+		
+		// determine what this can imply for all the children
+		vector<unordered_set<pair<int,int>>> childrenPossibleAssignments (cur->children.size());
+
+		for (auto [tIndex,mIndex] : possibleAssignments){
+			if (tIndex != -1){
+				// applying method mIndex, which tasks will this result in
+				assert(cur->listIndexOfChildrenForMethods.size() > tIndex);
+				assert(cur->listIndexOfChildrenForMethods[tIndex].size() > mIndex);
+				for (auto [child,isPrimitive,subIndex] : cur->listIndexOfChildrenForMethods[tIndex][mIndex]){
+					if (isPrimitive)
+						childrenPossibleAssignments[child].insert(make_pair(-1, subIndex));
+					else{
+						assert(subIndex < cur->children[child]->possibleAbstracts.size());
+						int & t = cur->children[child]->possibleAbstracts[subIndex];
+						for (int m = 0; m < htn->numMethodsForTask[t]; m++)
+							childrenPossibleAssignments[child].insert(make_pair(subIndex, m));
+					}
+				}
+			} else {
+				// inherited primitive, implies just one inheritence
+				auto [child, tIndex] = cur->positionOfPrimitivesInChildren[mIndex]; // actually mIndex is the task
+				childrenPossibleAssignments[child].insert(make_pair(-1,tIndex));
+			}
+		}
+
+		for (size_t child = 0; child < cur->children.size(); child++){
+			if (cur->children[child] == source) continue; // this is the task we come from
+			vector<pair<int,int>> vec;
+			for (auto & p : childrenPossibleAssignments[child])
+				vec.push_back(p);
+			bdfs(htn, cur->children[child], cur, vec, overallAssignments);
+		}
+	}
+
+
+	// we have a parent task
+	if (cur->mother != nullptr && cur->mother != source){
+		// set for duplicate elimination
+		unordered_set<pair<int,int>> possibleMotherAssignments;
+		for (auto [tIndex,mIndex] : possibleAssignments){
+			if (tIndex != -1){
+				for (auto & cause : cur->causesForAbstracts[tIndex]) possibleMotherAssignments.insert(cause);
+			} else {
+				for (auto & cause : cur->causesForPrimitives[mIndex]) possibleMotherAssignments.insert(cause);
+			}
+		}
+		
+		// push to mother
+		vector<pair<int,int>> vec;
+		for (auto & p : possibleMotherAssignments)
+			vec.push_back(p);
+		bdfs(htn, cur->mother, cur, vec, overallAssignments);
+	}
+}
+
+
+
+void temp(Model * htn, PDT * pdt){
+	vector<PDT*> leafs;
+	pdt->getLeafs(leafs);
+
+	for (PDT* l : leafs){
+		for (size_t pI = 0; pI < l->possiblePrimitives.size(); pI++ ){
+			int p = l->possiblePrimitives[pI];
+			cout << "Leaf " << l << " " << p << endl;
+			map<PDT*,vector<pair<int,int>>> overallAssignments;
+			bdfs(htn, l->mother, l, l->causesForPrimitives[pI], overallAssignments);
+			cout << "  Computed implications for " << overallAssignments.size() << " other vertices." << endl;
+			cout << "  extracting mutexes" << endl;
+			for (auto & [node,possible] : overallAssignments){
+				for (size_t pIndex = 0; pIndex < node->possiblePrimitives.size(); pIndex++){
+					// check
+					bool canBeAssigned = false;
+					for (auto [tIndex,mIndex] : possible) canBeAssigned |= (tIndex == -1) && (mIndex == pIndex);
+					if (canBeAssigned) {
+						cout << "    not mutex "<< node << " with " << pIndex << endl;
+						continue;
+					}
+					cout << "        mutex "<< node <<" with " << pIndex << endl;
+				}
+			}
+		}
+	}
 }
 
 
@@ -224,7 +333,10 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 		
 		
 		cout << "Solver state: " << (state==10?"SAT":"UNSAT") << endl;
-		if (state == 10 && solver_time_in_ms <= 1000){
+		
+		//temp(htn,pdt);
+	
+		if (state == 10){
 #ifndef NDEBUG
 			printVariableTruth(solver, htn, capsule);
 #endif

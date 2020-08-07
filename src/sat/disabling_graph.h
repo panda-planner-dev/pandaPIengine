@@ -19,6 +19,7 @@ struct graph{
 	void calcSCCs();
 	void calcSCCGraph();
 	bool can_reach_any_of(vector<int> & from, vector<int> & to);
+	bool can_reach_any_of_directly(vector<int> & from, vector<int> & to);
 
 	graph * scc_graph;
 
