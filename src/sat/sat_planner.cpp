@@ -301,7 +301,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 	graph * dg = compute_disabling_graph(htn, true);
 	sat_capsule capsule;
 
-	int depth = 4;
+	int depth = 1;
 	while (true){
 		void* solver = ipasir_init();
 		cout << endl << endl << "Generating formula for depth " << depth << endl;
@@ -323,9 +323,8 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 		
 		cout << "Solver state: " << (state==10?"SAT":"UNSAT") << endl;
 		
-		temp(htn,pdt);
+		//temp(htn,pdt);
 	
-		return;
 		if (state == 10){
 #ifndef NDEBUG
 			printVariableTruth(solver, htn, capsule);
