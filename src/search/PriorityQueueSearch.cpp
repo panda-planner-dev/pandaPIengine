@@ -27,6 +27,8 @@
 #endif
 
 #include <queue>
+#include <map>
+#include <algorithm>
 
 namespace progression {
 
@@ -39,6 +41,78 @@ PriorityQueueSearch::~PriorityQueueSearch() {
 	// TODO Auto-generated destructor stub
 }
 
+#ifdef TRACESOLUTION
+pair<string,int> extractSolutionFromSearchNode(Model * htn, searchNode* tnSol){
+	int sLength = 0;
+	string sol = "";
+	solutionStep* sost = tnSol->solution;
+	bool done = sost == nullptr || sost->prev == nullptr;
+
+	map<int,vector<pair<int,int>>> children;
+	vector<pair<int,string>> decompositionStructure;
+
+	int root = -1;
+
+	while (!done) {
+		sLength++;
+		if (sost->method >= 0){
+			pair<int,string> application;
+			application.first = sost->mySolutionStepInstanceNumber;
+			application.second = htn->taskNames[sost->task] + " -> " + htn->methodNames[sost->method];
+			decompositionStructure.push_back(application);
+			if (sost->task == htn->initialTask) root = application.first;
+		} else {
+			sol = to_string(sost->mySolutionStepInstanceNumber) + " " +
+					htn->taskNames[sost->task] + "\n" + sol;
+		}
+		
+		if (sost->mySolutionStepInstanceNumber != 0)
+			children[sost->parentSolutionStepInstanceNumber].push_back(
+					make_pair(
+						sost->myPositionInParent,
+						sost->mySolutionStepInstanceNumber));
+		
+		done = sost->prev == nullptr;
+		sost = sost->prev;
+	}
+
+	sol = "==>\n" + sol;
+	sol = sol + "root " + to_string(root) + "\n";
+	for (auto x : decompositionStructure){
+		sol += to_string(x.first) + " " + x.second;
+		sort(children[x.first].begin(), children[x.first].end());
+		for (auto [_,y] : children[x.first])
+			sol += " " + to_string(y);
+		sol += "\n";
+	}
+
+	sol += "<==";
+
+	return make_pair(sol,sLength);
+}
+#endif
+
+
+pair<string,int> printTraceOfSearchNode(Model* htn, searchNode* tnSol){
+	int sLength = 0;
+	string sol = "";
+	solutionStep* sost = tnSol->solution;
+	bool done = sost == nullptr || sost->prev == nullptr;
+	while (!done) {
+		sLength++;
+		if (sost->method >= 0)
+			sol = htn->methodNames[sost->method] + " @ "
+					+ htn->taskNames[sost->task] + "\n" + sol;
+		else
+			sol = htn->taskNames[sost->task] + "\n" + sol;
+		done = sost->prev == nullptr;
+		sost = sost->prev;
+	}
+
+	return make_pair(sol,sLength);
+}
+
+
 void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 	timeval tp;
 	gettimeofday(&tp, NULL);
@@ -47,7 +121,7 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 	long lastOutput = startT;
 	bool reachedTimeLimit = false;
 	const int checkAfter = CHECKAFTER;
-	int sinceCheck = 0;
+	int lastCheck = 0;
 
 	searchNode* tnSol = nullptr;
 	bool continueSearch = true;
@@ -118,8 +192,7 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 			// -> continuing search makes not really sense here
 			gettimeofday(&tp, NULL);
 			currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-			//tnSol =	handleNewSolution(n2, tnSol, currentT - startT);
-			exit(-1);
+			tnSol =	handleNewSolution(n, tnSol, currentT - startT);
 			continueSearch = this->optimzeSol;
 			if(!continueSearch)
 				break;
@@ -223,16 +296,15 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 				}
 			}
 		}
+		int allnodes = numSearchNodes + htn->numOneModActions + htn->numOneModMethods + htn->numEffLessProg;
 
-		if (++sinceCheck >= checkAfter) {
-			sinceCheck = 0;
+		if (allnodes - lastCheck >= checkAfter) {
+			lastCheck = allnodes;
 
 			gettimeofday(&tp, NULL);
 			currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 
 			if (((currentT - lastOutput) / 1000) > 0) {
-				int allnodes = numSearchNodes + htn->numOneModActions + htn->numOneModMethods
-						+ htn->numEffLessProg;
 				cout << int((currentT - startT) / 1000) << "s generated nodes: "
 						<< allnodes << " nodes/sec.: "
 						<< int(
@@ -278,20 +350,11 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 		cout << "  - best solution after " << this->bestSolTime << "ms." << endl;
 	}
 	if (tnSol != nullptr) {
-		int sLength = 0;
-		string sol = "";
-		solutionStep* sost = tnSol->solution;
-		bool done = false;
-		while (!done) {
-			sLength++;
-			if (sost->method >= 0)
-				sol = htn->methodNames[sost->method] + " @ "
-						+ htn->taskNames[sost->task] + "\n" + sol;
-			else
-				sol = htn->taskNames[sost->task] + "\n" + sol;
-			done = sost->prev == nullptr;
-			sost = sost->prev;
-		}
+#ifdef TRACESOLUTION
+		auto [sol,sLength] = extractSolutionFromSearchNode(htn,tnSol);
+#else
+		auto [sol,sLength] = printTraceOfSearchNode(htn,tnSol);
+#endif
 		cout << "- Status: Solved" << endl;
 		cout << "- Found solution of length " << sLength << endl;
 		cout << "- Total costs of actions: " << tnSol->actionCosts << endl

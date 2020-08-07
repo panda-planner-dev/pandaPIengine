@@ -18,7 +18,11 @@ RCModelFactory::~RCModelFactory() {
 }
 
 Model* RCModelFactory::getRCmodelSTRIPS() {
+#ifdef ASTARAC
+	return this->getRCmodelSTRIPS(0);
+#else
 	return this->getRCmodelSTRIPS(1);
+#endif
 }
 
 Model* RCModelFactory::getRCmodelSTRIPS(int costsMethodActions) {
@@ -238,7 +242,7 @@ Model* RCModelFactory::getRCmodelSTRIPS(int costsMethodActions) {
 
 
 void RCModelFactory::createInverseMappings(Model* c){
-	set<int> precToActionTemp[c->numStateBits];
+	set<int>* precToActionTemp = new set<int>[c->numStateBits];
 	for (int i = 0; i < c->numActions; i++) {
 		for (int j = 0; j < c->numPrecs[i]; j++) {
 			int f = c->precLists[i][j];
@@ -257,6 +261,8 @@ void RCModelFactory::createInverseMappings(Model* c){
 			c->precToAction[i][cur++] = ac;
 		}
 	}
+
+	delete[] precToActionTemp;
 }
 
 /*

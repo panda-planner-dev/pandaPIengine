@@ -142,4 +142,8 @@
 #define CHECKAFTER 5000 // nodes after which the timelimit is checked
 #endif
 
+
+//#define TRACESOLUTION
+
+
 #endif /* FLAGS_H_ */
