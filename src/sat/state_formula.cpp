@@ -102,6 +102,17 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 	}
 }
 
+void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & leafs, Model* htn){
+	vector<vector<int>> blocks;
+	for (size_t time = 0; time < leafs.size(); time++){
+		vector<int> block;
+		block.push_back(time);
+		blocks.push_back(block);
+	}
+
+	return generate_mutex_formula(solver, capsule, leafs, blocks, htn);
+}
+
 
 void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & leafs, vector<vector<int>> & blocks, Model* htn){
 	std::clock_t solver_start = std::clock();

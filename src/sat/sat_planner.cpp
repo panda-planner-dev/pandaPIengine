@@ -105,8 +105,6 @@ void createFormulaForDepth(void* solver, PDT* pdt, graph * dg, Model * htn, sat_
 	pdt->getLeafs(leafs);
 	cout << "PDT has " << leafs.size() << " leafs" << endl;
 	
-	vector<vector<int>> blocks = compute_block_compression(htn, dg, leafs);
-	cout << "Block compression leads to " << blocks.size() << " timesteps." << endl;
 
 	/*for (auto block : blocks){
 		cout << endl << "New Block" << endl;
@@ -119,13 +117,26 @@ void createFormulaForDepth(void* solver, PDT* pdt, graph * dg, Model * htn, sat_
 
 
 	// generate primitive executability formula
+	//generate_state_transition_formula(solver, capsule, vars, leafs, htn);
+	
 	vector<vector<pair<int,int>>> vars;
 	get_linear_state_atoms(capsule, leafs, vars);
-	//generate_state_transition_formula(solver, capsule, vars, leafs, htn);
-	generate_state_transition_formula(solver, capsule, vars, leafs, blocks, htn);
 
+#ifdef SAT_BLOCK_COMPRESSION
+	vector<vector<int>> blocks = compute_block_compression(htn, dg, leafs);
+	cout << "Block compression leads to " << blocks.size() << " timesteps." << endl;
+	generate_state_transition_formula(solver, capsule, vars, leafs, blocks, htn);
+#else
+	generate_state_transition_formula(solver, capsule, vars, leafs, htn);
+#endif
+
+	
 #ifdef SAT_USEMUTEXES
+#ifdef SAT_BLOCK_COMPRESSION
 	generate_mutex_formula(solver,capsule,leafs, blocks, htn);
+#else
+	generate_mutex_formula(solver,capsule,leafs, htn);
+#endif
 #endif
 
 
@@ -213,7 +224,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 		
 		
 		cout << "Solver state: " << (state==10?"SAT":"UNSAT") << endl;
-		if (false && state == 10){
+		if (state == 10 && solver_time_in_ms <= 1000){
 #ifndef NDEBUG
 			printVariableTruth(solver, htn, capsule);
 #endif
@@ -225,6 +236,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 		}
 		// release the solver	
 		ipasir_release(solver);
+		return;
 	}
 }
 
