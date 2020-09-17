@@ -36,8 +36,8 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 		DEBUG(capsule.registerVariable(base,"sate var " + pad_int(0) + " @ " + pad_int(time) + ": " + pad_string(htn->factStrs[0])));
 
 		for (size_t svar = 1; svar < htn->numStateBits; svar++){
-			int r = capsule.new_variable(); // ignore return, they will be incremental
-			assert(r == base + svar);
+			int _r = capsule.new_variable(); // ignore return, they will be incremental
+			assert(_r == base + svar);
 			DEBUG(capsule.registerVariable(base + svar,	"sate var " + pad_int(svar) + " @ " + pad_int(time) + ": " + pad_string(htn->factStrs[svar])));
 		}
 	}
@@ -98,11 +98,25 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 
 	for (PDT* & leaf : leafs){
 		for (const int & abs : leaf->abstractVariable)
-			assertNot(solver,abs);
+			if (abs != -1)
+				assertNot(solver,abs);
 	}
 }
 
 
+void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & leafs, Model* htn){
+	// no blocks so just unit blocks
+	vector<vector<int>> blocks;
+	for (size_t time = 0; time < leafs.size(); time++){
+		vector<int> block;
+		block.push_back(time);
+		blocks.push_back(block);
+	}
+
+	generate_mutex_formula(solver, capsule, leafs, blocks, htn);
+}
+
+	
 void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & leafs, vector<vector<int>> & blocks, Model* htn){
 	std::clock_t solver_start = std::clock();
 
@@ -189,7 +203,8 @@ void get_linear_state_atoms(sat_capsule & capsule, vector<PDT*> & leafs, vector<
 		// TODO assert order!
 		vector<pair<int,int>> atoms;
 		for (size_t p = 0; p < leaf->possiblePrimitives.size(); p++)
-			atoms.push_back(make_pair(leaf->primitiveVariable[p], leaf->possiblePrimitives[p]));
+			if (leaf->primitiveVariable[p] != -1)
+				atoms.push_back(make_pair(leaf->primitiveVariable[p], leaf->possiblePrimitives[p]));
 		
 		ret.push_back(atoms);
 	}

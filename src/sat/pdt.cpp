@@ -31,6 +31,53 @@ PDT::PDT(Model* htn){
 	possibleAbstracts.push_back(htn->initialTask);
 }
 
+void PDT::resetPruning(Model * htn){
+	prunedPrimitives.assign(possiblePrimitives.size(), false);
+	prunedAbstracts.assign(possibleAbstracts.size(), false);
+	
+	if (expanded){
+		prunedMethods.resize(applicableMethods.size());
+		for (unsigned int at = 0; at < possibleAbstracts.size(); at++)
+			prunedMethods[at].assign(htn->numMethodsForTask[possibleAbstracts[at]],false);
+	}
+
+	if (mother != nullptr){
+		prunedCausesForAbstract.resize(possibleAbstracts.size());
+		for (unsigned int at = 0; at < possibleAbstracts.size(); at++)
+			prunedCausesForAbstract[at].assign(causesForAbstracts[at].size(), false);
+		prunedCausesForPrimitive.resize(possiblePrimitives.size());
+		for (unsigned int p = 0; p < possiblePrimitives.size(); p++)
+			prunedCausesForPrimitive[p].assign(causesForPrimitives[p].size(), false);
+	}
+
+
+	for (PDT * child : children)
+		child->resetPruning(htn);
+}
+
+void PDT::initialisePruning(Model * htn){
+	if (possiblePrimitives.size() != prunedPrimitives.size())
+		prunedPrimitives.assign(possiblePrimitives.size(), false);
+	if (possibleAbstracts.size() != prunedAbstracts.size())
+		prunedAbstracts.assign(possibleAbstracts.size(), false);
+	if (expanded && applicableMethods.size() != prunedMethods.size()){
+		prunedMethods.resize(applicableMethods.size());
+		for (unsigned int at = 0; at < possibleAbstracts.size(); at++)
+			prunedMethods[at].assign(htn->numMethodsForTask[possibleAbstracts[at]],false);
+	}
+	if (mother != nullptr){
+		if (prunedCausesForAbstract.size() != causesForAbstracts.size()){
+			prunedCausesForAbstract.resize(possibleAbstracts.size());
+			for (unsigned int at = 0; at < possibleAbstracts.size(); at++)
+				prunedCausesForAbstract[at].assign(causesForAbstracts[at].size(), false);
+		}
+		if (prunedCausesForPrimitive.size() != causesForPrimitives.size()){
+			prunedCausesForPrimitive.resize(possiblePrimitives.size());
+			for (unsigned int p = 0; p < possiblePrimitives.size(); p++)
+				prunedCausesForPrimitive[p].assign(causesForPrimitives[p].size(), false);
+		}
+	}
+}
 
 void PDT::expandPDT(Model* htn){
 	if (expanded) {
@@ -104,12 +151,23 @@ void PDT::expandPDT(Model* htn){
 
 			// go through the causes
 			for (const auto & [tIndex,mIndex] : causes){
-				listIndexOfChildrenForMethods[tIndex][mIndex].push_back(make_tuple(c,t < htn->numActions, subIndex));
-
-				if (t < htn->numActions)
+				
+				int position = -1;
+				if (t < htn->numActions){
+					position = child->causesForPrimitives.back().size();
 					child->causesForPrimitives.back().push_back(make_pair(tIndex,mIndex));
-				else	
+				} else {
+					position = child->causesForAbstracts.back().size();
 					child->causesForAbstracts.back().push_back(make_pair(tIndex,mIndex));
+				}
+				
+				
+				listIndexOfChildrenForMethods[tIndex][mIndex].push_back(make_tuple(
+							c,
+							t < htn->numActions,
+						   	subIndex,
+							position));
+
 			}
 		}
 		
@@ -144,7 +202,11 @@ void PDT::expandPDT(Model* htn){
 				positionOfPrimitiveTasksInChildren[selectedChild][p] = subIndex;
 			}
 			
-			positionOfPrimitivesInChildren.push_back(make_pair(selectedChild,positionOfPrimitiveTasksInChildren[selectedChild][p]));
+			positionOfPrimitivesInChildren.push_back(make_tuple(
+						selectedChild,
+						positionOfPrimitiveTasksInChildren[selectedChild][p],
+						children[selectedChild]->causesForPrimitives[positionOfPrimitiveTasksInChildren[selectedChild][p]].size()
+						));
 
 			children[selectedChild]->causesForPrimitives[positionOfPrimitiveTasksInChildren[selectedChild][p]].push_back(make_pair(-1,pIndex));
 		}
@@ -192,13 +254,13 @@ void printPDT(Model * htn, PDT* cur){
 }
 
 
+#define NO_PRUNED_VARIABLES
+
 
 void PDT::assignVariableIDs(sat_capsule & capsule, Model * htn){
 
 	// don't generate vertex variables twice
 	if (!vertexVariables){
-		// variables are now generated
-		vertexVariables = true;
 
 		// a variable representing that no task at all is present at this vertex
 		noTaskPresent = capsule.new_variable();
@@ -206,50 +268,79 @@ void PDT::assignVariableIDs(sat_capsule & capsule, Model * htn){
 			string name = "none          @ " + pad_path(path);
 			capsule.registerVariable(noTaskPresent,name);
 		);	
+	}
 
-		for (size_t p = 0; p < possiblePrimitives.size(); p++){
+	if (!vertexVariables)
+		primitiveVariable.assign(possiblePrimitives.size(),-1);
+
+	for (size_t p = 0; p < possiblePrimitives.size(); p++){
+#ifdef NO_PRUNED_VARIABLES
+		if (prunedPrimitives[p]) continue;
+#endif
+		// variable already assigned
+		if (primitiveVariable[p] != -1) continue; // already generated
+
+		int num = capsule.new_variable();
+		primitiveVariable[p] = num;
+
+		DEBUG(
+			string name = "prim     " + pad_int(possiblePrimitives[p]) + " @ " + pad_path(path) + ": " + pad_string(htn->taskNames[possiblePrimitives[p]]);
+			capsule.registerVariable(num,name);
+		);
+	}
+	
+	
+	if (!vertexVariables)
+		abstractVariable.assign(possibleAbstracts.size(),-1);
+
+	for (size_t a = 0; a < possibleAbstracts.size(); a++){
+#ifdef NO_PRUNED_VARIABLES
+		if (prunedAbstracts[a]) continue;
+#endif
+		
+		// variable already assigned
+		if (abstractVariable[a] != -1) continue; // already generated
+		
+		int num = capsule.new_variable();
+		abstractVariable[a] = num;
+
+		DEBUG(
+			string name = "abstract " + pad_int(possibleAbstracts[a]) + " @ " + pad_path(path) + ": " + pad_string(htn->taskNames[possibleAbstracts[a]]);
+			capsule.registerVariable(num,name);
+		);
+	}
+	
+	
+	// variables are now generated
+	vertexVariables = true;
+
+
+	if (!expanded) return; // if I am not expanded, I have no decomposition clauses
+
+	methodVariables.resize(possibleAbstracts.size());
+	for (size_t a = 0; a < possibleAbstracts.size(); a++){
+		int & t = possibleAbstracts[a];
+		methodVariables[a].assign(applicableMethods[a].size(),-1);
+		for (size_t mi = 0; mi < applicableMethods[a].size(); mi++){
+#ifdef NO_PRUNED_VARIABLES
+			if (prunedMethods[a][mi]) continue;
+#endif
+			// don't generate variables pertaining to children (and methods) twice
+			if (methodVariables[a][mi] != -1) continue;
+
 			int num = capsule.new_variable();
-			primitiveVariable.push_back(num);
+			methodVariables[a][mi] = num;
 
 			DEBUG(
-				string name = "prim     " + pad_int(possiblePrimitives[p]) + " @ " + pad_path(path) + ": " + pad_string(htn->taskNames[possiblePrimitives[p]]);
-				capsule.registerVariable(num,name);
-			);
-		}
-
-		for (size_t a = 0; a < possibleAbstracts.size(); a++){
-			int num = capsule.new_variable();
-			abstractVariable.push_back(num);
-
-			DEBUG(
-				string name = "abstract " + pad_int(possibleAbstracts[a]) + " @ " + pad_path(path) + ": " + pad_string(htn->taskNames[possibleAbstracts[a]]);
+				int m = htn->taskToMethods[t][mi];
+				string name = "method   " + pad_int(m) + " @ " + pad_path(path) + ": " + pad_string(htn->methodNames[m]);
 				capsule.registerVariable(num,name);
 			);
 		}
 	}
 	
-	if (!expanded) return; // if I am not expanded, I have no decomposition clauses
-
-
-	// don't generate variables pertaining to children (and methods) twice
-	if (!childrenVariables){
-		childrenVariables = true;
-		
-		methodVariables.resize(possibleAbstracts.size());
-		for (size_t a = 0; a < possibleAbstracts.size(); a++){
-			int & t = possibleAbstracts[a];
-			for (size_t mi = 0; mi < applicableMethods[a].size(); mi++){
-				int num = capsule.new_variable();
-				methodVariables[a].push_back(num);
-
-				DEBUG(
-					int m = htn->taskToMethods[t][mi];
-					string name = "method   " + pad_int(m) + " @ " + pad_path(path) + ": " + pad_string(htn->methodNames[m]);
-					capsule.registerVariable(num,name);
-				);
-			}
-		}
-	}
+	
+	childrenVariables = true;
 
 
 	// generate variables for children
@@ -265,6 +356,7 @@ void PDT::assignOutputNumbers(void* solver, int & currentID, Model * htn){
 	if (children.size() == 0)
 		for (size_t pIndex = 0; pIndex < primitiveVariable.size(); pIndex++){
 			int prim = primitiveVariable[pIndex];
+			if (prim == -1) continue; // pruned
 			if (ipasir_val(solver,prim) > 0){
 				assert(outputID == -1);
 				outputID = currentID++;
@@ -274,6 +366,7 @@ void PDT::assignOutputNumbers(void* solver, int & currentID, Model * htn){
 	
 	for (size_t aIndex = 0; aIndex < abstractVariable.size(); aIndex++){
 		int abs = abstractVariable[aIndex];
+		if (abs == -1) continue; // pruned
 		if (ipasir_val(solver,abs) > 0){
 			assert(outputID == -1);
 			outputID = currentID++;
@@ -282,6 +375,7 @@ void PDT::assignOutputNumbers(void* solver, int & currentID, Model * htn){
 			// find the applied method
 			for (size_t mIndex = 0; mIndex < applicableMethods[aIndex].size(); mIndex++){
 				int m = methodVariables[aIndex][mIndex];
+				if (m == -1) continue; // pruned
 				if (ipasir_val(solver,m) > 0){
 					assert(outputMethod == -1);
 					outputMethod = htn->taskToMethods[outputTask][mIndex];
@@ -320,6 +414,168 @@ void PDT::printDecomposition(Model * htn){
 	for (PDT* & child : children) child->printDecomposition(htn);
 }
 
+bool PDT::pruneCause(pair<int,int> & cause){
+	if (cause.first == -1){
+		if (mother->prunedPrimitives[cause.second])
+		   return false;	
+		mother->prunedPrimitives[cause.second] = true;
+	} else {
+		if (mother->prunedMethods[cause.first][cause.second])
+			return false;
+		mother->prunedMethods[cause.first][cause.second] = true;
+	}
+	return true;
+}
+
+
+void PDT::propagatePruning(Model * htn){
+
+	if (mother != nullptr){
+		// check whether it might be impossible for a primitive or abstract to be caused
+		// This is where information flows from the top to the bottom	
+		for (size_t p = 0; p < possiblePrimitives.size(); p++){
+			if (prunedPrimitives[p]) continue;
+
+			bool all_causes_pruned = true;
+			for (bool c : prunedCausesForPrimitive[p])
+				all_causes_pruned &= c;
+			if (all_causes_pruned)
+				prunedPrimitives[p] = true;
+		}
+
+
+		for (size_t a = 0; a < possibleAbstracts.size(); a++){
+			if (prunedAbstracts[a]) continue;
+
+			bool all_causes_pruned = true;
+			for (bool c : prunedCausesForAbstract[a])
+				all_causes_pruned &= c;
+			if (all_causes_pruned)
+				prunedAbstracts[a];
+		}
+	}
+
+
+
+	// check whether I can prune an AT based on the methods
+	// Methods will be disabled by my children
+	for (size_t a = 0; a < possibleAbstracts.size(); a++){
+		if (prunedAbstracts[a]) {
+			if (expanded)
+				for (size_t m = 0; m < applicableMethods[a].size(); m++)
+					prunedMethods[a][m] = true; // if the AT is pruned, all methods are
+			continue; // at is already pruned
+		}
+
+
+		bool all_methods_pruned = true;
+		if (expanded)
+			for (bool m : prunedMethods[a])
+				all_methods_pruned &= m;
+
+		if (all_methods_pruned)
+			prunedAbstracts[a] = true;
+	}
+
+	// my state has been determined
+	///////////////////////////////
+
+	// try to propagate information to my mother
+	if (mother != nullptr){
+		bool changedMother = false;
+		for (size_t p = 0; p < possiblePrimitives.size(); p++)
+			if (prunedPrimitives[p])
+				// any method
+				for (pair<int,int> & cause : causesForPrimitives[p])
+					changedMother |= pruneCause(cause);
+
+
+		for (size_t a = 0; a < possibleAbstracts.size(); a++)
+			if (prunedAbstracts[a])
+				// any method
+				for (pair<int,int> & cause : causesForAbstracts[a])
+					changedMother |= pruneCause(cause);
+
+		if (changedMother)
+		   mother->propagatePruning(htn);	
+	}
+
+	// propagate towards children
+	vector<bool> childrenChanged (children.size(), false);
+
+	if (children.size()){
+		for (size_t p = 0; p < possiblePrimitives.size(); p++)
+			if (prunedPrimitives[p]){
+				int childIndex = get<0>(positionOfPrimitivesInChildren[p]);
+				int childPrimIndex = get<1>(positionOfPrimitivesInChildren[p]);
+				int childCauseIndex = get<2>(positionOfPrimitivesInChildren[p]);
+	
+				if (!children[childIndex]->prunedCausesForPrimitive[childPrimIndex][childCauseIndex]){
+					childrenChanged[childIndex] = true;
+					children[childIndex]->prunedCausesForPrimitive[childPrimIndex][childCauseIndex] = true;
+				}
+			}
+		
+		for (size_t a = 0; a < possibleAbstracts.size(); a++)
+			for (size_t m = 0; m < applicableMethods[a].size(); m++){
+				if (!prunedMethods[a][m]) continue;
+
+				for (auto [childIndex, isPrimitive, childTaskIndex, childCauseIndex] : listIndexOfChildrenForMethods[a][m]){
+					bool causePruned = (isPrimitive) ? 
+						children[childIndex]->prunedCausesForPrimitive[childTaskIndex][childCauseIndex]:
+						children[childIndex]->prunedCausesForAbstract[childTaskIndex][childCauseIndex];
+	
+					if (!causePruned){
+						if (isPrimitive)  
+							children[childIndex]->prunedCausesForPrimitive[childTaskIndex][childCauseIndex] = true;
+						else
+							children[childIndex]->prunedCausesForAbstract[childTaskIndex][childCauseIndex] = true;
+						childrenChanged[childIndex] = true;
+					}
+				}
+			}
+
+		// propagate to children
+		for (size_t childIndex = 0; childIndex < children.size(); childIndex++)
+			if (childrenChanged[childIndex])
+				children[childIndex]->propagatePruning(htn);
+	}
+}
+
+void PDT::countPruning(int & overallSize, int & overallPruning){
+	for (size_t p = 0; p < possiblePrimitives.size(); p++)
+		if (prunedPrimitives[p])
+			overallPruning++;
+	
+	for (size_t a = 0; a < possibleAbstracts.size(); a++)
+		if (prunedAbstracts[a])
+			overallPruning++;
+
+	overallSize += possiblePrimitives.size() + possibleAbstracts.size();
+	for (PDT * child : children)
+		child->countPruning(overallSize, overallPruning);
+}
+
+void PDT::addPrunedClauses(void* solver){
+	for (size_t p = 0; p < possiblePrimitives.size(); p++)
+		if (prunedPrimitives[p] && primitiveVariable[p] != -1)
+			assertNot(solver,primitiveVariable[p]);
+	
+	for (size_t a = 0; a < possibleAbstracts.size(); a++)
+		if (prunedAbstracts[a] && abstractVariable[a] != -1)
+			assertNot(solver,abstractVariable[a]);
+	
+	if (expanded){
+		for (size_t a = 0; a < possibleAbstracts.size(); a++)
+			for (size_t m = 0; m < applicableMethods[a].size(); m++)
+				if (prunedMethods[a][m] && methodVariables[a][m] != -1)
+					assertNot(solver, methodVariables[a][m]);
+	}
+
+	for (PDT * child : children)
+		child->addPrunedClauses(solver);
+			
+}
 
 
 void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
@@ -331,20 +587,35 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
 
 	// at most one task
 	vector<int> allTasks;
-	for (const int & x : primitiveVariable) allTasks.push_back(x);
-	for (const int & x : abstractVariable)  allTasks.push_back(x);
+	for (const int & x : primitiveVariable) 
+		if (x != -1)
+			allTasks.push_back(x);
+	for (const int & x : abstractVariable)
+		if (x != -1)
+			allTasks.push_back(x);
+	
+	if (allTasks.size() == 0) return; // no tasks can be here
 	atMostOne(solver,capsule, allTasks);	
 
 	// at most one method
 	// TODO this is on an per AT basis, before it was one AMO for all methods
-	for (size_t a = 0; a < possibleAbstracts.size(); a++)
-		atMostOne(solver,capsule, methodVariables[a]);
+	for (size_t a = 0; a < possibleAbstracts.size(); a++){
+		if (prunedAbstracts[a]) continue;
+		vector<int> temp;
+		for (const int & i : methodVariables[a])
+			if (i != -1)
+				temp.push_back(i);
+		
+		assert(temp.size());
+		atMostOne(solver,capsule, temp);
+	}
 	
 	// if a primitive task is chosen, it must be inherited
 	for (size_t p = 0; p < possiblePrimitives.size(); p++){
+		if (primitiveVariable[p] == -1) continue; // pruned
 		//auto & [child,pIndex] = positionOfPrimitivesInChildren[p];
-		int child = positionOfPrimitivesInChildren[p].first;
-		int pIndex = positionOfPrimitivesInChildren[p].second;
+		int child = get<0>(positionOfPrimitivesInChildren[p]);
+		int pIndex = get<1>(positionOfPrimitivesInChildren[p]);
 		implies(solver,primitiveVariable[p], children[child]->primitiveVariable[pIndex]);
 		
 		// TODO may be superflous as implied by causation of task in children
@@ -360,8 +631,10 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
 	// if a method is chosen, its abstract task must be true
 	for (size_t a = 0; a < possibleAbstracts.size(); a++){
 		int & av = abstractVariable[a];
+		if (av == -1) continue; // pruned
 		for (size_t mi = 0; mi < applicableMethods[a].size(); mi++){
 			int & mv = methodVariables[a][mi];
+			if (mv == -1) continue; // pruned
 		
 			// if the method is chosen, its abstract task has to be there
 			implies(solver,mv,av);
@@ -370,7 +643,7 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
 			vector<bool> childAssigned;
 			childAssigned.resize(children.size(),false);
 			// this method will imply subtasks
-			for (const auto & [child, isPrimitive, listIndex] : listIndexOfChildrenForMethods[a][mi]){
+			for (const auto & [child, isPrimitive, listIndex,_] : listIndexOfChildrenForMethods[a][mi]){
 				childAssigned[child] = true;
 				
 				int childVariable;
@@ -378,6 +651,11 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
 					childVariable = children[child]->primitiveVariable[listIndex];
 				else
 					childVariable = children[child]->abstractVariable[listIndex];
+
+				if (childVariable == -1){
+					cout << "OO" << endl;
+					exit(0);
+				}
 
 				implies(solver,mv,childVariable);
 			}
@@ -388,15 +666,25 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
 					implies(solver,mv,children[child]->noTaskPresent);
 		}
 
-		impliesOr(solver,av,methodVariables[a]);
+		vector<int> temp;
+		for (const int & v : methodVariables[a])
+			if (v != -1)
+				temp.push_back(v);
+		assert(temp.size());
+		impliesOr(solver,av,temp);
 	}
 
 	// selection of tasks at children must be caused by me
 	// TODO: With AMO, this constraint should be implied, so we could leave it out
 	for (PDT* & child : children){
 		for (size_t a = 0; a < child->possibleAbstracts.size(); a++){
+			if (child->abstractVariable[a] == -1) continue;
+
 			vector<int> allCauses;
-			for (const auto & [tIndex,mIndex] : child->causesForAbstracts[a]){
+			for (size_t i = 0; i < child->causesForAbstracts[a].size(); i++){
+				if (child->prunedCausesForAbstract[a][i]) continue;
+			
+				const auto & [tIndex,mIndex] = child->causesForAbstracts[a][i];
 				assert(tIndex != -1);
 				allCauses.push_back(methodVariables[tIndex][mIndex]);
 			}
@@ -405,8 +693,15 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
 		}
 
 		for (size_t p = 0; p < child->possiblePrimitives.size(); p++){
+			if (child->primitiveVariable[p] == -1) continue;
+			
 			vector<int> allCauses;
-			for (const auto & [tIndex,mIndex] : child->causesForPrimitives[p]){
+			
+			for (size_t i = 0; i < child->causesForPrimitives[p].size(); i++){
+				if (child->prunedCausesForPrimitive[p][i]) continue;
+
+
+				const auto & [tIndex,mIndex] = child->causesForPrimitives[p][i];
 				if (tIndex == -1){
 					// is inherited
 					allCauses.push_back(primitiveVariable[mIndex]);
@@ -420,8 +715,20 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
 	}
 
 	// if no task is present at this node, then none is actually here
-	impliesAllNot(solver, noTaskPresent, primitiveVariable);
-	impliesAllNot(solver, noTaskPresent, abstractVariable);
+	vector<int> temp;
+	for (const int & v : primitiveVariable)
+		if (v != -1)
+			temp.push_back(v);
+	if (temp.size())
+		impliesAllNot(solver, noTaskPresent, temp);
+
+
+	temp.clear();
+	for (const int & v : abstractVariable)
+		if (v != -1)
+			temp.push_back(v);
+	if (temp.size())
+		impliesAllNot(solver, noTaskPresent, temp);
 
 	// no task present implies this for all children
 	for (PDT* & child : children)

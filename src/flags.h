@@ -81,8 +81,11 @@
 #define CHECKAFTER 5000 // nodes after which the timelimit is checked
 #endif
 
-#define SAT_USEMUTEXES
-#define RINTANEN_INVARIANTS
+
+//#define SAT_USEMUTEXES
+//#define RINTANEN_INVARIANTS
+//#define BLOCK_COMPRESSION
+
 
 //#define TRACESOLUTION
 
