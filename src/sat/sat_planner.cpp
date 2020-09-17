@@ -137,10 +137,7 @@ bool filter_leafs_ff(vector<PDT*> & leafs, Model * htn){
 
 
 
-
-
-
-void createFormulaForDepth(void* solver, PDT* pdt, graph * dg, Model * htn, sat_capsule & capsule, int depth){
+bool createFormulaForDepth(void* solver, PDT* pdt, graph * dg, Model * htn, sat_capsule & capsule, int depth){
 	pdt->expandPDTUpToLevel(depth,htn);
 	// get leafs
 	vector<PDT*> leafs;
@@ -164,6 +161,8 @@ void createFormulaForDepth(void* solver, PDT* pdt, graph * dg, Model * htn, sat_
 		pdt->countPruning(overallAssignments, prunedAssignments);
 		cout << "Pruning: " << prunedAssignments << " of " << overallAssignments << endl;
 	}
+
+	if (pdt->prunedAbstracts[0]) return false;
 
 #ifndef NDEBUG
 	printPDT(htn,pdt);
@@ -268,8 +267,8 @@ void createFormulaForDepth(void* solver, PDT* pdt, graph * dg, Model * htn, sat_
     //out << dg->dot_string(names,style);
     out.close();
 	system("dot -Tpdf dg.dot > dg.pdf");*/
-	
-	
+
+	return true;	
 }
 
 namespace std {
@@ -386,28 +385,32 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 	graph * dg = compute_disabling_graph(htn, true);
 	sat_capsule capsule;
 
-	int depth = 1;
+	int depth = 5;
 	while (true){
 		void* solver = ipasir_init();
 		cout << endl << endl << color(Color::YELLOW, "Generating formula for depth " + to_string(depth)) << endl;
 		std::clock_t formula_start = std::clock();
-		createFormulaForDepth(solver,pdt,dg,htn,capsule,depth);
-		std::clock_t formula_end = std::clock();
-		double formula_time_in_ms = 1000.0 * (formula_end-formula_start) / CLOCKS_PER_SEC;
-		cout << "Formula has " << capsule.number_of_variables << " vars and " << get_number_of_clauses() << " clauses." << endl;
-		cout << "Formula time: " << formula_time_in_ms << "ms" << endl;
+		int state = 20;
 		
-		
-		cout << "Starting solver" << endl;
-		std::clock_t solver_start = std::clock();
-		int state = ipasir_solve(solver);
-		std::clock_t solver_end = std::clock();
-		double solver_time_in_ms = 1000.0 * (solver_end-solver_start) / CLOCKS_PER_SEC;
-		cout << "Solver time: " << solver_time_in_ms << "ms" << endl;
-		
-		
-		cout << "Solver state: " << color((state==10?Color::GREEN:Color::RED), (state==10?"SAT":"UNSAT")) << endl;
-
+		if (createFormulaForDepth(solver,pdt,dg,htn,capsule,depth)){
+			std::clock_t formula_end = std::clock();
+			double formula_time_in_ms = 1000.0 * (formula_end-formula_start) / CLOCKS_PER_SEC;
+			cout << "Formula has " << capsule.number_of_variables << " vars and " << get_number_of_clauses() << " clauses." << endl;
+			cout << "Formula time: " << formula_time_in_ms << "ms" << endl;
+			
+			
+			cout << "Starting solver" << endl;
+			std::clock_t solver_start = std::clock();
+			ipasir_solve(solver);
+			std::clock_t solver_end = std::clock();
+			double solver_time_in_ms = 1000.0 * (solver_end-solver_start) / CLOCKS_PER_SEC;
+			cout << "Solver time: " << solver_time_in_ms << "ms" << endl;
+			
+			
+			cout << "Solver state: " << color((state==10?Color::GREEN:Color::RED), (state==10?"SAT":"UNSAT")) << endl;
+		} else {
+			cout << "Initial abstract task is pruned: " <<  color(Color::RED,"UNSAT") << endl;
+		}
 		//temp(htn,pdt);
 	
 		if (state == 10){
@@ -422,6 +425,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 		}
 		// release the solver	
 		ipasir_release(solver);
+		return;
 	}
 }
 
