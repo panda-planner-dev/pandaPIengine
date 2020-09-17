@@ -235,13 +235,15 @@ void PDT::getLeafs(vector<PDT*> & leafs){
 
 void printPDT(Model * htn, PDT* cur, int indent){
 	printIndentMark(indent,10,cout); cout << "Node: " << path_string(cur->path) << endl;
-	for (int prim : cur->possiblePrimitives){
+	for (size_t p = 0; p < cur->possiblePrimitives.size(); p++){
+		int prim = cur->possiblePrimitives[p];
 		printIndentMark(indent + 5, 10, cout);
-		cout << "p " << htn->taskNames[prim] << endl;
+		cout << color(cur->prunedPrimitives[p]?Color::RED : Color::WHITE, "p " + htn->taskNames[prim]) << endl;
 	}
-	for (int abs : cur->possibleAbstracts){
+	for (size_t a = 0; a < cur->possibleAbstracts.size(); a++){
+		int abs = cur->possibleAbstracts[a];
 		printIndentMark(indent + 5, 10, cout);
-		cout << "a " << htn->taskNames[abs] << endl;
+		cout << color(cur->prunedAbstracts[a]?Color::RED : Color::WHITE, "a " + htn->taskNames[abs]) << endl;
 	}
 
 	for (PDT* child : cur->children)
