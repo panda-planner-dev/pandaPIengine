@@ -12,3 +12,14 @@ void printIndentMark(int indent, int mark, std::ostream & out){
 
 }
 
+
+std::string color (Color color, std::string text)
+{
+	return std::string ()
+		+ "\033[" + std::to_string (30 + color) + "m"
+		+ text
+		+ "\033[m"
+	;
+}
+
+
