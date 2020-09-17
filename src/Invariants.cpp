@@ -186,7 +186,7 @@ void extract_invariants_from_parsed_model(Model * htn){
 }
 
 
-
+#ifdef RINTANEN_INVARIANTS
 void compute_Rintanen_Invariants(Model * htn){
 	std::clock_t invariant_start = std::clock();
 	cout << endl << "Computing invariants [Rintanen]" << endl;
@@ -446,3 +446,5 @@ void compute_Rintanen_Invariants(Model * htn){
 	for (auto [a,b] : v0)
 		insert_invariant(htn,a,b);
 }
+
+#endif
