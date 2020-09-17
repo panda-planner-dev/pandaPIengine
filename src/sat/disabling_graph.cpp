@@ -372,7 +372,13 @@ vector<vector<int>> compute_block_compression(Model * htn, graph * dg, vector<PD
 
 	for (size_t l = 0; l < leafs.size(); l++){
 		// try to extend
-		if (dg->can_reach_any_of_directly(leafs[l]->possiblePrimitives,currentPrimitives)){
+		vector<int> nonPrunedPrimitives;
+		for (size_t pI = 0; pI < leafs[l]->possiblePrimitives.size(); pI++){
+			if (!leafs[l]->prunedPrimitives[pI])
+				nonPrunedPrimitives.push_back(leafs[l]->possiblePrimitives[pI]);
+		}
+
+		if (dg->can_reach_any_of_directly(nonPrunedPrimitives,currentPrimitives)){
 			// one of these actions will disable another
 			blocks.push_back(currentBlock); // new block
 			currentBlock.clear();
@@ -380,7 +386,7 @@ vector<vector<int>> compute_block_compression(Model * htn, graph * dg, vector<PD
 		}
 
 		currentBlock.push_back(l);
-		for (const int & x : leafs[l]->possiblePrimitives)
+		for (const int & x : nonPrunedPrimitives)
 			currentPrimitives.push_back(x);
 	}
 
