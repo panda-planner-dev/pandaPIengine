@@ -432,6 +432,21 @@ bool PDT::pruneCause(pair<int,int> & cause){
 
 void PDT::propagatePruning(Model * htn){
 
+
+	// check whether I can prune an AT based on the methods
+	// Methods were disabled by my children
+	for (size_t a = 0; a < possibleAbstracts.size(); a++){
+		if (prunedAbstracts[a]) continue; // at is already pruned
+
+		bool all_methods_pruned = true;
+		if (expanded)
+			for (bool m : prunedMethods[a])
+				all_methods_pruned &= m;
+
+		if (all_methods_pruned)
+			prunedAbstracts[a] = true;
+	}
+
 	if (mother != nullptr){
 		// check whether it might be impossible for a primitive or abstract to be caused
 		// This is where information flows from the top to the bottom	
@@ -458,33 +473,23 @@ void PDT::propagatePruning(Model * htn){
 	}
 
 
-
-	// check whether I can prune an AT based on the methods
-	// Methods will be disabled by my children
-	for (size_t a = 0; a < possibleAbstracts.size(); a++){
+	for (size_t a = 0; a < possibleAbstracts.size(); a++)
 		if (prunedAbstracts[a]) {
 			if (expanded)
 				for (size_t m = 0; m < applicableMethods[a].size(); m++)
 					prunedMethods[a][m] = true; // if the AT is pruned, all methods are
-			continue; // at is already pruned
 		}
 
 
-		bool all_methods_pruned = true;
-		if (expanded)
-			for (bool m : prunedMethods[a])
-				all_methods_pruned &= m;
 
-		if (all_methods_pruned)
-			prunedAbstracts[a] = true;
-	}
 
 	// my state has been determined
 	///////////////////////////////
 
 	// try to propagate information to my mother
+	bool changedMother = false;
+
 	if (mother != nullptr){
-		bool changedMother = false;
 		for (size_t p = 0; p < possiblePrimitives.size(); p++)
 			if (prunedPrimitives[p])
 				// any method
@@ -498,8 +503,6 @@ void PDT::propagatePruning(Model * htn){
 				for (pair<int,int> & cause : causesForAbstracts[a])
 					changedMother |= pruneCause(cause);
 
-		if (changedMother)
-		   mother->propagatePruning(htn);	
 	}
 
 	// propagate towards children
@@ -536,12 +539,16 @@ void PDT::propagatePruning(Model * htn){
 					}
 				}
 			}
-
-		// propagate to children
-		for (size_t childIndex = 0; childIndex < children.size(); childIndex++)
-			if (childrenChanged[childIndex])
-				children[childIndex]->propagatePruning(htn);
 	}
+	
+
+	// propagate to children
+	for (size_t childIndex = 0; childIndex < children.size(); childIndex++)
+		if (childrenChanged[childIndex])
+			children[childIndex]->propagatePruning(htn);
+	
+	if (changedMother)
+	   mother->propagatePruning(htn);	
 }
 
 void PDT::countPruning(int & overallSize, int & overallPruning){
@@ -672,7 +679,7 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
 		for (const int & v : methodVariables[a])
 			if (v != -1)
 				temp.push_back(v);
-		assert(temp.size());
+		assert(!expanded || temp.size());
 		impliesOr(solver,av,temp);
 	}
 
