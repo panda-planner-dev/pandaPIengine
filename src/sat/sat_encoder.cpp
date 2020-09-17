@@ -119,6 +119,8 @@ void impliesAllNot(void* solver, int i, std::vector<int> & j){
 }
 
 void atMostOne(void* solver, sat_capsule & capsule, std::vector<int> & is){
+	if (is.size() <= 1) return; // nothing to do
+
 	int bits = (int) ceil(log(is.size()) / log(2));
 
 	int baseVar = capsule.new_variable();
