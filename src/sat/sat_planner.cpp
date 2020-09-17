@@ -401,7 +401,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 			
 			cout << "Starting solver" << endl;
 			std::clock_t solver_start = std::clock();
-			ipasir_solve(solver);
+			state = ipasir_solve(solver);
 			std::clock_t solver_end = std::clock();
 			double solver_time_in_ms = 1000.0 * (solver_end-solver_start) / CLOCKS_PER_SEC;
 			cout << "Solver time: " << solver_time_in_ms << "ms" << endl;
