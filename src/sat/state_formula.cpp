@@ -103,7 +103,6 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 	}
 }
 
-
 void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & leafs, Model* htn){
 	// no blocks so just unit blocks
 	vector<vector<int>> blocks;
