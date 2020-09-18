@@ -11,8 +11,8 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 
 void generate_state_transition_formula(void* solver, sat_capsule & capsule, vector<vector<pair<int,int>>> & actionVariables, vector<PDT*> & leafs, vector<vector<int>> & blocks, Model* htn);
 
-void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & leafs, Model* htn);
-void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & leafs, vector<vector<int>> & blocks, Model* htn);
+void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & leafs, unordered_set<int>* & after_leaf_invariants, Model* htn);
+void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & leafs, vector<vector<int>> & blocks, unordered_set<int>* & after_leaf_invariants, Model* htn);
 
 
 void get_linear_state_atoms(sat_capsule & capsule, vector<PDT*> & leafs, vector<vector<pair<int,int>>> & ret);

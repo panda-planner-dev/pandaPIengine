@@ -103,7 +103,7 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 	}
 }
 
-void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & leafs, Model* htn){
+void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & leafs, unordered_set<int>* & after_leaf_invariants, Model* htn){
 	// no blocks so just unit blocks
 	vector<vector<int>> blocks;
 	for (size_t time = 0; time < leafs.size(); time++){
@@ -112,11 +112,12 @@ void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & 
 		blocks.push_back(block);
 	}
 
-	generate_mutex_formula(solver, capsule, leafs, blocks, htn);
+	generate_mutex_formula(solver, capsule, leafs, blocks, after_leaf_invariants, htn);
 }
 
 	
-void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & leafs, vector<vector<int>> & blocks, Model* htn){
+void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & leafs, vector<vector<int>> & blocks, 
+		unordered_set<int>* & after_leaf_invariants, Model* htn){
 	std::clock_t solver_start = std::clock();
 
 	for (size_t time = 0; time < blocks.size(); time++){
@@ -167,10 +168,14 @@ void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & 
 			atLeastOne(solver,capsule,vars);
 		}
 
+		
+		int lastTime = blocks[time].back();
 
 		for (int i = 0; i < 2*htn->numStateBits; i++){
 			int a = i - htn->numStateBits;
 			int pa = a; if (pa < 0) pa = -pa-1;
+
+
 			for (const int & b : binary_invariants[i]){
 				int pb = b; if (pb < 0) pb = -pb-1;
 				if (pa > pb) continue;
@@ -182,7 +187,20 @@ void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & 
 				else	   vars.push_back( timeBase + b);
 				atLeastOne(solver,capsule,vars);
 			}
+
+			for (const int & b : after_leaf_invariants[i]){
+				int pb = b; if (pb < 0) pb = -pb-1;
+				if (pa > pb) continue;
+				
+				vector<int> vars;
+				if (a < 0) vars.push_back(-(timeBase + -a -1));
+				else	   vars.push_back( timeBase + a);
+				if (b < 0) vars.push_back(-(timeBase + -b -1));
+				else	   vars.push_back( timeBase + b);
+				atLeastOne(solver,capsule,vars);
+			}
 		}
+
 	}
 	std::clock_t solver_end = std::clock();
 	double solver_time_in_ms = 1000.0 * (solver_end-solver_start) / CLOCKS_PER_SEC;
