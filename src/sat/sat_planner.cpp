@@ -134,17 +134,24 @@ bool filter_leafs_ff(vector<PDT*> & leafs, Model * htn){
 }
 
 
-bool filter_leafs_Rintanen(vector<PDT*> & leafs, Model * htn){
+void insert_invariant(Model * htn, unordered_set<int> * invariants, int a, int b){
+	if (binary_invariants[a + htn->numStateBits].count(b)) return; // is a global invariant
+
+	invariants[a + htn->numStateBits].insert(b);
+	invariants[b + htn->numStateBits].insert(a);
+}
+
+
+bool filter_leafs_Rintanen(vector<PDT*> & leafs, Model * htn, unordered_set<int>* & after_leaf_invariants, int & additionalInvariants){
 	//std::clock_t invariant_start = std::clock();
 	//cout << endl << "Computing invariants [Rintanen]" << endl;
-		
+	
 	vector<pair<int,int>> v0;
 	bool * toDelete;
 	vector<vector<int>> posInvarsPerPredicate;
 	vector<vector<int>> negInvarsPerPredicate;
 
 	compute_Rintanen_initial_invariants(htn,v0,toDelete,posInvarsPerPredicate,negInvarsPerPredicate);
-	
 	
 	
 	int executablePrimitives = 0;
@@ -187,10 +194,15 @@ bool filter_leafs_Rintanen(vector<PDT*> & leafs, Model * htn){
 
 			compute_Rintanten_action_effect(htn,prim,v0,toDelete, posInvarsPerPredicate, negInvarsPerPredicate, posInferredPreconditions, negInferredPreconditions);
 		}
-		
+		// reduce data structures	
 		compute_Rintanen_reduce_invariants(htn, v0, toDelete, posInvarsPerPredicate, negInvarsPerPredicate);
 	}
 	
+	// old invariants are always ok, so don't clear, just add
+	for (auto [a,b] : v0)
+		insert_invariant(htn,after_leaf_invariants,a,b);
+
+	additionalInvariants = v0.size();
 	cout << "Rintanen Pruning: removed " << prunedPrimitives << " of " << (prunedPrimitives + executablePrimitives) << endl;
 	return prunedPrimitives != 0;
 }
@@ -205,26 +217,33 @@ bool createFormulaForDepth(void* solver, PDT* pdt, graph * dg, Model * htn, sat_
 	cout << "PDT has " << leafs.size() << " leafs" << endl;
 	
 	pdt->resetPruning(htn); // clear tables in whole tree
-	
+
+	unordered_set<int>* after_leaf_invariants = new unordered_set<int>[2*htn->numStateBits];
+
+	int pruningPhase = 1;
+	int round = 1;
+	int additionalInvariants = 0;
 	while(true){
-		//if (!filter_leafs_ff(leafs, htn)) break;
+		cout << color(Color::BLUE,"Pruning round ") << round++ << " Phase: " << pruningPhase << endl;
+		if (pruningPhase == 1){
+			if (!filter_leafs_ff(leafs, htn))
+				pruningPhase++;
+		} else if (pruningPhase == 2){
+			if (!filter_leafs_Rintanen(leafs, htn, after_leaf_invariants, additionalInvariants))
+				break;
+		}
+		for (PDT* leaf : leafs) leaf->propagatePruning(htn);
+		if (pdt->prunedAbstracts[0]) return false;
 		
-		if (!filter_leafs_Rintanen(leafs, htn)) break;
-		
+
 		int overallAssignments = 0;
 		int prunedAssignments = 0;
 		pdt->countPruning(overallAssignments, prunedAssignments);
 		cout << "Pruning: " << prunedAssignments << " of " << overallAssignments << endl;
-		for (PDT* leaf : leafs) leaf->propagatePruning(htn);
-		
-		
-		overallAssignments = 0;
-		prunedAssignments = 0;
-		pdt->countPruning(overallAssignments, prunedAssignments);
-		cout << "Pruning: " << prunedAssignments << " of " << overallAssignments << endl;
 	}
+	
+	cout << "Pruning gave " << additionalInvariants << " new invariants" << endl;	
 
-	if (pdt->prunedAbstracts[0]) return false;
 
 #ifndef NDEBUG
 	printPDT(htn,pdt);
@@ -268,9 +287,9 @@ bool createFormulaForDepth(void* solver, PDT* pdt, graph * dg, Model * htn, sat_
 
 #ifdef SAT_USEMUTEXES
 #ifdef BLOCK_COMPRESSION
-	generate_mutex_formula(solver,capsule,leafs, blocks, htn);
+	generate_mutex_formula(solver,capsule,leafs, blocks, after_leaf_invariants, htn);
 #else
-	generate_mutex_formula(solver,capsule,leafs, htn);
+	generate_mutex_formula(solver, capsule, leafs, after_leaf_invariants, htn);
 #endif
 #endif
 
