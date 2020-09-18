@@ -5,6 +5,7 @@
 #include "state_formula.h"
 #include "disabling_graph.h"
 #include "../Util.h"
+#include "../Invariants.h"
 #include <cassert>
 #include <thread> 
 #include <chrono>
@@ -133,8 +134,66 @@ bool filter_leafs_ff(vector<PDT*> & leafs, Model * htn){
 }
 
 
+bool filter_leafs_Rintanen(vector<PDT*> & leafs, Model * htn){
+	//std::clock_t invariant_start = std::clock();
+	//cout << endl << "Computing invariants [Rintanen]" << endl;
+		
+	vector<pair<int,int>> v0;
+	bool * toDelete;
+	vector<vector<int>> posInvarsPerPredicate;
+	vector<vector<int>> negInvarsPerPredicate;
+
+	compute_Rintanen_initial_invariants(htn,v0,toDelete,posInvarsPerPredicate,negInvarsPerPredicate);
+	
+	
+	
+	int executablePrimitives = 0;
+	int prunedPrimitives = 0;
+	for (unsigned int l = 0; l < leafs.size(); l++){
+		PDT* leaf = leafs[l];
+
+		vector<int> executable;
+		vector<pair<bool*,bool*>> inferredPreconditions;
+		for (unsigned int primI = 0; primI < leaf->possiblePrimitives.size(); primI++){
+			if (leaf->prunedPrimitives[primI]) continue; // is already pruned
+			int prim = leaf->possiblePrimitives[primI];
+
+			bool * posInferredPreconditions = new bool[htn->numStateBits];
+			bool * negInferredPreconditions = new bool[htn->numStateBits];
+
+			bool isExecutable = 
+				compute_Rintanten_action_applicable(htn,prim,v0,toDelete, posInvarsPerPredicate, negInvarsPerPredicate, posInferredPreconditions, negInferredPreconditions);
 
 
+			if (isExecutable) {
+				executable.push_back(prim);
+				inferredPreconditions.push_back(make_pair(posInferredPreconditions,negInferredPreconditions));
+				executablePrimitives++;
+				//cout << "    Executable at " << l << " prim: " << prim << " " << htn->taskNames[prim] << endl;
+			} else {
+				leaf->prunedPrimitives[primI] = true;
+				delete[] posInferredPreconditions;
+				delete[] negInferredPreconditions;
+				prunedPrimitives++;
+				//cout << "Not executable at " << l << " prim: " << prim << " " << htn->taskNames[prim] << endl;
+			}
+		}
+
+
+		for (size_t i = 0; i < executable.size(); i++){
+			int prim = executable[i];
+			bool * posInferredPreconditions = inferredPreconditions[i].first;
+			bool * negInferredPreconditions = inferredPreconditions[i].second;
+
+			compute_Rintanten_action_effect(htn,prim,v0,toDelete, posInvarsPerPredicate, negInvarsPerPredicate, posInferredPreconditions, negInferredPreconditions);
+		}
+		
+		compute_Rintanen_reduce_invariants(htn, v0, toDelete, posInvarsPerPredicate, negInvarsPerPredicate);
+	}
+	
+	cout << "Rintanen Pruning: removed " << prunedPrimitives << " of " << (prunedPrimitives + executablePrimitives) << endl;
+	return prunedPrimitives != 0;
+}
 
 
 
@@ -148,7 +207,9 @@ bool createFormulaForDepth(void* solver, PDT* pdt, graph * dg, Model * htn, sat_
 	pdt->resetPruning(htn); // clear tables in whole tree
 	
 	while(true){
-		if (!filter_leafs_ff(leafs, htn)) break;
+		//if (!filter_leafs_ff(leafs, htn)) break;
+		
+		if (!filter_leafs_Rintanen(leafs, htn)) break;
 		
 		int overallAssignments = 0;
 		int prunedAssignments = 0;
@@ -424,6 +485,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 		} else {
 			depth++;
 		}
+		//return;
 		// release the solver	
 		ipasir_release(solver);
 	}
