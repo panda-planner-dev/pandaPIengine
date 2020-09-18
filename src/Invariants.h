@@ -6,6 +6,31 @@
 
 void extract_invariants_from_parsed_model(Model * htn);
 #ifdef RINTANEN_INVARIANTS
+pair<bool,int> compute_Rintanten_delete_per_action(Model * htn,
+		int tIndex,
+		vector<pair<int,int>> & v0,
+		bool * toDelete,
+		vector<vector<int>> & posInvarsPerPredicate,
+		vector<vector<int>> & negInvarsPerPredicate,
+		bool * & posInferredPreconditions,
+		bool * & negInferredPreconditions
+	);
+
+void compute_Rintanen_reduce_invariants(Model * htn,
+		vector<pair<int,int>> & v0,
+		bool * toDelete,
+		vector<vector<int>> & posInvarsPerPredicate,
+		vector<vector<int>> & negInvarsPerPredicate
+	);
+
+void compute_Rintanen_initial_invariants(Model * htn,
+		vector<pair<int,int>> & v0,
+		bool * & toDelete,
+		vector<vector<int>> & posInvarsPerPredicate,
+		vector<vector<int>> & negInvarsPerPredicate
+	);
+
+	
 void compute_Rintanen_Invariants(Model * htn);
 #endif
 

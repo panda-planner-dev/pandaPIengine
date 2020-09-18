@@ -193,7 +193,7 @@ void compute_Rintanen_initial_invariants(Model * htn,
 		bool * & toDelete,
 		vector<vector<int>> & posInvarsPerPredicate,
 		vector<vector<int>> & negInvarsPerPredicate
-		){
+	){
 	bool * s0Vector = new bool[htn->numStateBits];
 	for (int i = 0; i < htn->numStateBits; i++) s0Vector[i] = false;
 	for (int i = 0; i < htn->s0Size; i++) s0Vector[htn->s0List[i]] = true;
@@ -243,7 +243,7 @@ void compute_Rintanen_reduce_invariants(Model * htn,
 		bool * toDelete,
 		vector<vector<int>> & posInvarsPerPredicate,
 		vector<vector<int>> & negInvarsPerPredicate
-		){
+	){
 	// create new copies of everything
 	vector<pair<int,int>> v1;
 	vector<vector<int>> posInvarsPerPredicate_new;
