@@ -230,7 +230,6 @@ void compute_Rintanen_initial_invariants(Model * htn,
 			}
 		}
 	}
-	cout << "Initial candidates build (" << v0.size() << ")" << endl;
 	
 	// create delete list
 	toDelete = new bool[v0.size()];
@@ -402,6 +401,7 @@ void compute_Rintanen_Invariants(Model * htn){
 	vector<vector<int>> negInvarsPerPredicate;
 
 	compute_Rintanen_initial_invariants(htn,v0,toDelete,posInvarsPerPredicate,negInvarsPerPredicate);
+	cout << "Initial candidates build (" << v0.size() << ")" << endl;
 	
 	
 	bool * posInferredPreconditions = new bool[htn->numStateBits];
