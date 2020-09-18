@@ -240,7 +240,7 @@ void compute_Rintanen_initial_invariants(Model * htn,
 
 void compute_Rintanen_reduce_invariants(Model * htn,
 		vector<pair<int,int>> & v0,
-		bool * toDelete,
+		bool * & toDelete,
 		vector<vector<int>> & posInvarsPerPredicate,
 		vector<vector<int>> & negInvarsPerPredicate
 	){
@@ -285,11 +285,11 @@ void compute_Rintanen_reduce_invariants(Model * htn,
 	for (size_t i = 0; i < v0.size(); i++) toDelete[i] = false;
 }
 
-// return 1. true if action is applicable  2. number of removed invariants
-pair<bool,int> compute_Rintanten_delete_per_action(Model * htn,
+// return true if action is applicable  
+bool compute_Rintanten_action_applicable(Model * htn,
 		int tIndex,
 		vector<pair<int,int>> & v0,
-		bool * toDelete,
+		bool * & toDelete,
 		vector<vector<int>> & posInvarsPerPredicate,
 		vector<vector<int>> & negInvarsPerPredicate,
 		bool * & posInferredPreconditions,
@@ -331,8 +331,20 @@ pair<bool,int> compute_Rintanten_delete_per_action(Model * htn,
 			}
 		}
 	}
-	if (inapplicable) return make_pair(false,0);
+	return !inapplicable;
+}
 
+
+// returns number of removed invariants
+bool compute_Rintanten_action_effect(Model * htn,
+		int tIndex,
+		vector<pair<int,int>> & v0,
+		bool * & toDelete,
+		vector<vector<int>> & posInvarsPerPredicate,
+		vector<vector<int>> & negInvarsPerPredicate,
+		bool * & posInferredPreconditions,
+		bool * & negInferredPreconditions
+	){
 
 	int removedInvariants = 0;
 
@@ -376,10 +388,8 @@ pair<bool,int> compute_Rintanten_delete_per_action(Model * htn,
 			}
 		}
 	}
-
-	return make_pair(true,removedInvariants);
+	return removedInvariants;
 }
-
 
 
 void compute_Rintanen_Invariants(Model * htn){
@@ -416,9 +426,12 @@ void compute_Rintanen_Invariants(Model * htn){
 			// we can break if we already have done a full round without any change
 			if (!nc && tIndex > lastChangeAtAction) break;
 		
-			auto [_dontcare, removedInvariants] =
-				compute_Rintanten_delete_per_action(htn,tIndex,v0,toDelete, posInvarsPerPredicate, negInvarsPerPredicate, posInferredPreconditions, negInferredPreconditions);
-			
+			if (!compute_Rintanten_action_applicable(htn,tIndex,v0,toDelete, posInvarsPerPredicate, negInvarsPerPredicate, posInferredPreconditions, negInferredPreconditions))
+				continue;
+
+			int removedInvariants = 
+				compute_Rintanten_action_effect(htn,tIndex,v0,toDelete, posInvarsPerPredicate, negInvarsPerPredicate, posInferredPreconditions, negInferredPreconditions);
+				
 			if (removedInvariants){	
 				nc += removedInvariants;
 				lastChangeAtAction = tIndex;

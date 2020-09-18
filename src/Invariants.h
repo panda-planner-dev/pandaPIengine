@@ -5,11 +5,31 @@
 #include "Model.h"
 
 void extract_invariants_from_parsed_model(Model * htn);
+
+
 #ifdef RINTANEN_INVARIANTS
-pair<bool,int> compute_Rintanten_delete_per_action(Model * htn,
+void compute_Rintanen_initial_invariants(Model * htn,
+		vector<pair<int,int>> & v0,
+		bool * & toDelete,
+		vector<vector<int>> & posInvarsPerPredicate,
+		vector<vector<int>> & negInvarsPerPredicate
+	);
+
+
+bool compute_Rintanten_action_applicable(Model * htn,
 		int tIndex,
 		vector<pair<int,int>> & v0,
-		bool * toDelete,
+		bool * & toDelete,
+		vector<vector<int>> & posInvarsPerPredicate,
+		vector<vector<int>> & negInvarsPerPredicate,
+		bool * & posInferredPreconditions,
+		bool * & negInferredPreconditions
+	);
+
+bool compute_Rintanten_action_effect(Model * htn,
+		int tIndex,
+		vector<pair<int,int>> & v0,
+		bool * & toDelete,
 		vector<vector<int>> & posInvarsPerPredicate,
 		vector<vector<int>> & negInvarsPerPredicate,
 		bool * & posInferredPreconditions,
@@ -17,13 +37,6 @@ pair<bool,int> compute_Rintanten_delete_per_action(Model * htn,
 	);
 
 void compute_Rintanen_reduce_invariants(Model * htn,
-		vector<pair<int,int>> & v0,
-		bool * toDelete,
-		vector<vector<int>> & posInvarsPerPredicate,
-		vector<vector<int>> & negInvarsPerPredicate
-	);
-
-void compute_Rintanen_initial_invariants(Model * htn,
 		vector<pair<int,int>> & v0,
 		bool * & toDelete,
 		vector<vector<int>> & posInvarsPerPredicate,
