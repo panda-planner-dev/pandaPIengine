@@ -244,6 +244,18 @@ void printPDT(Model * htn, PDT* cur, int indent){
 		int abs = cur->possibleAbstracts[a];
 		printIndentMark(indent + 5, 10, cout);
 		cout << color(cur->prunedAbstracts[a]?Color::RED : Color::WHITE, "a " + htn->taskNames[abs]) << endl;
+		if (cur->expanded){
+			for (size_t m = 0; m < cur->applicableMethods[a].size(); m++){
+				printIndentMark(indent + 10, 10, cout);
+				cout << color(cur->prunedMethods[a][m]?Color::RED : Color::WHITE, "m " + htn->methodNames[htn->taskToMethods[abs][m]]) << endl;
+			}
+		}
+		/*if (cur->mother != nullptr){
+			for (size_t c = 0; c < cur->causesForAbstracts[a].size(); c++){
+				printIndentMark(indent + 10, 10, cout);
+				cout << color(cur->prunedCausesForAbstract[a][c]?Color::RED : Color::WHITE, "c ") << endl;
+			}
+		}*/
 	}
 
 	for (PDT* child : cur->children)
@@ -431,7 +443,7 @@ bool PDT::pruneCause(pair<int,int> & cause){
 
 
 void PDT::propagatePruning(Model * htn){
-
+	// 1. Step: check what I can infer about me based on my surrounding
 
 	// check whether I can prune an AT based on the methods
 	// Methods were disabled by my children
@@ -468,7 +480,7 @@ void PDT::propagatePruning(Model * htn){
 			for (bool c : prunedCausesForAbstract[a])
 				all_causes_pruned &= c;
 			if (all_causes_pruned)
-				prunedAbstracts[a];
+				prunedAbstracts[a] = true;
 		}
 	}
 
@@ -491,17 +503,21 @@ void PDT::propagatePruning(Model * htn){
 
 	if (mother != nullptr){
 		for (size_t p = 0; p < possiblePrimitives.size(); p++)
-			if (prunedPrimitives[p])
-				// any method
-				for (pair<int,int> & cause : causesForPrimitives[p])
-					changedMother |= pruneCause(cause);
+			if (prunedPrimitives[p]){
+				for (size_t c = 0; c < causesForPrimitives[p].size(); c++){
+					prunedCausesForPrimitive[p][c] = true;
+					changedMother |= pruneCause(causesForPrimitives[p][c]);
+				}
+			}
 
 
 		for (size_t a = 0; a < possibleAbstracts.size(); a++)
-			if (prunedAbstracts[a])
-				// any method
-				for (pair<int,int> & cause : causesForAbstracts[a])
-					changedMother |= pruneCause(cause);
+			if (prunedAbstracts[a]){
+				for (size_t c = 0; c < causesForAbstracts[a].size(); c++){
+					prunedCausesForAbstract[a][c] = true;
+					changedMother |= pruneCause(causesForAbstracts[a][c]);
+				}
+			}
 
 	}
 
