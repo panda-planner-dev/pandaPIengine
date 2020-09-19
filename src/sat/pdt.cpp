@@ -1,4 +1,5 @@
 #include <cassert>
+#include <fstream>
 #include "pdt.h"
 #include "ipasir.h"
 #include "../Util.h"
@@ -248,6 +249,10 @@ void printPDT(Model * htn, PDT* cur, int indent){
 			for (size_t m = 0; m < cur->applicableMethods[a].size(); m++){
 				printIndentMark(indent + 10, 10, cout);
 				cout << color(cur->prunedMethods[a][m]?Color::RED : Color::WHITE, "m " + htn->methodNames[htn->taskToMethods[abs][m]]) << endl;
+				//for (size_t s = 0; s < htn->numSubTasks[htn->taskToMethods[abs][m]]; s++){
+				//	printIndentMark(indent + 15, 10, cout);
+				//	cout << htn->taskNames[htn->subTasks[htn->taskToMethods[abs][m]][s]] << endl;
+				//}
 			}
 		}
 		/*if (cur->mother != nullptr){
@@ -262,6 +267,14 @@ void printPDT(Model * htn, PDT* cur, int indent){
 		printPDT(htn,child,indent + 10);
 }
 
+void PDT::printDot(Model * htn, ofstream & dfile){
+	if (! expanded) return;
+
+	for (PDT* child : children){
+		dfile << "\ta" << path_string_no_sep(path) << " -> a" << path_string_no_sep(child->path) << endl;
+		child->printDot(htn,dfile);
+	}
+}
 
 void printPDT(Model * htn, PDT* cur){
 	printPDT(htn, cur,0);
@@ -375,6 +388,9 @@ void PDT::assignOutputNumbers(void* solver, int & currentID, Model * htn){
 				assert(outputID == -1);
 				outputID = currentID++;
 				outputTask = possiblePrimitives[pIndex];
+#ifndef NDEBUG
+				cout << "Assigning " << outputID << " to atom " << prim << endl;
+#endif
 			}
 		}
 	
@@ -385,6 +401,9 @@ void PDT::assignOutputNumbers(void* solver, int & currentID, Model * htn){
 			assert(outputID == -1);
 			outputID = currentID++;
 			outputTask = possibleAbstracts[aIndex];
+#ifndef NDEBUG
+			cout << "Assigning " << outputID << " to atom " << abs << endl;
+#endif
 
 			// find the applied method
 			for (size_t mIndex = 0; mIndex < applicableMethods[aIndex].size(); mIndex++){

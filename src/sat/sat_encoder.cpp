@@ -15,6 +15,14 @@ std::string path_string(std::vector<int> & path){
 	return s;
 }
 
+std::string path_string_no_sep(std::vector<int> & path){
+	std::string s = "";
+	for (int & i : path)
+		s+= std::to_string(i);
+
+	return s;
+}
+
 std::string pad_string(std::string s, int chars){
 	while (s.size() < chars)
 		s += " ";

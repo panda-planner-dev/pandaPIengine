@@ -94,6 +94,7 @@ struct PDT {
 	void assignOutputNumbers(void* solver, int & currentID, Model * htn);
 	int getNextOutputTask();
 	void printDecomposition(Model * htn);
+	void printDot(Model * htn, ofstream & dfile);
 
 
 private:

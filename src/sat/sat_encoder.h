@@ -11,6 +11,7 @@
 #define STRINGPAD 0
 
 std::string path_string(std::vector<int> & path);
+std::string path_string_no_sep(std::vector<int> & path);
 std::string pad_string(std::string s, int chars = STRINGPAD);
 std::string pad_int(int i, int chars = INTPAD);
 std::string pad_path(std::vector<int> & path, int chars = PATHPAD);
