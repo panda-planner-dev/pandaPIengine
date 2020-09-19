@@ -12,6 +12,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <fstream>
+#include <iomanip>
 
 void printSolution(void * solver, Model * htn, PDT* pdt){
 	vector<PDT*> leafs;
@@ -56,6 +57,9 @@ void printSolution(void * solver, Model * htn, PDT* pdt){
 				assert(leaf->outputID == -1);
 				leaf->outputID = currentID++;
 				std::cout << leaf->outputID << " " << htn->taskNames[leaf->possiblePrimitives[pIndex]] << endl;
+#ifndef NDEBUG
+				cout << "Assigning " << leaf->outputID << " to atom " << prim << endl;
+#endif
 			}
 		}
 	}
@@ -215,8 +219,15 @@ bool createFormulaForDepth(void* solver, PDT* pdt, graph * dg, Model * htn, sat_
 	vector<PDT*> leafs;
 	pdt->getLeafs(leafs);
 	cout << "PDT has " << leafs.size() << " leafs" << endl;
+	ofstream dfile;
+	dfile.open ("pdt_" + to_string(depth) + ".dot");
+	dfile << " digraph graphname" << endl << "{" << endl;
+	pdt->printDot(htn,dfile);
+	dfile << "}" << endl;
+	dfile.close();
 	
 	pdt->resetPruning(htn); // clear tables in whole tree
+	//printPDT(htn,pdt);
 
 	unordered_set<int>* after_leaf_invariants = new unordered_set<int>[2*htn->numStateBits];
 
@@ -264,16 +275,22 @@ bool createFormulaForDepth(void* solver, PDT* pdt, graph * dg, Model * htn, sat_
 #ifdef BLOCK_COMPRESSION
 	vector<vector<int>> blocks = compute_block_compression(htn, dg, leafs);
 	cout << "Block compression leads to " << blocks.size() << " timesteps." << endl;
-#endif
-	/*for (auto block : blocks){
+#ifndef NDEBUG
+	for (auto block : blocks){
 		cout << endl << "New Block" << endl;
 		for (int l : block){
-			cout << "\tLeaf:" << endl;
-			for (int a : leafs[l]->possiblePrimitives)
-				cout << "\t\t" << htn->taskNames[a] << endl;
+			cout << "\tLeaf: " << path_string(leafs[l]->path) << endl;
+			int i = 0;
+			for (int a : leafs[l]->possiblePrimitives){
+				if (!leafs[l]->prunedPrimitives[i])
+					cout << "\t\t" << htn->taskNames[a] << endl;
+				i++;
+			}
 		}
-	}*/
+	}
+#endif
 
+#endif
 
 	// generate primitive executability formula
 	vector<vector<pair<int,int>>> vars;
@@ -477,7 +494,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 			std::clock_t formula_end = std::clock();
 			double formula_time_in_ms = 1000.0 * (formula_end-formula_start) / CLOCKS_PER_SEC;
 			cout << "Formula has " << capsule.number_of_variables << " vars and " << get_number_of_clauses() << " clauses." << endl;
-			cout << "Formula time: " << formula_time_in_ms << "ms" << endl;
+			cout << "Formula time: " << fixed << formula_time_in_ms << "ms" << endl;
 			
 			
 			cout << "Starting solver" << endl;
@@ -485,7 +502,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 			state = ipasir_solve(solver);
 			std::clock_t solver_end = std::clock();
 			double solver_time_in_ms = 1000.0 * (solver_end-solver_start) / CLOCKS_PER_SEC;
-			cout << "Solver time: " << solver_time_in_ms << "ms" << endl;
+			cout << "Solver time: " << fixed << solver_time_in_ms << "ms" << endl;
 			
 			
 			cout << "Solver state: " << color((state==10?Color::GREEN:Color::RED), (state==10?"SAT":"UNSAT")) << endl;
@@ -558,7 +575,7 @@ void* run_sat_planner_for_depth(void * param){
 	std::clock_t solver_end = std::clock();
 	double solver_time_in_ms = 1000.0 * (solver_end-solver_start) / CLOCKS_PER_SEC;
 	cout << "Solver for depth " << ret->depth << " finished." << endl;
-	cout << "Solver time: " << solver_time_in_ms << "ms" << endl;
+	cout << "Solver time: " << fixed << solver_time_in_ms << "ms" << endl;
 
 	cout << "Solver state: " << (ret->state==10?"SAT":"UNSAT") << endl;
 	if (ret->state == 10){

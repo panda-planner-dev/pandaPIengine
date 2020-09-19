@@ -293,10 +293,10 @@ graph * compute_disabling_graph(Model * htn, bool no_invariant_inference){
 				if (!no_invariant_inference &&
 						!are_actions_applicable_in_the_same_state(htn, deletingAction, needingAction))
 					continue;
-				/*DEBUG(
-					cout << deletingAction << " " << htn->taskNames[deletingAction];
+				DEBUG(
+					cout << "DEL NEED: " << deletingAction << " " << htn->taskNames[deletingAction];
 					cout << " vs " << needingAction << " " << htn->taskNames[needingAction] << endl;
-					);*/
+					);
 
 				tempAdj[deletingAction].insert(needingAction);
 			}
@@ -312,12 +312,12 @@ graph * compute_disabling_graph(Model * htn, bool no_invariant_inference){
 					if (!no_invariant_inference &&
 							!are_actions_applicable_in_the_same_state(htn, addingAction, needingAction))
 						continue;
-					/*DEBUG(
-						cout << deletingAction << " " << htn->taskNames[deletingAction];
-						cout << " vs " << needingAction << " " << htn->taskNames[needingAction] << endl;
-						);*/
+					DEBUG(
+						cout << "NEED ADD: " << needingAction << " " << htn->taskNames[needingAction];
+						cout << " vs " << addingAction << " " << htn->taskNames[addingAction] << endl;
+						);
 
-					tempAdj[needingAction].insert(addingAction);
+					tempAdj[addingAction].insert(needingAction);
 				}
 			}
 
@@ -330,10 +330,10 @@ graph * compute_disabling_graph(Model * htn, bool no_invariant_inference){
 					if (!no_invariant_inference &&
 							!are_actions_applicable_in_the_same_state(htn, addingAction, deletingAction))
 						continue;
-					/*DEBUG(
-						cout << deletingAction << " " << htn->taskNames[deletingAction];
-						cout << " vs " << needingAction << " " << htn->taskNames[needingAction] << endl;
-						);*/
+					DEBUG(
+						cout << "DEL-ADD " << deletingAction << " " << htn->taskNames[deletingAction];
+						cout << " vs " << addingAction << " " << htn->taskNames[addingAction] << endl;
+						);
 
 					tempAdj[addingAction].insert(deletingAction);
 					tempAdj[deletingAction].insert(addingAction);
@@ -377,8 +377,20 @@ vector<vector<int>> compute_block_compression(Model * htn, graph * dg, vector<PD
 			if (!leafs[l]->prunedPrimitives[pI])
 				nonPrunedPrimitives.push_back(leafs[l]->possiblePrimitives[pI]);
 		}
+#ifndef NDEBUG
+		cout << "Current Primitives: " << endl;
+		for (int cur : currentPrimitives)
+			cout << htn->taskNames[cur] << endl;
+		
+		cout << "Next Primitives: " << endl;
+		for (int npp : nonPrunedPrimitives)
+			cout << htn->taskNames[npp] << endl;
+#endif
 
-		if (dg->can_reach_any_of_directly(nonPrunedPrimitives,currentPrimitives)){
+		if (dg->can_reach_any_of_directly(currentPrimitives,nonPrunedPrimitives)){
+#ifndef NDEBUG
+			cout << "Interference." << endl << endl << endl;
+#endif
 			// one of these actions will disable another
 			blocks.push_back(currentBlock); // new block
 			currentBlock.clear();
