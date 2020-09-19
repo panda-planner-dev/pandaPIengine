@@ -215,7 +215,7 @@ void get_linear_state_atoms(sat_capsule & capsule, vector<PDT*> & leafs, vector<
 
 	for (PDT* & leaf : leafs){
 #ifndef NDEBUG
-		std::cout << "Leaf " << pad_path(leaf->path) << std::endl; 
+		std::cout << "Position: " << ret.size() << " Leaf " << pad_path(leaf->path) << std::endl; 
 #endif
 		// TODO assert order!
 		vector<pair<int,int>> atoms;
