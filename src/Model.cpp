@@ -2517,11 +2517,14 @@ void Model::tarjan(int v) {
 	}
 }
 
-void Model::calcSCCGraph() {
+void Model::constructSCCGraph(){
 	calculatedSccs = true;
 	set<int>** sccg = new set<int>*[numSCCs];
-	for (int i = 0; i < numSCCs; i++)
+	set<int>** sccg_rev = new set<int>*[numSCCs];
+	for (int i = 0; i < numSCCs; i++){
 		sccg[i] = new set<int>;
+		sccg_rev[i] = new set<int>;
+	}
 
 	for (int iT = 0; iT < numTasks; iT++) {
 		int sccFrom = taskToSCC[iT];
@@ -2531,6 +2534,7 @@ void Model::calcSCCGraph() {
 				int sccTo = taskToSCC[subTasks[m][iST]];
 				if (sccFrom != sccTo) {
 					sccg[sccFrom]->insert(sccTo);
+					sccg_rev[sccTo]->insert(sccFrom);
 				}
 			}
 		}
@@ -2546,23 +2550,16 @@ void Model::calcSCCGraph() {
 	// top-down mapping
 	this->sccGnumSucc = new int[numSCCs];
 	for (int i = 0; i < numSCCs; i++) {
-		sccGnumSucc[i] = 0;
-		for (int j = 0; j < numSCCs; j++) {
-			if (sccg[i]->find(j) != sccg[i]->end()) {
-				sccGnumSucc[i]++;
-			}
-		}
+		sccGnumSucc[i] = sccg[i]->size();
 	}
 
 	sccG = new int*[numSCCs];
 	for (int i = 0; i < numSCCs; i++) {
 		sccG[i] = new int[sccGnumSucc[i]];
 		int k = 0;
-		for (int j = 0; j < numSCCs; j++) {
-			if (sccg[i]->find(j) != sccg[i]->end()) {
-				sccG[i][k] = j;
-				k++;
-			}
+		for (const int & j : *sccg[i]) {
+			sccG[i][k] = j;
+			k++;
 		}
 		assert(k == sccGnumSucc[i]);
 	}
@@ -2570,26 +2567,81 @@ void Model::calcSCCGraph() {
 	// bottom-up mapping
 	this->sccGnumPred = new int[numSCCs];
 	for (int i = 0; i < numSCCs; i++) {
-		sccGnumPred[i] = 0;
-		for (int j = 0; j < numSCCs; j++) {
-			if (sccg[j]->find(i) != sccg[j]->end()) {
-				sccGnumPred[i]++;
-			}
-		}
+		sccGnumPred[i] = sccg_rev[i]->size();
 	}
 
 	sccGinverse = new int*[numSCCs];
 	for (int i = 0; i < numSCCs; i++) {
 		sccGinverse[i] = new int[sccGnumPred[i]];
 		int k = 0;
-		for (int j = 0; j < numSCCs; j++) {
-			if (sccg[j]->find(i) != sccg[j]->end()) {
-				sccGinverse[i][k] = j;
-				k++;
-			}
+		for (const int & j : *sccg_rev[i]) {
+			sccGinverse[i][k] = j;
+			k++;
 		}
 		assert(k == sccGnumPred[i]);
 	}
+	
+	for (int i = 0; i < numSCCs; i++){
+		delete sccg[i];
+		delete sccg_rev[i];
+	}
+	delete[] sccg;
+	delete[] sccg_rev;
+}
+
+
+void Model::topsortDFS(int i, int & curpos, bool * & topVisited){
+	if (topVisited[i]) return;
+	topVisited[i] = true;
+	for (int j = 0; j < sccGnumSucc[i]; j++)
+		topsortDFS(sccG[i][j], curpos, topVisited);
+
+	sccTopOrder[curpos++] = i;
+}
+
+
+void Model::analyseSCCcyclicity(){
+	cout << "Hallo" << endl;
+
+	// perform topsort
+	sccTopOrder = new int[numSCCs];
+	bool * topVisited = new bool[numSCCs];
+	for (int i = 0; i < numSCCs; i++) topVisited[i] = false;
+	int curpos = 0;
+	for (int i = 0; i < numSCCs; i++)
+		if (!topVisited[i])
+			topsortDFS(i,curpos, topVisited);
+
+	assert(curpos == numSCCs);
+
+	// analyse whether a task is acyclic
+	sccIsAcyclic = new bool[numSCCs];
+	for (int i = 0; i < numSCCs; i++)
+		sccIsAcyclic[i] = true;
+
+	// self cyclic
+	for (int i = 0; i < numCyclicSccs; i++)
+		sccIsAcyclic[sccsCyclic[i]] = false;
+	
+	for (int i = 0; i < numSCCs; i++){
+		if (!sccIsAcyclic[i]) continue;
+
+		for (int j = 0; sccIsAcyclic[i] && j < sccGnumSucc[i]; j++)
+			sccIsAcyclic[i] &= sccIsAcyclic[sccG[i][j]];
+	}
+	
+	/*for (int i = 0; i < numSCCs; i++){
+		if (sccIsAcyclic[i]) continue;
+		cout << "SCC size " << sccSize[i];
+		if (sccIsAcyclic[i]) cout << "\t\t acyclic" << endl;
+		cout << endl;
+		for (int j = 0; j < sccSize[i]; j++)
+			cout << "\t" << taskNames[sccToTasks[i][j]] << endl;
+	}*/
+}
+
+void Model::calcSCCGraph() {
+	constructSCCGraph();
 
 	// reachability
 #ifdef MAINTAINREACHABILITY
@@ -2683,9 +2735,6 @@ void Model::calcSCCGraph() {
 	delete[] temp;
 #endif*/
 
-	for (int i = 0; i < numSCCs; i++)
-		delete sccg[i];
-	delete[] sccg;
 
 	assert(processedSCCs == numSCCs);
 //#ifdef MAINTAINREACHABILITY

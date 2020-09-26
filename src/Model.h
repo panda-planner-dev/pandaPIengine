@@ -253,7 +253,13 @@ public:
 	int* sccGnumPred = nullptr;
 	int** sccG = nullptr;
 	int** sccGinverse = nullptr;
+	void constructSCCGraph();
 	void calcSCCGraph();
+
+	int* sccTopOrder;
+	bool* sccIsAcyclic;
+	void analyseSCCcyclicity();
+	
 
 	// reachability
 	int* numReachable = nullptr;
@@ -268,6 +274,7 @@ public:
 
 // internal auxiliary methods
 private:
+	void topsortDFS(int i, int & curpos, bool * & topVisited);
 	void methodTopSortDFS(int cur, map<int,unordered_set<int>> & adj, map<int, int> & colour, int & curpos, int* order);
 	void computeTransitiveChangeOfMethodOrderings(bool closure);
 

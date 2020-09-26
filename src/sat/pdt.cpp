@@ -270,6 +270,14 @@ void printPDT(Model * htn, PDT* cur, int indent){
 void PDT::printDot(Model * htn, ofstream & dfile){
 	if (! expanded) return;
 
+	string s = "" + path_string_no_sep(path);
+	/*
+	for (int & a : possibleAbstracts)
+		s += (s.size()?",":"") + htn->taskNames[a];
+	for (int & p : possiblePrimitives)
+		s += (s.size()?",":"") + htn->taskNames[p];
+	*/
+	dfile << "\ta" << path_string_no_sep(path) << "[label=\"" << s << "\"]" << endl;
 	for (PDT* child : children){
 		dfile << "\ta" << path_string_no_sep(path) << " -> a" << path_string_no_sep(child->path) << endl;
 		child->printDot(htn,dfile);

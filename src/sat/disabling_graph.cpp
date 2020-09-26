@@ -378,18 +378,18 @@ vector<vector<int>> compute_block_compression(Model * htn, graph * dg, vector<PD
 				nonPrunedPrimitives.push_back(leafs[l]->possiblePrimitives[pI]);
 		}
 #ifndef NDEBUG
-		cout << "Current Primitives: " << endl;
+		/*cout << "Current Primitives: " << endl;
 		for (int cur : currentPrimitives)
 			cout << htn->taskNames[cur] << endl;
 		
 		cout << "Next Primitives: " << endl;
 		for (int npp : nonPrunedPrimitives)
-			cout << htn->taskNames[npp] << endl;
+			cout << htn->taskNames[npp] << endl;*/
 #endif
 
 		if (dg->can_reach_any_of_directly(currentPrimitives,nonPrunedPrimitives)){
 #ifndef NDEBUG
-			cout << "Interference." << endl << endl << endl;
+			//cout << "Interference." << endl << endl << endl;
 #endif
 			// one of these actions will disable another
 			blocks.push_back(currentBlock); // new block

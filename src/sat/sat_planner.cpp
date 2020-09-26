@@ -219,6 +219,7 @@ bool createFormulaForDepth(void* solver, PDT* pdt, graph * dg, Model * htn, sat_
 	vector<PDT*> leafs;
 	pdt->getLeafs(leafs);
 	cout << "PDT has " << leafs.size() << " leafs" << endl;
+	exit(0);
 	ofstream dfile;
 	dfile.open ("pdt_" + to_string(depth) + ".dot");
 	dfile << " digraph graphname" << endl << "{" << endl;
@@ -483,7 +484,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 	graph * dg = compute_disabling_graph(htn, true);
 	sat_capsule capsule;
 
-	int depth = 1;
+	int depth = 15;
 	while (true){
 		void* solver = ipasir_init();
 		cout << endl << endl << color(Color::YELLOW, "Generating formula for depth " + to_string(depth)) << endl;
@@ -718,6 +719,13 @@ void solve_with_sat_planner_time_interleave(Model * htn){
 
 
 void solve_with_sat_planner(Model * htn){
+	// prepare helper data structured (used for SOG)
+	htn->calcSCCs();
+	htn->constructSCCGraph();
+	htn->analyseSCCcyclicity();
+	
+	
+	// start actual planner
 	cout << endl << endl;
 	cout << color(Color::YELLOW,"Starting SAT-based planner") << endl;
 	cout << "Using SAT solver: " << ipasir_signature() << endl << endl;

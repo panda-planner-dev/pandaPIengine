@@ -148,84 +148,306 @@ next_vertex:;
 	return sog;
 }
 
+void addSequenceToSOG(SOG * sog, vector<int> & sequence, vector<int> & matchingPositions,
+		int sequenceID, int begin, int end) {
+	int targetLength = end - begin;
+	//cout << "OPTI " << end << " - " << begin << " = " << targetLength << endl;
 
-SOG* runTOSOGOptimiser(SOG* sog, vector<tuple<int,int,int>> & methods, Model* htn){
+	// (x,y) -> minimum labels needed when putting the first x tasks to the first y positions
+	vector<vector<int>> minAdditionalLabels (sequence.size() + 1);
+	vector<vector<bool>> optimalPutHere (sequence.size() + 1);
+	
+	for (size_t i = 0; i <= sequence.size(); i++){
+		minAdditionalLabels[i].resize(targetLength + 1);
+		optimalPutHere[i].resize(targetLength + 1);
+	}
 
-	// TODO build adj, bdj
-	int m0 = get<0>(methods[0]);
-	sog->numberOfVertices = htn->numSubTasks[m0];	
-	sog->labels.resize(sog->numberOfVertices);
-	sog->adj.resize(sog->numberOfVertices);
-	sog->bdj.resize(sog->numberOfVertices);
+	for (size_t x = 1; x <= sequence.size(); x++)
+		minAdditionalLabels[x][0] = 1000*1000; // impossible
+	for (size_t y = 1; y <= sequence.size(); y++)
+		minAdditionalLabels[0][y] = 0; // impossible
+	minAdditionalLabels[0][0] = 0;
+	
+	for (size_t x = 1; x <= sequence.size(); x++){
+		int task = sequence[x-1];
+		for (size_t y = 1; y <= targetLength; y++){
+			if (x > y) minAdditionalLabels[x][y] = 1000*1000; // impossible
+			else {
+				int labelNeeded = 1 - sog->labels[begin+y-1].count(task);
+				// put label here
+				minAdditionalLabels[x][y] = labelNeeded + minAdditionalLabels[x-1][y-1];
+				optimalPutHere[x][y] = true;
 
-
-	for (size_t mID = 0; mID < methods.size(); mID++){
-		int m = get<0>(methods[mID]);
-		// (x,y) -> minimum labels needed when putting the first x tasks to the first y positions
-		vector<vector<int>> minAdditionalLabels (htn->numSubTasks[m]+1);
-		vector<vector<bool>> optimalPutHere (htn->numSubTasks[m]+1);
-		
-		for (size_t i = 0; i <= htn->numSubTasks[m]; i++){
-			minAdditionalLabels[i].resize(sog->numberOfVertices+1);
-			optimalPutHere[i].resize(sog->numberOfVertices+1);
-		}
-
-		for (size_t x = 1; x <= htn->numSubTasks[m]; x++)
-			minAdditionalLabels[x][0] = 1000*1000; // impossible
-		for (size_t y = 1; y <= sog->numberOfVertices; y++)
-			minAdditionalLabels[0][y] = 1000*1000; // impossible
-		minAdditionalLabels[0][0] = 0;
-		
-		for (size_t x = 1; x <= htn->numSubTasks[m]; x++){
-			int taskID = htn->methodTotalOrder[m][x-1];
-			int task = htn->subTasks[m][taskID];
-			for (size_t y = 1; y <= sog->numberOfVertices; y++){
-				if (x > y) minAdditionalLabels[x][y] = 1000*1000; // impossible
-				else {
-					int labelNeeded = 1 - sog->labels[y-1].count(task);
-					// put label here
-					minAdditionalLabels[x][y] = labelNeeded + minAdditionalLabels[x-1][y-1];
-					optimalPutHere[x][y] = true;
-
-					if (minAdditionalLabels[x][y-1] < minAdditionalLabels[x][y]){
-						minAdditionalLabels[x][y] = minAdditionalLabels[x][y-1];
-						optimalPutHere[x][y] = false;
-					}
+				//cout << "COMP " << x << " " << y << " " << labelNeeded << " " ;
+				//cout << minAdditionalLabels[x][y-1] << " < " << minAdditionalLabels[x][y] << endl;
+				if (minAdditionalLabels[x][y-1] < minAdditionalLabels[x][y]){
+					minAdditionalLabels[x][y] = minAdditionalLabels[x][y-1];
+					optimalPutHere[x][y] = false;
 				}
 			}
 		}
+	}
 
-#ifndef NDEBUG
-		cout << "For adding method " << m << " we need " << minAdditionalLabels[htn->numSubTasks[m]][sog->numberOfVertices] << " additional labels" << endl;
-#endif	
-		// get positions by recursion
-		int x = htn->numSubTasks[m];
-		int y = sog->numberOfVertices;
+	// get positions by recursion
+	int x = sequence.size();
+	int y = targetLength;
 
-		vector<int> matching (htn->numSubTasks[m]);
+	while (x != 0 && y != 0){
+		if (optimalPutHere[x][y]){
+			int task = sequence[x-1];
+			sog->labels[begin+y-1].insert(task);
+			sog->methodSubTasksToVertices[sequenceID][matchingPositions[x-1]] = begin+y-1;
+			x--;
+			y--;
+		} else {
+			y--;
+		}
+	}
+	assert(x == 0);
+}
 
-		while (x != 0 && y != 0){
-			if (optimalPutHere[x][y]){
-				int taskID = htn->methodTotalOrder[m][x-1];
-				int task = htn->subTasks[m][taskID];
-#ifndef NDEBUG
-				cout << "Putting task " << x << " " << htn->taskNames[task] << " @ " << y-1 << endl;
-#endif	
 
-				sog->labels[y-1].insert(task);
-				matching[taskID] = y-1;
-				x--;
-				y--;
-			} else {
-				y--;
+SOG* linearLabelSetOptimisation(Model * htn, vector<pair<int,vector<int>>> & labelSequence){
+	// sort by number of labels
+	sort(labelSequence.begin(), labelSequence.end(), [&](pair<int,vector<int>> m1, pair<int,vector<int>> m2) {
+        return m1.second.size() > m2.second.size();   
+    });
+	
+	// use the SOG as a vehicle to memorise the information
+	SOG* sog = new SOG;
+	sog->numberOfVertices = labelSequence[0].second.size();	
+	sog->labels.resize(sog->numberOfVertices);
+	sog->methodSubTasksToVertices.resize(labelSequence.size());
+
+	for (size_t lIndex = 0; lIndex < labelSequence.size(); lIndex++){
+		vector<int> & sequence = labelSequence[lIndex].second;
+		//cout << "Label " << labelSequence[lIndex].first << " " << sequence.size() << endl;
+		vector<int> indices;
+		for (size_t i = 0; i < sequence.size(); i++) indices.push_back(i);
+		// create the matching
+		sog->methodSubTasksToVertices[labelSequence[lIndex].first].resize(sequence.size());
+	
+		addSequenceToSOG(sog, sequence, indices, labelSequence[lIndex].first, 0, sog->numberOfVertices);
+	}
+
+	return sog;
+}
+
+
+SOG* runTOSOGOptimiser(SOG* sog, vector<tuple<int,int,int>> & methods, Model* htn){
+	//cout << endl << endl << endl << "================================================" << endl;
+	
+	int m = get<0>(methods[0]);
+	sog->numberOfVertices = htn->numSubTasks[m];
+	sog->labels.resize(sog->numberOfVertices);
+	sog->methodSubTasksToVertices.resize(methods.size());
+
+	for (size_t mID = 0; mID < methods.size(); mID++){
+		int m = get<0>(methods[mID]);
+		sog->methodSubTasksToVertices[mID].resize(htn->numSubTasks[m]);
+	
+		vector<int> taskSequence;
+		vector<int> indexSequence;
+		for (size_t x = 0; x < htn->numSubTasks[m]; x++){
+			int taskID = htn->methodTotalOrder[m][x];
+			int task   = htn->subTasks[m][taskID];
+			taskSequence.push_back(task);
+			indexSequence.push_back(taskID);
+		}	
+		addSequenceToSOG(sog, taskSequence, indexSequence, mID, 0, sog->numberOfVertices);
+	}
+
+	return sog;
+}	
+	
+SOG* runTOSOGOptimiserRecursive(SOG* sog, vector<tuple<int,int,int>> & methods, Model* htn){
+	//cout << endl << endl << endl << "================================================" << endl;
+	// 1. Step extract the recursive tasks per method
+	vector<pair<int,vector<int>>> labelSequence;
+	for (size_t mID = 0; mID < methods.size(); mID++){
+		int m = get<0>(methods[mID]);
+		
+		pair<int,vector<int>> seq;
+		seq.first = mID;
+		for (size_t x = 0; x < htn->numSubTasks[m]; x++)
+			if (!htn->sccIsAcyclic[htn->taskToSCC[htn->subTasks[m][htn->methodTotalOrder[m][x]]]])
+				seq.second.push_back(htn->subTasks[m][htn->methodTotalOrder[m][x]]);
+	
+		//cout << "Label" << endl;
+		//for (int s : seq.second)
+		//	cout << "\t" << htn->taskNames[s] << endl;
+		labelSequence.push_back(seq);
+	}
+
+	// 2. Step compute an optimal arrangement of the recursive tasks	
+	SOG* recSOG = linearLabelSetOptimisation(htn, labelSequence);
+	/*for (int i = 0; i < recSOG->numberOfVertices; i++){
+		cout << "POS " << i << endl;
+		for (const int & l : recSOG->labels[i]){
+			 if (!htn->sccIsAcyclic[htn->taskToSCC[l]]) cout << "\t";
+			 cout << "\t" << htn->taskNames[l] << endl;
+		}
+	}*/
+	
+	// 3. Step determine the length needed for the overall sequence
+
+	// gather positional information for all methods
+	vector<vector<pair<int,int>>> spaceNeededInBlocks (methods.size()); 
+	for (size_t mID = 0; mID < methods.size(); mID++){
+		int m = get<0>(methods[mID]);
+		spaceNeededInBlocks[mID].resize(recSOG->numberOfVertices + 1);
+		for (size_t i = 0; i < recSOG->numberOfVertices + 1; i++)
+			spaceNeededInBlocks[mID][i].second = 0; // initially nothing is needed
+
+		int numRec = 0;
+		int lastRecursivePosition = -1;
+		int lastRecursive = -1;
+		for (size_t x = 0; x < htn->numSubTasks[m]; x++)
+			if (!htn->sccIsAcyclic[htn->taskToSCC[htn->subTasks[m][htn->methodTotalOrder[m][x]]]]){
+				int positionOfThisTaskInSOG = recSOG->methodSubTasksToVertices[mID][numRec];
+				int numberOfTasksSinceLastRecursive = x - lastRecursive - 1;
+				
+				// memorise how much space we need
+				spaceNeededInBlocks[mID][positionOfThisTaskInSOG].first = lastRecursivePosition;
+				spaceNeededInBlocks[mID][positionOfThisTaskInSOG].second = numberOfTasksSinceLastRecursive;
+
+				// update last positions
+				lastRecursive = x;
+				lastRecursivePosition = positionOfThisTaskInSOG;
+				numRec++;
+			}
+		// handle tasks after the last recursive one
+		spaceNeededInBlocks[mID][recSOG->numberOfVertices].first = lastRecursivePosition;
+		spaceNeededInBlocks[mID][recSOG->numberOfVertices].second =
+				htn->numSubTasks[m] - lastRecursive - 1;
+	}
+	
+	
+	
+	// this is the number of tasks *before* the ith recursive task
+	vector<int> blocks(recSOG->numberOfVertices + 1);
+	// go over the positions and determine how much space we need up to them
+	for (size_t pos = 0; pos < recSOG->numberOfVertices + 1; pos++){
+		blocks[pos] = 0; // all blocks initially have size 0
+		for (size_t mID = 0; mID < methods.size(); mID++){
+			if (spaceNeededInBlocks[mID][pos].second == 0) continue; // this does not need space, so ignore it
+
+			int lastRecursive = spaceNeededInBlocks[mID][pos].first;
+			int numTasks = spaceNeededInBlocks[mID][pos].second;
+
+			// check how much space there currently is after the last recursive one
+			int currentSpace = 0;
+			for (size_t i = lastRecursive + 1; i <= pos; i++)
+				currentSpace += blocks[i];
+
+			// if size is not enough increase size of current block
+			if (currentSpace < numTasks)
+				blocks[pos] += numTasks - currentSpace;
+		}
+	}
+	
+	sog->numberOfVertices = 0;
+	vector<int> recursivePositions;
+	for (size_t pos = 0; pos < recSOG->numberOfVertices + 1; pos++){
+		sog->numberOfVertices += blocks[pos];
+		recursivePositions.push_back(sog->numberOfVertices);
+		sog->numberOfVertices++;
+	}
+	sog->labels.resize(sog->numberOfVertices);
+	sog->methodSubTasksToVertices.resize(methods.size());
+
+	// put the recursive tasks where they belong
+	for (size_t mID = 0; mID < methods.size(); mID++){
+		int m = get<0>(methods[mID]);
+		sog->methodSubTasksToVertices[mID].resize(htn->numSubTasks[m]);
+		int numRec = 0;
+		
+		for (size_t x = 0; x < htn->numSubTasks[m]; x++){
+			int taskID = htn->methodTotalOrder[m][x];
+			int task = htn->subTasks[m][taskID];
+			if (!htn->sccIsAcyclic[htn->taskToSCC[task]]){
+				int positionOfThisTaskInSOG = recSOG->methodSubTasksToVertices[mID][numRec];
+				// write this task to the SOG
+				int posInSOG = recursivePositions[positionOfThisTaskInSOG];
+				sog->methodSubTasksToVertices[mID][taskID] = posInSOG;
+				sog->labels[posInSOG].insert(htn->subTasks[m][htn->methodTotalOrder[m][x]]);
+				numRec++;
 			}
 		}
-		sog->methodSubTasksToVertices.push_back(matching);
-#ifndef NDEBUG
-		cout << "Ended with x = " << x << " y = " << y << endl; 
-#endif	
-		assert(x == 0);
+	}
+	
 
+	for (size_t mID = 0; mID < methods.size(); mID++){
+		//cout << "Method " << mID << endl;
+		int m = get<0>(methods[mID]);
+	
+		vector<int> taskSequence;
+		vector<int> indexSequence;
+
+		// go through the method and gather the blocks		
+		int numRec = 0;
+		int lastRecursivePosition = -1;
+		for (size_t x = 0; x < htn->numSubTasks[m] + 1; x++){
+			bool last = x == htn->numSubTasks[m];
+			
+			int taskID = (!last)?htn->methodTotalOrder[m][x]:0;
+			int task = (!last)?htn->subTasks[m][taskID]:0;
+			if (last || !htn->sccIsAcyclic[htn->taskToSCC[task]]){
+				//cout << "HANDLE " << numRec << " @ " << x << " of " << htn->numSubTasks[m] << endl;
+				int positionOfThisTaskInSOG = (!last)?recSOG->methodSubTasksToVertices[mID][numRec]:
+					(recursivePositions.size()-1);
+				// determine the range
+				int startRange = 0;
+				//cout << "\t" << lastRecursivePosition << " " << recursivePositions[lastRecursivePosition] << " " << recursivePositions.size() << endl;
+				if (lastRecursivePosition != -1)
+					startRange = recursivePositions[lastRecursivePosition] + 1;
+				int endRange = recursivePositions[positionOfThisTaskInSOG];
+				//cout << "\t" << startRange << " " << endRange << endl;
+
+				// add the partial sequence to the overall sequence
+				addSequenceToSOG(sog, taskSequence, indexSequence, mID, startRange, endRange);
+
+				taskSequence.clear();
+				indexSequence.clear();
+				numRec++;
+				lastRecursivePosition = positionOfThisTaskInSOG;
+			} else {
+				taskSequence.push_back(task);
+				indexSequence.push_back(taskID);
+			}
+		}
+	}
+
+	// check the integrity of the SOG ..?
+
+
+	int numRec = 0;
+	for (int i = 0; i < sog->numberOfVertices; i++){
+		bool recursive = false;
+		for (const int & l : sog->labels[i])
+			recursive |= !htn->sccIsAcyclic[htn->taskToSCC[l]];
+
+		if (recursive) numRec++;
+	}
+
+	int methodMaxRec = recSOG->numberOfVertices;
+	if (false || numRec != methodMaxRec){
+		cout << "SOG: " << numRec << " " << methodMaxRec << " " << methods.size() << endl;
+
+		for (int i = 0; i < sog->numberOfVertices; i++){
+			cout << "POS " << i << endl;
+			for (const int & l : sog->labels[i])
+				 if (!htn->sccIsAcyclic[htn->taskToSCC[l]])
+					 cout << "\t" << htn->taskNames[l] << endl;
+		}
+		
+		for (size_t mID = 0; mID < methods.size(); mID++){
+			int m = get<0>(methods[mID]);
+			cout << "Method " << mID << " " << htn->methodNames[m] << endl;
+			for (size_t x = 0; x < htn->numSubTasks[m]; x++)
+				if (!htn->sccIsAcyclic[htn->taskToSCC[htn->subTasks[m][htn->methodTotalOrder[m][x]]]])
+					 cout << "\t" << htn->taskNames[htn->subTasks[m][htn->methodTotalOrder[m][x]]] << endl;
+		}
 	}
 
 	return sog;
@@ -257,12 +479,12 @@ SOG* optimiseSOG(vector<tuple<int,int,int>> & methods, Model* htn){
 	for (size_t mID = 0; mID < methods.size(); mID++)
 		if (maxSize < htn->numSubTasks[get<0>(methods[mID])]) maxSize = htn->numSubTasks[get<0>(methods[mID])];
 	cout << endl << endl << endl << "Running PO SOG Optimiser with " << methods.size() << " methods with up to " << maxSize << " subtasks." << endl;
-	//cout << htn->numSubTasks[methods[0]] << " max " << maxSize << endl;
 #endif
 
 
 	if (allMethodsAreTotallyOrdered)
 		return runTOSOGOptimiser(sog, methods, htn);
+		//return runTOSOGOptimiserRecursive(sog, methods, htn);
 	else
 		return runPOSOGOptimiser(sog, methods, htn);
 }
