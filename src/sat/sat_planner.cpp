@@ -218,14 +218,14 @@ bool createFormulaForDepth(void* solver, PDT* pdt, graph * dg, Model * htn, sat_
 	// get leafs
 	vector<PDT*> leafs;
 	pdt->getLeafs(leafs);
-	cout << "PDT has " << leafs.size() << " leafs" << endl;
-	exit(0);
+	//exit(0);
+	/*cout << "PDT has " << leafs.size() << " leafs" << endl;
 	ofstream dfile;
 	dfile.open ("pdt_" + to_string(depth) + ".dot");
 	dfile << " digraph graphname" << endl << "{" << endl;
 	pdt->printDot(htn,dfile);
 	dfile << "}" << endl;
-	dfile.close();
+	dfile.close();*/
 	
 	pdt->resetPruning(htn); // clear tables in whole tree
 	//printPDT(htn,pdt);
@@ -484,7 +484,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 	graph * dg = compute_disabling_graph(htn, true);
 	sat_capsule capsule;
 
-	int depth = 15;
+	int depth = 1;
 	while (true){
 		void* solver = ipasir_init();
 		cout << endl << endl << color(Color::YELLOW, "Generating formula for depth " + to_string(depth)) << endl;

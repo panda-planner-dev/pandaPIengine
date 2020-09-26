@@ -483,8 +483,8 @@ SOG* optimiseSOG(vector<tuple<int,int,int>> & methods, Model* htn){
 
 
 	if (allMethodsAreTotallyOrdered)
-		return runTOSOGOptimiser(sog, methods, htn);
-		//return runTOSOGOptimiserRecursive(sog, methods, htn);
+		//return runTOSOGOptimiser(sog, methods, htn);
+		return runTOSOGOptimiserRecursive(sog, methods, htn);
 	else
 		return runPOSOGOptimiser(sog, methods, htn);
 }
