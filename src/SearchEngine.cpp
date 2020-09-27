@@ -67,7 +67,9 @@ int main(int argc, char *argv[]) {
 	setDebugMode(true);
 	extract_invariants_from_parsed_model(htn);
 #ifdef RINTANEN_INVARIANTS
+#ifdef SAT_USEMUTEXES
 	compute_Rintanen_Invariants(htn);
+#endif
 #endif
 
 	solve_with_sat_planner(htn);

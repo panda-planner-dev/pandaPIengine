@@ -147,6 +147,7 @@ void insert_invariant(Model * htn, unordered_set<int> * invariants, int a, int b
 
 
 bool filter_leafs_Rintanen(vector<PDT*> & leafs, Model * htn, unordered_set<int>* & after_leaf_invariants, int & additionalInvariants){
+	
 	//std::clock_t invariant_start = std::clock();
 	//cout << endl << "Computing invariants [Rintanen]" << endl;
 	
