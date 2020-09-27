@@ -236,6 +236,7 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	int round = 1;
 	int additionalInvariants = 0;
 	while(true){
+		//break;
 		cout << color(Color::BLUE,"Pruning round ") << round++ << " Phase: " << pruningPhase << endl;
 		if (pruningPhase == 1){
 			if (!filter_leafs_ff(leafs, htn))
