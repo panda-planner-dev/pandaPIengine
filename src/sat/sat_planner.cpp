@@ -213,7 +213,7 @@ bool filter_leafs_Rintanen(vector<PDT*> & leafs, Model * htn, unordered_set<int>
 
 
 
-bool createFormulaForDepth(void* solver, PDT* pdt, graph * dg, Model * htn, sat_capsule & capsule, int depth){
+bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & capsule, int depth){
 	pdt->expandPDTUpToLevel(depth,htn);
 	// get leafs
 	vector<PDT*> leafs;
@@ -239,7 +239,8 @@ bool createFormulaForDepth(void* solver, PDT* pdt, graph * dg, Model * htn, sat_
 		cout << color(Color::BLUE,"Pruning round ") << round++ << " Phase: " << pruningPhase << endl;
 		if (pruningPhase == 1){
 			if (!filter_leafs_ff(leafs, htn))
-				pruningPhase++;
+				//pruningPhase++;
+				break;
 		} else if (pruningPhase == 2){
 			if (!filter_leafs_Rintanen(leafs, htn, after_leaf_invariants, additionalInvariants))
 				break;
@@ -274,7 +275,7 @@ bool createFormulaForDepth(void* solver, PDT* pdt, graph * dg, Model * htn, sat_
 	
 
 #ifdef BLOCK_COMPRESSION
-	vector<vector<int>> blocks = compute_block_compression(htn, dg, leafs);
+	vector<vector<int>> blocks = compute_block_compression(htn, leafs);
 	cout << "Block compression leads to " << blocks.size() << " timesteps." << endl;
 #ifndef NDEBUG
 	for (auto block : blocks){
@@ -481,7 +482,7 @@ void temp(Model * htn, PDT * pdt){
 
 void solve_with_sat_planner_linear_bound_increase(Model * htn){
 	PDT* pdt = new PDT(htn);
-	graph * dg = compute_disabling_graph(htn, true);
+	//graph * dg = compute_disabling_graph(htn, true);
 	sat_capsule capsule;
 
 	int depth = 1;
@@ -491,7 +492,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 		std::clock_t formula_start = std::clock();
 		int state = 20;
 		
-		if (createFormulaForDepth(solver,pdt,dg,htn,capsule,depth)){
+		if (createFormulaForDepth(solver,pdt,htn,capsule,depth)){
 			std::clock_t formula_end = std::clock();
 			double formula_time_in_ms = 1000.0 * (formula_end-formula_start) / CLOCKS_PER_SEC;
 			cout << "Formula has " << capsule.number_of_variables << " vars and " << get_number_of_clauses() << " clauses." << endl;
@@ -535,7 +536,7 @@ struct thread_returns{
 	Model * htn;
 	int depth;
 	PDT * pdt;
-	graph * dg;
+	//graph * dg;
 	void* solver;
 	int state;
 	
@@ -562,12 +563,12 @@ void* run_sat_planner_for_depth(void * param){
 
 
 	ret->pdt = new PDT(ret->htn);
-	ret->dg = compute_disabling_graph(ret->htn, true);
+	//ret->dg = compute_disabling_graph(ret->htn, true);
 	ret->solver = ipasir_init();
 
 	sat_capsule capsule;
 	cout << "Generating formula for depth " << ret->depth << endl;
-	createFormulaForDepth(ret->solver,ret->pdt,ret->dg,ret->htn,capsule,ret->depth);
+	createFormulaForDepth(ret->solver,ret->pdt,ret->htn,capsule,ret->depth);
 	cout << "Formula has " << capsule.number_of_variables << " vars and " << get_number_of_clauses() << " clauses." << endl;
 	
 	cout << "Starting solver" << endl;

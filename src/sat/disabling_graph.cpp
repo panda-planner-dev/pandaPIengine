@@ -362,9 +362,34 @@ graph * compute_disabling_graph(Model * htn, bool no_invariant_inference){
 	return dg;
 }
 
+bool doActionsInterfere(Model * htn, vector<int> & previous, vector<int> & next){
+	unordered_set<int> nextPreconditions;
+	unordered_set<int> nextAdds;
+	unordered_set<int> nextDeletes;
+	for (const int & n : next){
+		for (size_t p = 0; p < htn->numPrecs[n]; p++)
+			nextPreconditions.insert(htn->precLists[n][p]);
+		for (size_t a = 0; a < htn->numAdds[n]; a++)
+			nextAdds.insert(htn->addLists[n][a]);
+		for (size_t d = 0; d < htn->numDels[n]; d++)
+			nextDeletes.insert(htn->delLists[n][d]);
+	}
+
+	// check if anyone adds or deletes
+	for (const int & p : previous){
+		for (size_t a = 0; a < htn->numAdds[p]; a++)
+			if (nextPreconditions.count(htn->addLists[p][a]) || 
+					nextDeletes.count(htn->addLists[p][a]))
+				return true;
+		for (size_t d = 0; d < htn->numDels[p]; d++)
+			if (nextPreconditions.count(htn->delLists[p][d]) || 
+					nextAdds.count(htn->delLists[p][d])) return true;
+	}
+	return false;
+}
 
 
-vector<vector<int>> compute_block_compression(Model * htn, graph * dg, vector<PDT*> & leafs){
+vector<vector<int>> compute_block_compression(Model * htn, vector<PDT*> & leafs){
 	vector<vector<int>> blocks;
 
 	vector<int> currentBlock;
@@ -387,7 +412,7 @@ vector<vector<int>> compute_block_compression(Model * htn, graph * dg, vector<PD
 			cout << htn->taskNames[npp] << endl;*/
 #endif
 
-		if (dg->can_reach_any_of_directly(currentPrimitives,nonPrunedPrimitives)){
+		if (doActionsInterfere(htn, currentPrimitives,nonPrunedPrimitives)){
 #ifndef NDEBUG
 			//cout << "Interference." << endl << endl << endl;
 #endif

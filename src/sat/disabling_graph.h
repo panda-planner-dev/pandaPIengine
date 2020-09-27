@@ -40,7 +40,7 @@ private:
 
 graph * compute_disabling_graph(Model * htn, bool no_invariant_inference);
 
-vector<vector<int>> compute_block_compression(Model * htn, graph * dg, vector<PDT*> & leafs);
+vector<vector<int>> compute_block_compression(Model * htn, vector<PDT*> & leafs);
 
 
 #endif
