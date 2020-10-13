@@ -5,6 +5,7 @@
 #include "Model.h"
 
 void extract_invariants_from_parsed_model(Model * htn);
+int count_invariants(Model * htn);
 
 
 #ifdef RINTANEN_INVARIANTS

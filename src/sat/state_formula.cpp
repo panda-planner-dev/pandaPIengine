@@ -222,8 +222,7 @@ void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & 
 	std::clock_t solver_end = std::clock();
 	double solver_time_in_ms = 1000.0 * (solver_end-solver_start) / CLOCKS_PER_SEC;
 	cout << "Invar time: " << solver_time_in_ms << "ms";
-	cout << " " << blocks.size() << "*" << (htn->numStrictMutexes + htn->numMutexes) << " = " << (blocks.size() * (htn->numStrictMutexes + htn->numMutexes));
-	cout << " mutex clauses" << endl; 
+	cout << " SM: " << htn->numStrictMutexes << " M: " << htn->numMutexes << " I: " << htn->numInvariants << " SI: " << count_invariants(htn) << endl;
 }
 
 
