@@ -2,6 +2,7 @@
 #include "ipasir.h"
 #include "../Invariants.h"
 #include <cassert>
+#include <iomanip>
 
 void generate_state_transition_formula(void* solver, sat_capsule & capsule, vector<vector<pair<int,int>>> & actionVariables, vector<PDT*> & leafs, Model* htn){
 	// no blocks so just unit blocks
@@ -44,15 +45,24 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 
 	//////////////////////// state transition
 	for (size_t time = 0; time < timesteps; time++){
+#ifndef NDEBUG
+		int bef = get_number_of_clauses();
+#endif
 		int thisTimeBase = leafs[blocks[time][0]]->baseStateVarVariable;
 		int nextTimeBase = (time == (timesteps - 1))?goalBase:leafs[blocks[time+1][0]]->baseStateVarVariable;
 
 		vector<vector<int>> causingPositive (htn->numStateBits);
 		vector<vector<int>> causingNegative (htn->numStateBits);
 
+#ifndef NDEBUG
+		int act = 0;
+#endif
 		for (const int & l : blocks[time]){
 			// rules for the individual actions
 			for (const auto & [varID,taskID] : actionVariables[l]){
+#ifndef NDEBUG
+				act++;
+#endif
 				// preconditions must be fulfilled
 				for (size_t precIndex = 0; precIndex < htn->numPrecs[taskID]; precIndex++)
 					implies(solver, varID, thisTimeBase + htn->precLists[taskID][precIndex]);
@@ -70,12 +80,19 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 				}
 			}
 		}
+#ifndef NDEBUG
+		int eff = get_number_of_clauses();
+#endif
 
 	 	// frame axioms, state can only change due to an action
 		for (size_t svar = 0; svar < htn->numStateBits; svar++){
 			impliesPosAndNegImpliesOr(solver, nextTimeBase + svar, thisTimeBase + svar, causingPositive[svar]);
 			impliesPosAndNegImpliesOr(solver, thisTimeBase + svar, nextTimeBase + svar, causingNegative[svar]);
 		}
+#ifndef NDEBUG
+		int frame = get_number_of_clauses();
+		cout << setw(4) << time << " actions " << setw(7) << act << " " << setw(8) << eff-bef << " " << setw(8) << frame-eff << endl;
+#endif
 	}
 
 
@@ -205,8 +222,8 @@ void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & 
 	std::clock_t solver_end = std::clock();
 	double solver_time_in_ms = 1000.0 * (solver_end-solver_start) / CLOCKS_PER_SEC;
 	cout << "Invar time: " << solver_time_in_ms << "ms";
-	cout << " " << blocks.size() << "*" << (htn->numStrictMutexes + htn->numMutexes + htn->numVars);
-	cout << " invariant clauses" << endl; 
+	cout << " " << blocks.size() << "*" << (htn->numStrictMutexes + htn->numMutexes) << " = " << (blocks.size() * (htn->numStrictMutexes + htn->numMutexes));
+	cout << " mutex clauses" << endl; 
 }
 
 

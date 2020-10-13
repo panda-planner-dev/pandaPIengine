@@ -1,5 +1,6 @@
 #include <cassert>
 #include <fstream>
+#include <iomanip>
 #include "pdt.h"
 #include "ipasir.h"
 #include "../Util.h"
@@ -90,6 +91,9 @@ void PDT::expandPDT(Model* htn){
 		return;
 	}
 
+#ifndef NDEBUG
+	std::clock_t before_prep = std::clock();
+#endif
 	expanded = true;
 
 	vector<tuple<int,int,int>> applicableMethodsForSOG;
@@ -106,8 +110,12 @@ void PDT::expandPDT(Model* htn){
 	}
 
 	// get best possible SOG
+#ifndef NDEBUG
+	std::clock_t before_sog = std::clock();
+#endif
 	SOG * sog = optimiseSOG(applicableMethodsForSOG, htn);
 #ifndef NDEBUG
+	std::clock_t after_sog = std::clock();
 	//cout << "Computed SOG, size: " << sog->numberOfVertices << endl;
 #endif
 
@@ -212,6 +220,13 @@ void PDT::expandPDT(Model* htn){
 			children[selectedChild]->causesForPrimitives[positionOfPrimitiveTasksInChildren[selectedChild][p]].push_back(make_pair(-1,pIndex));
 		}
 	}
+#ifndef NDEBUG
+	std::clock_t after_all = std::clock();
+	double prep_in_ms = 1000.0 * (before_sog-before_prep) / CLOCKS_PER_SEC;
+	double sog_in_ms = 1000.0 * (after_sog-before_sog) / CLOCKS_PER_SEC;
+	double after_in_ms = 1000.0 * (after_all-after_sog) / CLOCKS_PER_SEC;
+	cout << "SOG " << setw(8) << setprecision(3) << prep_in_ms << " " << setw(8) << setprecision(3) << sog_in_ms << " " << setw(8) << setprecision(3) << after_in_ms << " ms" << endl;
+#endif
 }
 
 
@@ -647,20 +662,28 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
 			allTasks.push_back(x);
 	
 	if (allTasks.size() == 0) return; // no tasks can be here
+#ifndef NDEBUG
+	int stepA = get_number_of_clauses();
+#endif
 	atMostOne(solver,capsule, allTasks);	
+#ifndef NDEBUG
+	int stepB = get_number_of_clauses();
+#endif
 
 	// at most one method
-	// TODO this is on an per AT basis, before it was one AMO for all methods
+	// TODO tested AMO per AT. This gives a lot more clauses ... (performance test is still open)
+	vector<int> methodAtoms;
 	for (size_t a = 0; a < possibleAbstracts.size(); a++){
 		if (prunedAbstracts[a]) continue;
-		vector<int> temp;
 		for (const int & i : methodVariables[a])
 			if (i != -1)
-				temp.push_back(i);
-		
-		assert(temp.size());
-		atMostOne(solver,capsule, temp);
+				methodAtoms.push_back(i);
 	}
+	assert(methodAtoms.size());
+	atMostOne(solver,capsule, methodAtoms);
+#ifndef NDEBUG
+	int stepC = get_number_of_clauses();
+#endif
 	
 	// if a primitive task is chosen, it must be inherited
 	for (size_t p = 0; p < possiblePrimitives.size(); p++){
@@ -675,6 +698,9 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
 			if (child != c)
 				implies(solver,primitiveVariable[p],children[c]->noTaskPresent);
 	}
+#ifndef NDEBUG
+	int stepD = get_number_of_clauses();
+#endif
 	
 
 
@@ -725,6 +751,9 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
 		assert(!expanded || temp.size());
 		impliesOr(solver,av,temp);
 	}
+#ifndef NDEBUG
+	int stepE = get_number_of_clauses();
+#endif
 
 	// selection of tasks at children must be caused by me
 	// TODO: With AMO, this constraint should be implied, so we could leave it out
@@ -765,6 +794,9 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
 			impliesOr(solver, child->primitiveVariable[p], allCauses);
 		}
 	}
+#ifndef NDEBUG
+	int stepF = get_number_of_clauses();
+#endif
 
 	// if no task is present at this node, then none is actually here
 	vector<int> temp;
@@ -773,6 +805,9 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
 			temp.push_back(v);
 	if (temp.size())
 		impliesAllNot(solver, noTaskPresent, temp);
+#ifndef NDEBUG
+	int stepG = get_number_of_clauses();
+#endif
 
 
 	temp.clear();
@@ -781,11 +816,28 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
 			temp.push_back(v);
 	if (temp.size())
 		impliesAllNot(solver, noTaskPresent, temp);
+#ifndef NDEBUG
+	int stepH = get_number_of_clauses();
+#endif
 
 	// no task present implies this for all children
 	for (PDT* & child : children)
 		implies(solver,noTaskPresent, child->noTaskPresent);
-		
+#ifndef NDEBUG
+	int stepI = get_number_of_clauses();
+#endif
+
+
+#ifndef NDEBUG
+	cout << "A: " << setw(8) << stepB - stepA << " ";
+	cout << "B: " << setw(8) << stepC - stepB << " ";
+	cout << "C: " << setw(8) << stepD - stepC << " ";
+	cout << "D: " << setw(8) << stepE - stepD << " ";
+	cout << "E: " << setw(8) << stepF - stepE << " ";
+	cout << "F: " << setw(8) << stepG - stepF << " ";
+	cout << "G: " << setw(8) << stepH - stepG << " ";
+	cout << "I: " << setw(8) << stepI - stepH << endl;
+#endif	
 	
 	// add clauses for children
 	for (PDT* & child : children)

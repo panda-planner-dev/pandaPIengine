@@ -147,7 +147,7 @@ void insert_invariant(Model * htn, unordered_set<int> * invariants, int a, int b
 
 
 bool filter_leafs_Rintanen(vector<PDT*> & leafs, Model * htn, unordered_set<int>* & after_leaf_invariants, int & additionalInvariants){
-	
+#ifdef RINTANEN_INVARIANTS
 	//std::clock_t invariant_start = std::clock();
 	//cout << endl << "Computing invariants [Rintanen]" << endl;
 	
@@ -210,18 +210,27 @@ bool filter_leafs_Rintanen(vector<PDT*> & leafs, Model * htn, unordered_set<int>
 	additionalInvariants = v0.size();
 	cout << "Rintanen Pruning: removed " << prunedPrimitives << " of " << (prunedPrimitives + executablePrimitives) << endl;
 	return prunedPrimitives != 0;
+#else
+	return false;
+#endif
+
 }
 
 
 
 bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & capsule, int depth){
+	std::clock_t beforePDT = std::clock();
 	pdt->expandPDTUpToLevel(depth,htn);
+	std::clock_t afterPDT = std::clock();
+	double pdt_time = 1000.0 * (afterPDT - beforePDT) / CLOCKS_PER_SEC;
+	cout << "Computing PDT took: " << setprecision(3) << pdt_time << " ms" << endl;
 	// get leafs
+	cout << "Computed PDT. Extracting leafs ... ";
 	vector<PDT*> leafs;
 	pdt->getLeafs(leafs);
 	//exit(0);
-	/*cout << "PDT has " << leafs.size() << " leafs" << endl;
-	ofstream dfile;
+	cout << leafs.size() << " leafs" << endl;
+	/*ofstream dfile;
 	dfile.open ("pdt_" + to_string(depth) + ".dot");
 	dfile << " digraph graphname" << endl << "{" << endl;
 	pdt->printDot(htn,dfile);
@@ -267,8 +276,9 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	pdt->assignVariableIDs(capsule, htn);
 	DEBUG(capsule.printVariables());
 
+	int beforeDecomp = get_number_of_clauses();
 	pdt->addDecompositionClauses(solver, capsule);
-
+	int afterDecomp = get_number_of_clauses();
 	// assert the initial abstract task
 	assertYes(solver,pdt->abstractVariable[0]);
 	
@@ -304,6 +314,7 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 #else
 	generate_state_transition_formula(solver, capsule, vars, leafs, htn);
 #endif
+	int afterState = get_number_of_clauses();
 
 
 #ifdef SAT_USEMUTEXES
@@ -313,16 +324,16 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	generate_mutex_formula(solver, capsule, leafs, after_leaf_invariants, htn);
 #endif
 #endif
+	int afterMutex = get_number_of_clauses();
+
+	cout << color(Color::BLUE,"Formula: ") << (afterDecomp - beforeDecomp) << " decomposition " << (afterState - afterDecomp) << " state "  << (afterMutex - afterState) << " mutex" << endl;
 
 
 
 
-
-
-
-	map<int,string> names;
-	for (int i = 0; i < htn->numActions; i++)
-		names[i] = htn->taskNames[i];
+	//map<int,string> names;
+	//for (int i = 0; i < htn->numActions; i++)
+	//	names[i] = htn->taskNames[i];
 
 /*	
 	map<int,string> style;
@@ -486,6 +497,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 	PDT* pdt = new PDT(htn);
 	//graph * dg = compute_disabling_graph(htn, true);
 	sat_capsule capsule;
+	reset_number_of_clauses();
 
 	int depth = 1;
 	while (true){
