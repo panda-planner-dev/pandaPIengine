@@ -225,6 +225,8 @@ void PDT::expandPDT(Model* htn){
 	double after_in_ms = 1000.0 * (after_all-after_sog) / CLOCKS_PER_SEC;
 	cout << "SOG " << setw(8) << setprecision(3) << prep_in_ms << " " << setw(8) << setprecision(3) << sog_in_ms << " " << setw(8) << setprecision(3) << after_in_ms << " ms" << endl;
 #endif
+
+	delete sog;
 }
 
 
