@@ -38,7 +38,7 @@ void PDT::resetPruning(Model * htn){
 	prunedAbstracts.assign(possibleAbstracts.size(), false);
 	
 	if (expanded){
-		prunedMethods.resize(applicableMethods.size());
+		prunedMethods.resize(possibleAbstracts.size());
 		for (unsigned int at = 0; at < possibleAbstracts.size(); at++)
 			prunedMethods[at].assign(htn->numMethodsForTask[possibleAbstracts[at]],false);
 	}
@@ -62,8 +62,8 @@ void PDT::initialisePruning(Model * htn){
 		prunedPrimitives.assign(possiblePrimitives.size(), false);
 	if (possibleAbstracts.size() != prunedAbstracts.size())
 		prunedAbstracts.assign(possibleAbstracts.size(), false);
-	if (expanded && applicableMethods.size() != prunedMethods.size()){
-		prunedMethods.resize(applicableMethods.size());
+	if (expanded && possibleAbstracts.size() != prunedMethods.size()){
+		prunedMethods.resize(possibleAbstracts.size());
 		for (unsigned int at = 0; at < possibleAbstracts.size(); at++)
 			prunedMethods[at].assign(htn->numMethodsForTask[possibleAbstracts[at]],false);
 	}
@@ -98,13 +98,11 @@ void PDT::expandPDT(Model* htn){
 
 	vector<tuple<int,int,int>> applicableMethodsForSOG;
 	// gather applicable methods
-	applicableMethods.resize(possibleAbstracts.size());
 	listIndexOfChildrenForMethods.resize(possibleAbstracts.size());
 	for (int tIndex = 0; tIndex < possibleAbstracts.size(); tIndex++){
 		int & t = possibleAbstracts[tIndex];
 		listIndexOfChildrenForMethods[tIndex].resize(htn->numMethodsForTask[t]);
 		for (int m = 0; m < htn->numMethodsForTask[t]; m++){
-			applicableMethods[tIndex].push_back(true);
 			applicableMethodsForSOG.push_back(make_tuple(htn->taskToMethods[t][m],tIndex,m));
 		}
 	}
@@ -261,7 +259,7 @@ void printPDT(Model * htn, PDT* cur, int indent){
 		printIndentMark(indent + 5, 10, cout);
 		cout << color(cur->prunedAbstracts[a]?Color::RED : Color::WHITE, "a " + htn->taskNames[abs]) << endl;
 		if (cur->expanded){
-			for (size_t m = 0; m < cur->applicableMethods[a].size(); m++){
+			for (size_t m = 0; m < htn->numMethodsForTask[cur->possibleAbstracts[a]]; m++){
 				printIndentMark(indent + 10, 10, cout);
 				cout << color(cur->prunedMethods[a][m]?Color::RED : Color::WHITE, "m " + htn->methodNames[htn->taskToMethods[abs][m]]) << endl;
 				//for (size_t s = 0; s < htn->numSubTasks[htn->taskToMethods[abs][m]]; s++){
@@ -370,8 +368,8 @@ void PDT::assignVariableIDs(sat_capsule & capsule, Model * htn){
 	methodVariables.resize(possibleAbstracts.size());
 	for (size_t a = 0; a < possibleAbstracts.size(); a++){
 		int & t = possibleAbstracts[a];
-		methodVariables[a].assign(applicableMethods[a].size(),-1);
-		for (size_t mi = 0; mi < applicableMethods[a].size(); mi++){
+		methodVariables[a].assign(htn->numMethodsForTask[possibleAbstracts[a]],-1);
+		for (size_t mi = 0; mi < htn->numMethodsForTask[possibleAbstracts[a]]; mi++){
 #ifdef NO_PRUNED_VARIABLES
 			if (prunedMethods[a][mi]) continue;
 #endif
@@ -429,7 +427,7 @@ void PDT::assignOutputNumbers(void* solver, int & currentID, Model * htn){
 #endif
 
 			// find the applied method
-			for (size_t mIndex = 0; mIndex < applicableMethods[aIndex].size(); mIndex++){
+			for (size_t mIndex = 0; mIndex < htn->numMethodsForTask[possibleAbstracts[aIndex]]; mIndex++){
 				int m = methodVariables[aIndex][mIndex];
 				if (m == -1) continue; // pruned
 				if (ipasir_val(solver,m) > 0){
@@ -530,7 +528,7 @@ void PDT::propagatePruning(Model * htn){
 	for (size_t a = 0; a < possibleAbstracts.size(); a++)
 		if (prunedAbstracts[a]) {
 			if (expanded)
-				for (size_t m = 0; m < applicableMethods[a].size(); m++)
+				for (size_t m = 0; m < htn->numMethodsForTask[possibleAbstracts[a]]; m++)
 					prunedMethods[a][m] = true; // if the AT is pruned, all methods are
 		}
 
@@ -580,7 +578,7 @@ void PDT::propagatePruning(Model * htn){
 			}
 		
 		for (size_t a = 0; a < possibleAbstracts.size(); a++)
-			for (size_t m = 0; m < applicableMethods[a].size(); m++){
+			for (size_t m = 0; m < htn->numMethodsForTask[possibleAbstracts[a]]; m++){
 				if (!prunedMethods[a][m]) continue;
 
 				for (auto [childIndex, isPrimitive, childTaskIndex, childCauseIndex] : listIndexOfChildrenForMethods[a][m]){
@@ -634,7 +632,7 @@ void PDT::addPrunedClauses(void* solver){
 	
 	if (expanded){
 		for (size_t a = 0; a < possibleAbstracts.size(); a++)
-			for (size_t m = 0; m < applicableMethods[a].size(); m++)
+			for (size_t m = 0; m < prunedMethods[a].size(); m++)
 				if (prunedMethods[a][m] && methodVariables[a][m] != -1)
 					assertNot(solver, methodVariables[a][m]);
 	}
@@ -710,7 +708,7 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
 	for (size_t a = 0; a < possibleAbstracts.size(); a++){
 		int & av = abstractVariable[a];
 		if (av == -1) continue; // pruned
-		for (size_t mi = 0; mi < applicableMethods[a].size(); mi++){
+		for (size_t mi = 0; mi < methodVariables[a].size(); mi++){
 			int & mv = methodVariables[a][mi];
 			if (mv == -1) continue; // pruned
 		

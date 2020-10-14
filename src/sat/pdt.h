@@ -33,7 +33,6 @@ struct PDT {
 	vector<PDT*> children;
 	SOG* sog;
 
-	vector<vector<bool>> applicableMethods; // indicates whether the methods in the model are actually applicable and have not been pruned
 	
 	vector<vector<bool>> prunedMethods;
 
