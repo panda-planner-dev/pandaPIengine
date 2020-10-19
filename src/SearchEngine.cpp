@@ -68,10 +68,7 @@ int main(int argc, char *argv[]) {
 	Model* htn = new Model();
 	htn->filename = s;
 	htn->read(s);
-    //string dOut = "/media/dh/Volume/repositories/neue-repos/publications/2020-HTNWS-Landmarks/stuff/exampleproblems/transport/tranport01-unpruned-domain.hddl";
-    //string pOut = "/media/dh/Volume/repositories/neue-repos/publications/2020-HTNWS-Landmarks/stuff/exampleproblems/transport/tranport01-unpruned-problem.hddl";
-	//htn->writeToPDDL(dOut,pOut);
-	//assert(htn->isHtnModel);
+	assert(htn->isHtnModel);
 	searchNode* tnI = htn->prepareTNi(htn);
 
 #ifdef MAINTAINREACHABILITY

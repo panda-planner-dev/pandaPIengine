@@ -32,6 +32,78 @@
 
 namespace progression {
 
+
+map<vector<uint64_t>, set<vector<int>>> visited;
+
+
+vector<uint64_t> state2Int(vector<bool> & state){
+	int pos = 0;
+	uint64_t cur = 0;
+	vector<uint64_t> vec;
+	for (bool b : state){
+		if (pos == 64){
+			vec.push_back(cur);
+			pos = 0;
+			cur = 0;
+		}
+
+		if (b)
+			cur |= uint64_t(1) << pos;
+
+		pos++;
+	}
+
+	if (pos) vec.push_back(cur);
+
+	return vec;
+}
+
+
+void dfsdfs(planStep * s, set<planStep*> & psp, map<planStep*,int> & prec){
+	if (psp.count(s)) return;
+	psp.insert(s);
+	for (int ns = 0; ns < s->numSuccessors; ns++)
+		prec[s->successorList[ns]]++, dfsdfs(s->successorList[ns],psp, prec);
+}
+
+int A = 0 ,B = 0;
+
+bool insertVisi(searchNode * n){
+	set<planStep*> psp; map<planStep*,int> prec;
+	for (int a = 0; a < n->numAbstract; a++) dfsdfs(n->unconstraintAbstract[a], psp, prec);
+	for (int a = 0; a < n->numPrimitive; a++) dfsdfs(n->unconstraintPrimitive[a], psp, prec);
+	vector<int> seq;
+
+	while (psp.size()){
+		for (planStep * ps : psp)
+			if (prec[ps] == 0){
+				seq.push_back(ps->task);
+				psp.erase(ps);
+				for (int ns = 0; ns < ps->numSuccessors; ns++)
+					prec[ps->successorList[ns]]--;
+				break;
+			}
+	}
+
+	//for (int x : seq) cout << x << " ";
+	//cout << endl;
+
+	//return true;
+
+	A++;
+	vector<uint64_t> ss = state2Int(n->state);
+	if (visited[ss].count(seq)) return false;
+
+	visited[ss].insert(seq);
+	B++;
+
+
+	//cout << A << " " << B << endl;
+	return true;
+}
+
+
+
 PriorityQueueSearch::PriorityQueueSearch() {
 	// TODO Auto-generated constructor stub
 
@@ -161,23 +233,27 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 #if SEARCHTYPE == DFSEARCH
 	StackFringe fringe;
 	assert(fringe.empty());
-	fringe.push(tnI);
+	if (insertVisi(tnI))
+		fringe.push(tnI);
 	assert(!fringe.empty());
 #elif SEARCHTYPE == BFSEARCH
 	QueueFringe fringe;
-	fringe.push(tnI);
+	if (insertVisi(tnI))
+		fringe.push(tnI);
 #else
 #ifdef PREFMOD
 	cout << "- using preferred modifications and an alternating fringe."
 	<< endl;
 	AlternatingFringe fringe;
-	fringe.push(tnI, true);
+	if (insertVisi(tnI))
+		fringe.push(tnI, true);
 #else // SEARCHTYPE == HEURISTICSEARCH
 	cout << "- using priority queue as fringe." << endl;
 	priority_queue<searchNode*, vector<searchNode*>, CmpNodePtrs> fringe;
-	fringe.push(tnI);
-    hF->setHeuristicValue(tnI, nullptr, -1);
-    //cout << htn->filename << " " << tnI->heuristicValue << endl;
+	if (insertVisi(tnI)){
+		fringe.push(tnI);
+    	hF->setHeuristicValue(tnI, nullptr, -1);
+	}
 #endif
 #endif
 	int numSearchNodes = 1;
@@ -237,7 +313,8 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 							break;
 					} else
 #endif
-					fringe.push(n2);
+					if (insertVisi(n2))
+						fringe.push(n2);
 
 				} else {
 					delete n2;
@@ -289,7 +366,8 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 
 					} else
 #endif
-						fringe.push(n2);
+						if (insertVisi(n2))
+							fringe.push(n2);
 
 				} else {
 					delete n2;

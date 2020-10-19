@@ -71,8 +71,8 @@
 #define SEARCHTYPE HEURISTICSEARCH // choose from [search-type]
 
 // options for heuristic search
-#define ASTAR
-#define GASTARWEIGHT 2
+//#define ASTAR
+//#define GASTARWEIGHT 2
 
 #define PRGEFFECTLESS // always progress effectless actions
 
@@ -142,8 +142,7 @@
 #define CHECKAFTER 5000 // nodes after which the timelimit is checked
 #endif
 
-
-//#define TRACESOLUTION
+#define TRACESOLUTION
 
 
 #endif /* FLAGS_H_ */
