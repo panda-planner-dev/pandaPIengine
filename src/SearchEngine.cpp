@@ -57,6 +57,7 @@ int main(int argc, char *argv[]) {
 	cerr << "Reading HTN model from file \"" << s << "\" ... " << endl;
 	Model* htn = new Model();
 	htn->read(s);
+
 	assert(htn->isHtnModel);
 	searchNode* tnI = htn->prepareTNi(htn);
 
