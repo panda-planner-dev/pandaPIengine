@@ -409,11 +409,14 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 			if (((currentT - lastOutput) / 1000) > 0) {
 				cout << setw(4) << int((currentT - startT) / 1000) << "s "
 						<< "visitime " << setw(10) << fixed << setprecision(5) << time/1000 << "s"
-					    << " generated nodes: "
-						<< setw(9) << allnodes << " nodes/sec.: "
-						<< setw(7) << int(double(allnodes) / (currentT - startT) * 1000) << " current heuristic: "
-						<< setw(5) << n->heuristicValue << " mod.depth "
-						<< setw(5) << n->modificationDepth << endl;
+					    << " generated nodes: " << setw(9) << allnodes
+					   	<< " nodes/sec.: " << setw(7) << int(double(allnodes) / (currentT - startT) * 1000)
+					    << " current heuristic: " << setw(5) << n->heuristicValue
+					   	<< " mod.depth " << setw(5) << n->modificationDepth
+					   	<< " inserts " << setw(9) << A
+					   	<< " duplicates " << setw(9) << A-B
+					   	<< " size " << setw(9) << B
+						<< endl;
 				lastOutput = currentT;
 			}
 			if ((timeLimit > 0) && ((currentT - startT) / 1000 > timeLimit)) {
@@ -430,6 +433,7 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 	cout << "Search Results" << endl;
 	cout << "- Search time " << double(currentT - startT) / 1000 << " seconds"	<< endl;
 	cout << "- Visited list time " << time / 1000 <<  " seconds" << endl;
+	cout << "- Visited list pruned " << A-B << endl;
 	cout << "- Generated " << (numSearchNodes + htn->numOneModActions + htn->numOneModMethods + htn->numEffLessProg) << " search nodes" << endl;
 	cout << "  Calculated heuristic for " << numSearchNodes << " nodes" << endl;
 	cout << "  One modifications " << (htn->numOneModActions + htn->numOneModMethods) << endl;
