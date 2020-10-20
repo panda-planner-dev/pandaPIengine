@@ -6,8 +6,10 @@
  */
 
 #include <iostream>
+#include <iomanip>
 #include <stdlib.h>
 #include <cassert>
+#include <chrono>
 #include <sys/time.h>
 
 #include "PriorityQueueSearch.h"
@@ -66,37 +68,61 @@ void dfsdfs(planStep * s, set<planStep*> & psp, map<planStep*,int> & prec){
 		prec[s->successorList[ns]]++, dfsdfs(s->successorList[ns],psp, prec);
 }
 
+
+void to_dfs(planStep * s, vector<int> & seq){
+	assert(s->numSuccessors <= 1);
+	seq.push_back(s->task);
+	if (s->numSuccessors == 0) return;
+	to_dfs(s->successorList[0],seq);
+}
+
+
 int A = 0 ,B = 0;
+double time = 0;
 
 bool insertVisi(searchNode * n){
-	set<planStep*> psp; map<planStep*,int> prec;
-	for (int a = 0; a < n->numAbstract; a++) dfsdfs(n->unconstraintAbstract[a], psp, prec);
-	for (int a = 0; a < n->numPrimitive; a++) dfsdfs(n->unconstraintPrimitive[a], psp, prec);
-	vector<int> seq;
+	//set<planStep*> psp; map<planStep*,int> prec;
+	//for (int a = 0; a < n->numAbstract; a++) dfsdfs(n->unconstraintAbstract[a], psp, prec);
+	//for (int a = 0; a < n->numPrimitive; a++) dfsdfs(n->unconstraintPrimitive[a], psp, prec);
+	//vector<int> seq;
 
-	while (psp.size()){
-		for (planStep * ps : psp)
-			if (prec[ps] == 0){
-				seq.push_back(ps->task);
-				psp.erase(ps);
-				for (int ns = 0; ns < ps->numSuccessors; ns++)
-					prec[ps->successorList[ns]]--;
-				break;
-			}
-	}
+	//while (psp.size()){
+	//	for (planStep * ps : psp)
+	//		if (prec[ps] == 0){
+	//			seq.push_back(ps->task);
+	//			psp.erase(ps);
+	//			for (int ns = 0; ns < ps->numSuccessors; ns++)
+	//				prec[ps->successorList[ns]]--;
+	//			break;
+	//		}
+	//}
 
 	//for (int x : seq) cout << x << " ";
 	//cout << endl;
 
 	//return true;
 
+	std::clock_t before = std::clock();
+	vector<int> seq;
+	if (n->numPrimitive) to_dfs(n->unconstraintPrimitive[0],seq);
+	if (n->numAbstract)  to_dfs(n->unconstraintAbstract[0], seq);
+
 	A++;
 	vector<uint64_t> ss = state2Int(n->state);
-	if (visited[ss].count(seq)) return false;
+	auto it = visited[ss].find(seq);
+	if (it != visited[ss].end()) {
+		std::clock_t after = std::clock();
+		time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
+		return false;
+	}
 
-	visited[ss].insert(seq);
+	visited[ss].insert(it,seq);
 	B++;
 
+
+	std::clock_t after = std::clock();
+	time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
+	//cout << "Computing took: " << setprecision(3) << time << " ms" << endl;
 
 	//cout << A << " " << B << endl;
 	return true;
@@ -383,13 +409,13 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 			currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 
 			if (((currentT - lastOutput) / 1000) > 0) {
-				cout << int((currentT - startT) / 1000) << "s generated nodes: "
-						<< allnodes << " nodes/sec.: "
-						<< int(
-								double(allnodes) / (currentT - startT)
-										* 1000) << " current heuristic: "
-						<< n->heuristicValue << " mod.depth "
-						<< n->modificationDepth << endl;
+				cout << setw(4) << int((currentT - startT) / 1000) << "s "
+						<< "visitime " << setw(10) << fixed << setprecision(5) << time/1000 << "s"
+					    << " generated nodes: "
+						<< setw(9) << allnodes << " nodes/sec.: "
+						<< setw(7) << int(double(allnodes) / (currentT - startT) * 1000) << " current heuristic: "
+						<< setw(5) << n->heuristicValue << " mod.depth "
+						<< setw(5) << n->modificationDepth << endl;
 				lastOutput = currentT;
 			}
 			if ((timeLimit > 0) && ((currentT - startT) / 1000 > timeLimit)) {
@@ -404,23 +430,16 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 	gettimeofday(&tp, NULL);
 	currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 	cout << "Search Results" << endl;
-	cout << "- Search time " << double(currentT - startT) / 1000 << " seconds"
-			<< endl;
-	cout << "- Generated "
-			<< (numSearchNodes + htn->numOneModActions + htn->numOneModMethods
-					+ htn->numEffLessProg) << " search nodes" << endl;
+	cout << "- Search time " << double(currentT - startT) / 1000 << " seconds"	<< endl;
+	cout << "- Visited list time " << time / 1000 <<  " seconds" << endl;
+	cout << "- Generated " << (numSearchNodes + htn->numOneModActions + htn->numOneModMethods + htn->numEffLessProg) << " search nodes" << endl;
 	cout << "  Calculated heuristic for " << numSearchNodes << " nodes" << endl;
 	cout << "  One modifications " << (htn->numOneModActions + htn->numOneModMethods) << endl;
 	cout << "  Effectless actions " << htn->numEffLessProg << endl;
-	cout << "- including " << (htn->numOneModActions)
-			<< " one modification actions" << endl;
-	cout << "- including " << (htn->numOneModMethods)
-			<< " one modification methods" << endl;
-	cout << "- and       " << (htn->numEffLessProg)
-			<< " progressions of effectless actions" << endl;
-	cout << "- Generated "
-			<< int(double(numSearchNodes) / (currentT - startT) * 1000)
-			<< " nodes per second" << endl;
+	cout << "- including " << (htn->numOneModActions) << " one modification actions" << endl;
+	cout << "- including " << (htn->numOneModMethods) << " one modification methods" << endl;
+	cout << "- and       " << (htn->numEffLessProg) << " progressions of effectless actions" << endl;
+	cout << "- Generated " << int(double(numSearchNodes) / (currentT - startT) * 1000) << " nodes per second" << endl;
 	cout << "- Final fringe contains " << fringe.size() << " nodes" << endl;
 	if (this->foundSols > 1) {
 		cout << "- Found " << this->foundSols << " solutions." << endl;
@@ -437,7 +456,7 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 		cout << "- Found solution of length " << sLength << endl;
 		cout << "- Total costs of actions: " << tnSol->actionCosts << endl
 				<< endl;
-		cout << sol << endl;
+		//cout << sol << endl;
 #ifdef TRACKLMSFULL
 		assert(tnSol->lookForT->size == 0);
 		assert(tnSol->lookForM->size == 0);
