@@ -2487,49 +2487,42 @@ void Model::calcSCCGraph() {
 	// top-down mapping
 	this->sccGnumSucc = new int[numSCCs];
 	for (int i = 0; i < numSCCs; i++) {
-		sccGnumSucc[i] = 0;
-		for (int j = 0; j < numSCCs; j++) {
-			if (sccg[i]->find(j) != sccg[i]->end()) {
-				sccGnumSucc[i]++;
-			}
-		}
+		sccGnumSucc[i] = sccg[i]->size();
 	}
 
 	sccG = new int*[numSCCs];
 	for (int i = 0; i < numSCCs; i++) {
 		sccG[i] = new int[sccGnumSucc[i]];
 		int k = 0;
-		for (int j = 0; j < numSCCs; j++) {
-			if (sccg[i]->find(j) != sccg[i]->end()) {
-				sccG[i][k] = j;
-				k++;
-			}
-		}
+		for (int j : *sccg[i]) sccG[i][k++] = j;
 		assert(k == sccGnumSucc[i]);
 	}
 
 	// bottom-up mapping
 	this->sccGnumPred = new int[numSCCs];
-	for (int i = 0; i < numSCCs; i++) {
+	for (int i = 0; i < numSCCs; i++)
 		sccGnumPred[i] = 0;
-		for (int j = 0; j < numSCCs; j++) {
-			if (sccg[j]->find(i) != sccg[j]->end()) {
-				sccGnumPred[i]++;
-			}
-		}
-	}
+
+	for (int i = 0; i < numSCCs; i++)
+		for (int j : *sccg[i])
+			sccGnumPred[j]++;
 
 	sccGinverse = new int*[numSCCs];
+	int* ks = new int[numSCCs];
 	for (int i = 0; i < numSCCs; i++) {
+		ks[i] = 0;
 		sccGinverse[i] = new int[sccGnumPred[i]];
-		int k = 0;
-		for (int j = 0; j < numSCCs; j++) {
-			if (sccg[j]->find(i) != sccg[j]->end()) {
-				sccGinverse[i][k] = j;
-				k++;
-			}
+	}
+
+	for (int i = 0; i < numSCCs; i++) {
+		for (int j : *sccg[i]) {
+				sccGinverse[j][ks[j]] = i;
+				ks[j]++;
 		}
-		assert(k == sccGnumPred[i]);
+	}
+	
+	for (int i = 0; i < numSCCs; i++) {
+		assert(ks[i] == sccGnumPred[i]);
 	}
 
 	// reachability
