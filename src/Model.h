@@ -115,6 +115,9 @@ public:
 	bool** addVectors;
 	bool** delVectors;
 #endif
+#if STATEREP == SRCOPY
+	int stateVectorLength;
+#endif
 	int numPrecLessActions;
 	int* precLessActions;
 	int* precToActionSize;

@@ -77,7 +77,9 @@ void hhRC::setHeuristicValue(searchNode *n) {
 	// get facts holding in s0
 #if STATEREP == SRCOPY
 	for (int i = 0; i < m->numStateBits; i++) {
-		if (n->state[i]) {
+		int pos1 = i / 64;
+		int pos2 = i % 64;
+		if (n->state[pos1] & (uint64_t(1) << pos2)) {
 			s0set.insert(i);
 		}
 	}

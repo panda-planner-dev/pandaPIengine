@@ -66,7 +66,7 @@ struct planStep {
 
 struct searchNode {
 #if STATEREP == SRCOPY
-	vector<bool> state;
+	uint64_t* state;
 #elif STATEREP == SRLIST
 	int* state = nullptr;
 	int stateSize;

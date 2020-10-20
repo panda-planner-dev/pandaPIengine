@@ -80,7 +80,7 @@ void to_dfs(planStep * s, vector<int> & seq){
 int A = 0 ,B = 0;
 double time = 0;
 
-bool insertVisi(searchNode * n){
+bool insertVisi(Model * htn, searchNode * n){
 	//set<planStep*> psp; map<planStep*,int> prec;
 	//for (int a = 0; a < n->numAbstract; a++) dfsdfs(n->unconstraintAbstract[a], psp, prec);
 	//for (int a = 0; a < n->numPrimitive; a++) dfsdfs(n->unconstraintPrimitive[a], psp, prec);
@@ -108,7 +108,11 @@ bool insertVisi(searchNode * n){
 	if (n->numAbstract)  to_dfs(n->unconstraintAbstract[0], seq);
 
 	A++;
-	vector<uint64_t> ss = state2Int(n->state);
+	//vector<uint64_t> ss = state2Int(n->state);
+	vector<uint64_t> ss;
+	for (int i = 0; i < htn->stateVectorLength; i++)
+		ss.push_back(n->state[i]);
+
 	auto it = visited[ss].find(seq);
 	if (it != visited[ss].end()) {
 		std::clock_t after = std::clock();
@@ -259,24 +263,24 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 #if SEARCHTYPE == DFSEARCH
 	StackFringe fringe;
 	assert(fringe.empty());
-	if (insertVisi(tnI))
+	if (insertVisi(htn, tnI))
 		fringe.push(tnI);
 	assert(!fringe.empty());
 #elif SEARCHTYPE == BFSEARCH
 	QueueFringe fringe;
-	if (insertVisi(tnI))
+	if (insertVisi(htn, tnI))
 		fringe.push(tnI);
 #else
 #ifdef PREFMOD
 	cout << "- using preferred modifications and an alternating fringe."
 	<< endl;
 	AlternatingFringe fringe;
-	if (insertVisi(tnI))
+	if (insertVisi(htn, tnI))
 		fringe.push(tnI, true);
 #else // SEARCHTYPE == HEURISTICSEARCH
 	cout << "- using priority queue as fringe." << endl;
 	priority_queue<searchNode*, vector<searchNode*>, CmpNodePtrs> fringe;
-	if (insertVisi(tnI))
+	if (insertVisi(htn, tnI))
 		fringe.push(tnI);
 #endif
 #endif
@@ -337,8 +341,10 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 							break;
 					} else
 #endif
-					if (insertVisi(n2))
+					if (insertVisi(htn, n2))
 						fringe.push(n2);
+					else
+						delete n2;
 
 				} else {
 					delete n2;
@@ -390,8 +396,9 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 
 					} else
 #endif
-						if (insertVisi(n2))
+						if (insertVisi(htn, n2))
 							fringe.push(n2);
+						else delete n2;
 
 				} else {
 					delete n2;
@@ -409,11 +416,13 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 			if (((currentT - lastOutput) / 1000) > 0) {
 				cout << setw(4) << int((currentT - startT) / 1000) << "s "
 						<< "visitime " << setw(10) << fixed << setprecision(5) << time/1000 << "s"
-					    << " generated nodes: "
-						<< setw(9) << allnodes << " nodes/sec.: "
-						<< setw(7) << int(double(allnodes) / (currentT - startT) * 1000) << " current heuristic: "
-						<< setw(5) << n->heuristicValue << " mod.depth "
-						<< setw(5) << n->modificationDepth << endl;
+					    << " generated nodes: " << setw(9) << allnodes
+					   	<< " nodes/sec.: " << setw(7) << int(double(allnodes) / (currentT - startT) * 1000)
+						<< " current heuristic: " << setw(5) << n->heuristicValue
+						<< " mod.depth " << setw(5) << n->modificationDepth
+					    << " inserts: " << setw(9) << A
+					    << " duplicate: " << setw(9) << A-B
+						<< endl;
 				lastOutput = currentT;
 			}
 			if ((timeLimit > 0) && ((currentT - startT) / 1000 > timeLimit)) {

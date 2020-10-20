@@ -97,6 +97,10 @@ searchNode::~searchNode() {
 	delete[] containedTaskCount;
 #endif
 
+#if STATEREP == SRCOPY
+	free(state);
+#endif
+
 #if STATEREP == SRLIST
 	delete[] state;
 #endif

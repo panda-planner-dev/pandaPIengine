@@ -19,6 +19,7 @@
 #include <cerrno>
 #include <cstring>
 #include <map>
+#include <bitset>
 #include <sys/time.h>
 #include "intDataStructures/IntPairHeap.h"
 
@@ -597,7 +598,9 @@ searchNode* Model::decompose(searchNode *n, int taskNo, int method) {
 
 	searchNode* result = new searchNode;
 #if STATEREP == SRCOPY
-	result->state = n->state;
+	result->state = (uint64_t*) calloc(stateVectorLength,sizeof(uint64_t));
+	for (int i = 0; i < stateVectorLength; i++)
+		result->state[i] = n->state[i];
 #elif STATEREP == SRLIST
 	result->stateSize = n->stateSize;
 	result->state = new int[n->stateSize];
@@ -990,14 +993,27 @@ searchNode* Model::apply(searchNode* n, int taskNo) {
 	planStep *progressed = n->unconstraintPrimitive[taskNo];
 	assert(isPrimitive[progressed->task]);
 #if STATEREP == SRCOPY
-	result->state = n->state;
+	result->state = (uint64_t*) calloc(stateVectorLength,sizeof(uint64_t));
+	for (int i = 0; i < stateVectorLength; i++)
+		result->state[i] = n->state[i];
 
+	//cout << "\t\t\t\t\t\t\tMOD " << std::bitset<64>(result->state[0]) << endl;
 	for (int i = 0; i < numDels[progressed->task]; i++) {
-		result->state[delLists[progressed->task][i]] = false;
+		int pos1 = delLists[progressed->task][i] / 64;
+		int pos2 = delLists[progressed->task][i] % 64;
+		//cout << "\t\t\t\t\t\t\t\tdel" << 	pos1 << " " << pos2 << endl;
+		// set to zero
+		result->state[pos1] &= ~(uint64_t(1) << pos2);
 	}
 	for (int i = 0; i < numAdds[progressed->task]; i++) {
-		result->state[addLists[progressed->task][i]] = true;
+		int pos1 = addLists[progressed->task][i] / 64;
+		int pos2 = addLists[progressed->task][i] % 64;
+		//cout << "\t\t\t\t\t\t\t\tadd" << 	pos1 << " " << pos2 << endl;
+		
+		// set to one
+		result->state[pos1] |= uint64_t(1) << pos2;
 	}
+	//cout << "\t\t\t\t\t\t\tMODR" << std::bitset<64>(result->state[0]) << endl;
 #elif STATEREP == SRLIST
 	result->state = new int[n->stateSize + numAdds[progressed->task]];
 	int iNew = 0;
@@ -1415,9 +1431,18 @@ searchNode* Model::apply(searchNode* n, int taskNo) {
 
 bool Model::isApplicable(searchNode *n, int action) const {
 	for (int i = 0; i < numPrecs[action]; i++) {
-		if (!n->state[precLists[action][i]])
+		int pos1 = precLists[action][i] / 64;
+		int pos2 = precLists[action][i] % 64;
+		//cout << std::bitset<64>(n->state[pos1]) << endl;
+		//cout << std::bitset<64>(uint64_t(1) << pos2) << endl;
+		//cout << std::bitset<64>(n->state[pos1] & (uint64_t(1) << pos2)) << endl;
+
+		if ((n->state[pos1] & (uint64_t(1) << pos2)) == 0){
+			//cout << "NA " << pos2 << endl;
 			return false;
+		}
 	}
+	//cout << "==================>     appli" << endl;
 	return true;
 }
 
@@ -1425,8 +1450,13 @@ bool Model::isGoal(searchNode *n) const {
 	if ((n->numAbstract > 0) || (n->numPrimitive > 0))
 		return false;
 	for (int i = 0; i < gSize; i++) {
-		if (!n->state[gList[i]])
+		int pos1 = gList[i] / 64;
+		int pos2 = gList[i] % 64;
+		
+		if ((n->state[pos1] & (uint64_t(1) << pos2)) == 0){
+			//cout << "GOAL NA " << pos2 << endl;
 			return false;
+		}
 	}
 	return true;
 }
@@ -1643,6 +1673,12 @@ void Model::readClassical(istream& domainFile) {
 	sStream = new stringstream(line);
 	// read state bits and their descriptions
 	*sStream >> numStateBits;
+#if STATEREP == SRCOPY
+	stateVectorLength = 0;
+	while (stateVectorLength * 64 < numStateBits) stateVectorLength++;
+	cout << " need " << stateVectorLength << " 64-bit ints" << endl;
+#endif
+
 	delete sStream;
 	factStrs = new string[numStateBits];
 	for (int i = 0; i < numStateBits; i++) {
@@ -2662,11 +2698,17 @@ searchNode* Model::prepareTNi(const Model* htn) {
 	// prepare initial node
 	searchNode* tnI = new searchNode;
 #if STATEREP == SRCOPY
-	for (int i = 0; i < htn->numStateBits; i++) {
-		tnI->state.push_back(false);
+	cout << stateVectorLength << " ints" << endl;
+	tnI->state = (uint64_t*) calloc(stateVectorLength,sizeof(uint64_t));
+	
+	for (int i = 0; i < stateVectorLength; i++) {
+		tnI->state[i] = 0;
 	}
 	for (int i = 0; i < htn->s0Size; i++) {
-		tnI->state[htn->s0List[i]] = true;
+		int pos1 = htn->s0List[i] / 64;
+		int pos2 = htn->s0List[i] % 64;
+
+		tnI->state[pos1] |= uint64_t(1) << pos2;
 	}
 #elif STATEREP == SRLIST
 	tnI->stateSize = htn->s0Size;
