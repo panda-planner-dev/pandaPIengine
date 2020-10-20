@@ -225,18 +225,18 @@ int main(int argc, char *argv[]) {
     cout << "Heuristic: RC encoding" << endl;
 
 #if HEURISTIC == RCFF2
-	search.hF = new hhRC(htn, new hsAddFF(heuristicModel));
+	search.hF = new hhRC2(htn);
 	search.hF->sasH->heuristic = sasFF;
 	cout << "- Inner heuristic: FF" << endl;
 #elif HEURISTIC == RCADD2
-	search.hF = new hhRC(htn, new hsAddFF(heuristicModel));
+	search.hF = new hhRC2(htn);
 	search.hF->sasH->heuristic = sasAdd;
 	cout << "- Inner heuristic: Add" << endl;
 #elif HEURISTIC == RCLMC2
 	search.hF = new hhRC2(htn);
 	cout << "- Inner heuristic: LM-Cut" << endl;
 #elif HEURISTIC == RCFILTER2
-	search.hF = new hhRC(htn, new hsFilter(heuristicModel));
+	search.hF = new hhRC2(htn);
 	cout << "- Inner heuristic: Filter" << endl;
 #endif
 #endif

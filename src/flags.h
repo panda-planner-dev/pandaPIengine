@@ -47,12 +47,18 @@
 #define ICAPS18 1        // branches over primitive and one abstract task
 #define JAIR19 2         // processes abstract tasks first
 
+
+#define DOFRECREATE 1
+#define DOFUPDATE 2
+#define DOFUPDATEWITHREACHABILITY 3
+
+
 // *****************
 // * Configuration *
 // *****************
 
 // time limit in seconds
-#define TIMELIMIT 600
+#define TIMELIMIT 1800
 
 //#define SEARCHALG PROGRESSIONORG
 //#define SEARCHALG ICAPS18
@@ -62,10 +68,6 @@
 
 // select a state representation
 #define STATEREP SRCOPY // choose from [state-representation]
-
-#define DOFRECREATE 1
-#define DOFUPDATE 2
-#define DOFUPDATEWITHREACHABILITY 3
 
 // type of search
 #define SEARCHTYPE HEURISTICSEARCH // choose from [search-type]
@@ -82,32 +84,34 @@
 //#define RCHEURISTIC2
 
 // configure DOF
+#define HEURISTIC RCFF2
+#define RCHEURISTIC2
 //#define HEURISTIC DOFREEILP
-#define HEURISTIC DOFREELP
+//#define HEURISTIC DOFREELP
 
 // use TDG constraints
 // #define ILPTDG cTdgFull
-#define ILPTDG cTdgAllowUC
+//#define ILPTDG cTdgAllowUC
 
 // use planning graph constraints
-#define ILPPG cPgFull
+//#define ILPPG cPgFull
 // #define ILPPG cPgTimeRelaxed
 // #define ILPPG cPgNone
 
 // use AND/OR landmark constraints
 //#define ILPANDORLMS cAndOrLmsNone
 //#define ILPANDORLMS cAndOrLmsOnlyTnI
-#define ILPANDORLMS cAndOrLmsFull
+//#define ILPANDORLMS cAndOrLmsFull
 
 // use LM-Cut landmark constraints
 //#define ILPLMCLMS cLmcLmsNone
-#define ILPLMCLMS cLmcLmsFull
+//#define ILPLMCLMS cLmcLmsFull
 
 // use net change constraints
 //#define ILPNC cNetChangeNone
-#define ILPNC cNetChangeFull
+//#define ILPNC cNetChangeFull
 
-#define RCLMC2STORELMS
+//#define RCLMC2STORELMS
 
 //#define CORRECTTASKCOUNT
 
@@ -124,16 +128,16 @@
 #define INITSCCS
 
 //#define DOFTASKREACHABILITY // store the hierarchical task reachability in the ILP to make  it easier to solve
-#define DOFREE
+//#define DOFREE
 #define CHECKAFTER 50 // nodes after which the timelimit is checked
 #define MAINTAINREACHABILITY
-#define ALLTASKS // it is needed for all tasks
+//#define ALLTASKS // it is needed for all tasks
 
 // bis
 
 //#define CHECKAFTER 5000 // nodes after which the timelimit is checked
 //#define MAINTAINREACHABILITY
-//#define ONLYACTIONS // it is only needed for actions
+#define ONLYACTIONS // it is only needed for actions
 #ifndef OPTIMIZEUNTILTIMELIMIT
 #define OPTIMIZEUNTILTIMELIMIT false
 #endif

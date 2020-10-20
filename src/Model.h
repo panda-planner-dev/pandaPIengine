@@ -69,6 +69,7 @@ public:
 	void calcSCCs();
 	searchNode* prepareTNi(const Model* htn);
 
+	string filename;
 	bool isHtnModel;
 
 	// state-bits
