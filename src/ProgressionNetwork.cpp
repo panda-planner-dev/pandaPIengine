@@ -7,6 +7,7 @@
 
 #include "ProgressionNetwork.h"
 #include <stdlib.h>
+#include <iomanip>
 
 namespace progression {
 
@@ -105,6 +106,49 @@ searchNode::~searchNode() {
 #if STATEREP == SRLIST
 	delete[] state;
 #endif
+}
+
+
+void searchNode::printDFS(planStep * s, map<planStep*,int> & psp, set<pair<planStep*,planStep*>> & orderpairs){
+	if (psp.count(s)) return;
+	int num = psp.size();
+	psp[s] = num;
+	for (int ns = 0; ns < s->numSuccessors; ns++){
+		orderpairs.insert({s,s->successorList[ns]});
+		this->printDFS(s->successorList[ns], psp, orderpairs);
+	}
+}
+
+
+void searchNode::printNode(std::ostream & out){
+	out << "Node: " << this << endl;
+	map<planStep*,int> psp;
+	set<pair<planStep*,planStep*>> orderpairs;
+	for (int a = 0; a < this->numAbstract; a++)  this->printDFS(this->unconstraintAbstract[a], psp, orderpairs);
+	for (int a = 0; a < this->numPrimitive; a++) this->printDFS(this->unconstraintPrimitive[a],psp, orderpairs);
+
+	// names
+	map<int,planStep*> bpsp;
+	for (auto [a,b] : psp) bpsp[b] = a;
+	for (int i = 0; i < bpsp.size(); i++) out << "\t" << setw(2) << i << " " << bpsp[i] << " " << bpsp[i]->task << endl;
+
+	// ordering
+	for (auto [a,b] : orderpairs) out << "\t" << setw(2) << psp[a] << " < " << setw(2) << psp[b] << endl;
+}
+
+void searchNode::node2Dot(std::ostream & out){
+	out << "digraph searchNode { "  << endl;
+	map<planStep*,int> psp;
+	set<pair<planStep*,planStep*>> orderpairs;
+	for (int a = 0; a < this->numAbstract; a++)  this->printDFS(this->unconstraintAbstract[a], psp, orderpairs);
+	for (int a = 0; a < this->numPrimitive; a++) this->printDFS(this->unconstraintPrimitive[a],psp, orderpairs);
+
+	// names
+	for (auto [a,b] : psp) out << "\t" << "n" << a << "[label=\"" << a->task <<  "\"];" << endl;
+
+	// ordering
+	for (auto [a,b] : orderpairs) out << "\tn" << a << " -> n" << b << ";" << endl;
+	out << "}"; 
 }
 
 ////////////////////////////////

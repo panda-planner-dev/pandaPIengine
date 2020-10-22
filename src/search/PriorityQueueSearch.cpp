@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <cassert>
 #include <chrono>
+#include <fstream>
 #include <sys/time.h>
 
 #include "PriorityQueueSearch.h"
@@ -64,11 +65,14 @@ vector<uint64_t> state2Int(vector<bool> & state){
 }
 
 
-void dfsdfs(planStep * s, set<planStep*> & psp, map<planStep*,int> & prec){
+void dfsdfs(planStep * s, int depth, set<planStep*> & psp, set<pair<int,int>> & orderpairs, map<int,set<planStep*>> & layer){
 	if (psp.count(s)) return;
 	psp.insert(s);
-	for (int ns = 0; ns < s->numSuccessors; ns++)
-		prec[s->successorList[ns]]++, dfsdfs(s->successorList[ns],psp, prec);
+	layer[depth].insert(s);
+	for (int ns = 0; ns < s->numSuccessors; ns++){
+		orderpairs.insert({s->task,s->successorList[ns]->task});
+		dfsdfs(s->successorList[ns], depth + 1, psp, orderpairs, layer);
+	}
 }
 
 
@@ -83,6 +87,123 @@ void to_dfs(planStep * s, vector<int> & seq){
 
 int A = 0, B = 0;
 double time = 0;
+bool useTotalOrderMode;
+
+
+map<tuple< vector<uint64_t>, map<int,map<int,int>>, set<pair<int,int>> > , vector<searchNode*> > po_occ;
+
+
+bool matchingDFS(searchNode* one, searchNode* other, planStep* oneStep, planStep* otherStep, map<planStep*, planStep*> mapping, map<planStep*, planStep*> backmapping);
+
+
+bool matchingGenerate(
+		searchNode* one, searchNode* other,
+		map<planStep*, planStep*> & mapping, map<planStep*, planStep*> & backmapping,
+		map<int,set<planStep*>> oneNextTasks,
+		map<int,set<planStep*>> otherNextTasks,
+		unordered_set<int> tasks
+		){
+	if (tasks.size() == 0)
+		return true; // done, all children
+
+	if (oneNextTasks[*tasks.begin()].size() == 0){
+		tasks.erase(*tasks.begin());
+		return matchingGenerate(one,other,mapping,backmapping,oneNextTasks,otherNextTasks,tasks);
+	}
+
+	int task = *tasks.begin();
+
+	planStep* psOne = *oneNextTasks[task].begin();
+	oneNextTasks[task].erase(psOne);
+
+	// possible partners
+	for (planStep * psOther : otherNextTasks[task]){
+		if (mapping.count(psOne) && mapping[psOne] != psOther) continue;
+		if (backmapping.count(psOther) && backmapping[psOther] != psOne) continue;
+
+		bool subRes = true;
+		map<planStep*, planStep*> subMapping = mapping;
+		map<planStep*, planStep*> subBackmapping = backmapping;
+		
+		if (!mapping.count(psOne)){ // don't check again if we already did it
+			mapping[psOne] = psOther;
+			backmapping[psOther] = psOne;
+			
+			// run the DFS below this pair
+			subRes = matchingDFS(one, other, psOne, psOther, subMapping, subBackmapping);
+		}
+
+
+		if (subRes){
+			map<int,set<planStep*>> subOtherNextTasks = otherNextTasks;
+			subOtherNextTasks[task].erase(psOther);
+			
+			// continue the extraction with the next task
+			if (matchingGenerate(one,other,subMapping,subBackmapping,oneNextTasks,otherNextTasks,tasks))
+				return true;
+		}
+	}
+
+	return false; // did not find any valid matching
+}
+
+
+bool matchingDFS(searchNode* one, searchNode* other, planStep* oneStep, planStep* otherStep, map<planStep*, planStep*> mapping, map<planStep*, planStep*> backmapping){
+	if (oneStep->numSuccessors != otherStep->numSuccessors) return false; // is not possible
+	if (oneStep->numSuccessors == 0) return true; // no successors, matching OK
+
+	
+	// groups the successors into buckets according to their task labels
+	map<int,set<planStep*>> oneNextTasks;
+	map<int,set<planStep*>> otherNextTasks;
+	unordered_set<int> tasks;
+
+	for (int i = 0; i < oneStep->numSuccessors; i++){
+		planStep* ps = oneStep->successorList[i];
+		oneNextTasks[ps->task].insert(ps);
+	}
+	for (int i = 0; i < otherStep->numSuccessors; i++){
+		planStep* ps = otherStep->successorList[i];
+		otherNextTasks[ps->task].insert(ps);
+	}
+	
+	for (int t : tasks) if (oneNextTasks[t].size() != otherNextTasks[t].size()) return false;
+
+	return matchingGenerate(one,other,mapping,backmapping,oneNextTasks,otherNextTasks,tasks);
+}
+
+
+planStep* searchNodePSHead(searchNode * n){
+	planStep* ps = new planStep();
+	ps->numSuccessors = n->numAbstract + n->numPrimitive;
+	ps->successorList = new planStep*[ps->numSuccessors];
+	int pos = 0;
+	for (int a = 0; a < n->numAbstract; a++)  ps->successorList[pos++] = n->unconstraintAbstract[a];
+	for (int a = 0; a < n->numPrimitive; a++) ps->successorList[pos++] = n->unconstraintPrimitive[a];
+
+	return ps;
+}
+
+bool matching(searchNode* one, searchNode* other){
+	planStep* oneHead = searchNodePSHead(one);
+	planStep* otherHead = searchNodePSHead(other);
+
+	map<planStep*, planStep*> mapping;
+	map<planStep*, planStep*> backmapping;
+	mapping[oneHead] = otherHead;
+	backmapping[otherHead] = oneHead;
+
+	bool result = matchingDFS(one,other,oneHead,otherHead,mapping,backmapping);
+
+	//delete oneHead;
+	//delete otherHead;
+
+	return result;
+}
+
+
+
+
 
 bool PriorityQueueSearch::insertVisi2(searchNode * n) {
     long lhash = 1;
@@ -131,32 +252,90 @@ bool insertVisi(searchNode * n){
 	//return true;
 
 	std::clock_t before = std::clock();
-	vector<int> seq;
-	if (n->numPrimitive) to_dfs(n->unconstraintPrimitive[0],seq);
-	if (n->numAbstract)  to_dfs(n->unconstraintAbstract[0], seq);
-	vector<uint64_t> ss = state2Int(n->state);
+	if (useTotalOrderMode){
+		vector<int> seq;
+		if (n->numPrimitive) to_dfs(n->unconstraintPrimitive[0],seq);
+		if (n->numAbstract)  to_dfs(n->unconstraintAbstract[0], seq);
 
-	//cout << bitset<64>(ss[0]) << " ";	
-	//for (int x : seq) cout << x << " ";	cout << endl;
+		A++;
+		vector<uint64_t> ss = state2Int(n->state);
+		auto it = visited[ss].find(seq);
+		if (it != visited[ss].end()) {
+			std::clock_t after = std::clock();
+			time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
+			return false;
+		}
 
-	A++;
-	auto it = visited[ss].find(seq);
-	if (it != visited[ss].end()) {
+		visited[ss].insert(it,seq);
+		B++;
+
 		std::clock_t after = std::clock();
 		time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
-		return false;
+		return true;
+	} else {
+		A++;
+		set<planStep*> psp;
+		map<int,set<planStep*>> initial_Layers;
+		set<pair<int,int>> pairs;
+		for (int a = 0; a < n->numAbstract; a++) dfsdfs(n->unconstraintAbstract[a], 0, psp, pairs, initial_Layers);
+		for (int a = 0; a < n->numPrimitive; a++) dfsdfs(n->unconstraintPrimitive[a], 0, psp, pairs, initial_Layers);
+		
+		psp.clear();
+		map<int,set<planStep*>> layers;
+		for (auto [d,pss] : initial_Layers){
+			for (auto ps : pss)
+				if (!psp.count(ps)){
+					psp.insert(ps);
+					layers[d].insert(ps);
+				}
+		}
+		
+		map<int,map<int,int>> layerCounts;
+		for (auto [d,pss] : layers)
+			for (auto ps : pss)
+				layerCounts[d][ps->task]++;
+		
+		//cout << "Node:" << endl;
+		//for (auto [a,b] : pairs) cout << setw(3) << a << " " << setw(3) << b << endl;
+		//for (auto [d,pss] : layers){
+		//	cout << "Layer: " << d;
+		//	for (auto ps : pss) cout << " " << ps;
+		//	cout << endl;
+		//}
+		
+		vector<uint64_t> ss = state2Int(n->state);
+		
+		
+		int i = 0;
+		for (searchNode* other :  po_occ[{ss, layerCounts, pairs}]){
+			/*			
+			cout << "Checking ... #" << ++i << endl;
+			n->printNode(std::cout);
+			other->printNode(std::cout);
+			
+			fstream nf ("occurs_" + to_string(A) + "_n_" + to_string(i) + ".dot", fstream::out);
+			fstream of ("occurs_" + to_string(A) + "_o_" + to_string(i) + ".dot", fstream::out);
+			n->node2Dot(nf);
+			other->node2Dot(of);
+			*/
+			
+			bool result = matching(n,other);
+			//cout << "Result: " << (result?"yes":"no") << endl;
+			
+
+			if (result) {
+				std::clock_t after = std::clock();
+				time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
+				return false;
+			}
+		}
+		po_occ[{ss, layerCounts, pairs}].push_back(n);	
+		B++;
+		
+		std::clock_t after = std::clock();
+		time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
+		return true;
 	}
-
-	visited[ss].insert(it,seq);
-	B++;
-
-
-	std::clock_t after = std::clock();
-	time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
-	//cout << "Computing took: " << setprecision(3) << time << " ms" << endl;
-
-	//cout <<  " -> New " << endl;
-	return true;
 }
 
 
@@ -243,6 +422,7 @@ pair<string,int> printTraceOfSearchNode(Model* htn, searchNode* tnSol){
 
 
 void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
+	useTotalOrderMode = htn->isTotallyOrdered;
 	timeval tp;
 	gettimeofday(&tp, NULL);
 	long startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
@@ -458,7 +638,7 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 			}
 		}
 
-		delete n;
+		//delete n;
 	}
 	gettimeofday(&tp, NULL);
 	currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
