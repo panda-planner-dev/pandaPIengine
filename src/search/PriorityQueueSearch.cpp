@@ -31,6 +31,8 @@
 #include <queue>
 #include <map>
 #include <algorithm>
+#include <bitset>
+
 
 namespace progression {
 
@@ -70,6 +72,7 @@ void dfsdfs(planStep * s, set<planStep*> & psp, map<planStep*,int> & prec){
 
 
 void to_dfs(planStep * s, vector<int> & seq){
+	//cout << s->numSuccessors << endl;
 	assert(s->numSuccessors <= 1);
 	seq.push_back(s->task);
 	if (s->numSuccessors == 0) return;
@@ -77,7 +80,7 @@ void to_dfs(planStep * s, vector<int> & seq){
 }
 
 
-int A = 0 ,B = 0;
+int A = 0, B = 0;
 double time = 0;
 
 bool insertVisi(searchNode * n){
@@ -97,8 +100,6 @@ bool insertVisi(searchNode * n){
 	//		}
 	//}
 
-	//for (int x : seq) cout << x << " ";
-	//cout << endl;
 
 	//return true;
 
@@ -106,9 +107,12 @@ bool insertVisi(searchNode * n){
 	vector<int> seq;
 	if (n->numPrimitive) to_dfs(n->unconstraintPrimitive[0],seq);
 	if (n->numAbstract)  to_dfs(n->unconstraintAbstract[0], seq);
+	vector<uint64_t> ss = state2Int(n->state);
+
+	//cout << bitset<64>(ss[0]) << " ";	
+	//for (int x : seq) cout << x << " ";	cout << endl;
 
 	A++;
-	vector<uint64_t> ss = state2Int(n->state);
 	auto it = visited[ss].find(seq);
 	if (it != visited[ss].end()) {
 		std::clock_t after = std::clock();
@@ -124,7 +128,7 @@ bool insertVisi(searchNode * n){
 	time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
 	//cout << "Computing took: " << setprecision(3) << time << " ms" << endl;
 
-	//cout << A << " " << B << endl;
+	//cout <<  " -> New " << endl;
 	return true;
 }
 
