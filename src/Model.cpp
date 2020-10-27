@@ -1926,22 +1926,25 @@ void Model::readHierarchical(istream& domainFile) {
 
 		// transitive reduction (i.e. remove all unnecessary edges)
 		vector<vector<bool>> trans (numSubTasks[i]);
+		vector<vector<bool>> transOriginal (numSubTasks[i]);
 		for (int x = 0; x < numSubTasks[i]; x++)
-			for (int y = 0; y < numSubTasks[i]; y++) trans[x].push_back(false);
+			for (int y = 0; y < numSubTasks[i]; y++) trans[x].push_back(false),transOriginal[x].push_back(false);
 		
 		for (int o = 0; o < numOrderings[i]; o+=2)
-			trans[ordering[i][o]][ordering[i][o+1]] = true;
+			trans[ordering[i][o]][ordering[i][o+1]] = transOriginal[ordering[i][o]][ordering[i][o+1]] = true;
 
 		for (int k = 0; k < numSubTasks[i]; k++)
 			for (int x = 0; x < numSubTasks[i]; x++)
 				for (int y = 0; y < numSubTasks[i]; y++)
-					if (trans[x][k] && trans[k][y]) trans[x][y] = false;
+					if (transOriginal[x][k] && transOriginal[k][y]) trans[x][y] = false;
 
 		vector<int> ord;
-		for (int x = 0; x < numSubTasks[i]; x++)
+		for (int x = 0; x < numSubTasks[i]; x++){
+			int after = 0;
 			for (int y = 0; y < numSubTasks[i]; y++)
 				if (trans[x][y])
 					ord.push_back(x), ord.push_back(y);
+		}
 
 		ordering[i] = new int[ord.size()];
 		for (int x = 0; x < ord.size(); x++)
