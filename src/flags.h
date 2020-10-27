@@ -68,6 +68,9 @@
 #define ONEMODAC
 //#define ONEMODMETH
 
+#define CORRECTTASKCOUNT 
+#define CALCMINIMALIMPLIEDCOSTS
+
 // select a heuristic function
 #define HEURISTIC RCFF
 
