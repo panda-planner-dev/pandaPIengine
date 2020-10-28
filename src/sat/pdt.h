@@ -58,7 +58,7 @@ struct PDT {
 	vector<vector<int>> methodVariables;
 
 ///// that's what Tree Rex does ... for incremental solving
-	int baseStateVarVariable;
+	//int baseStateVarVariable;
 
 /////  
 	int outputID;

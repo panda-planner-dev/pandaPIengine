@@ -92,6 +92,15 @@ void implies(void* solver, int i, int j){
 	number_of_clauses++;
 }
 
+void impliesAnd(void* solver, int i, int j, int k){
+	//DEBUG(std::cout << "Adding " << -i << " " << j << " " << 0 << std::endl);
+	ipasir_add(solver,-i);
+	ipasir_add(solver,-j);
+	ipasir_add(solver,k);
+	ipasir_add(solver,0);
+	number_of_clauses++;
+}
+
 void impliesNot(void* solver, int i, int j){
 	//DEBUG(std::cout << "Adding " << -i << " " << j << " " << 0 << std::endl);
 	ipasir_add(solver,-i);
@@ -120,6 +129,15 @@ void impliesPosAndNegImpliesOr(void* solver, int i, int j, std::vector<int> & k)
 void impliesAllNot(void* solver, int i, std::vector<int> & j){
 	for (int & x : j){
 		ipasir_add(solver,-i);
+		ipasir_add(solver,-x);
+		ipasir_add(solver,0);
+		number_of_clauses++;
+	}
+}
+
+void notImpliesAllNot(void* solver, int i, std::vector<int> & j){
+	for (int & x : j){
+		ipasir_add(solver,i);
 		ipasir_add(solver,-x);
 		ipasir_add(solver,0);
 		number_of_clauses++;

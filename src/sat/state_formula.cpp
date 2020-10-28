@@ -4,7 +4,7 @@
 #include <cassert>
 #include <iomanip>
 
-void generate_state_transition_formula(void* solver, sat_capsule & capsule, vector<vector<pair<int,int>>> & actionVariables, vector<PDT*> & leafs, Model* htn){
+void generate_state_transition_formula(void* solver, sat_capsule & capsule, vector<vector<pair<int,int>>> & actionVariables, vector<int> & block_base_variables, Model* htn){
 	// no blocks so just unit blocks
 	vector<vector<int>> blocks;
 	for (size_t time = 0; time < actionVariables.size(); time++){
@@ -13,14 +13,14 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 		blocks.push_back(block);
 	}
 
-	return generate_state_transition_formula(solver,capsule,actionVariables,leafs,blocks,htn);
+	return generate_state_transition_formula(solver,capsule,actionVariables,block_base_variables,blocks,htn);
 }
 	
-void generate_state_transition_formula(void* solver, sat_capsule & capsule, vector<vector<pair<int,int>>> & actionVariables, vector<PDT*> & leafs, vector<vector<int>> & blocks, Model* htn){
+void generate_state_transition_formula(void* solver, sat_capsule & capsule, vector<vector<pair<int,int>>> & actionVariables, vector<int> & block_base_variables, vector<vector<int>> & blocks, Model* htn){
 
 	// as many blocks as we have timesteps
 	int timesteps = blocks.size();
-
+	block_base_variables.resize(timesteps);
 	int goalBase = -1;
 	/////////////////////// create variables for atoms per time step
 	for (size_t time = 0; time <= timesteps; time++){
@@ -30,16 +30,16 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 		int base = capsule.new_variable();
 		
 		if (time < timesteps)
-			leafs[blocks[time][0]]->baseStateVarVariable = base;     // save the variables in the first leaf of the block
+			block_base_variables[time] = base;     // save the variables in the first leaf of the block
 		else
 			goalBase = base;
 		
-		DEBUG(capsule.registerVariable(base,"sate var " + pad_int(0) + " @ " + pad_int(time) + ": " + pad_string(htn->factStrs[0])));
+		DEBUG(capsule.registerVariable(base,"state var " + pad_int(0) + " @ " + pad_int(time) + ": " + pad_string(htn->factStrs[0])));
 
 		for (size_t svar = 1; svar < htn->numStateBits; svar++){
 			int _r = capsule.new_variable(); // ignore return, they will be incremental
 			assert(_r == base + svar);
-			DEBUG(capsule.registerVariable(base + svar,	"sate var " + pad_int(svar) + " @ " + pad_int(time) + ": " + pad_string(htn->factStrs[svar])));
+			DEBUG(capsule.registerVariable(base + svar,	"state var " + pad_int(svar) + " @ " + pad_int(time) + ": " + pad_string(htn->factStrs[svar])));
 		}
 	}
 
@@ -48,8 +48,8 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 #ifndef NDEBUG
 		int bef = get_number_of_clauses();
 #endif
-		int thisTimeBase = leafs[blocks[time][0]]->baseStateVarVariable;
-		int nextTimeBase = (time == (timesteps - 1))?goalBase:leafs[blocks[time+1][0]]->baseStateVarVariable;
+		int thisTimeBase = block_base_variables[time];
+		int nextTimeBase = (time == (timesteps - 1))?goalBase:block_base_variables[time+1];
 
 		vector<vector<int>> causingPositive (htn->numStateBits);
 		vector<vector<int>> causingNegative (htn->numStateBits);
@@ -97,7 +97,7 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 
 
 	// assert initial state
-	int base0 = leafs[0]->baseStateVarVariable;
+	int base0 = block_base_variables[0];
 	unordered_set<int> initSet;
 	for (size_t i = 0; i < htn->s0Size; i++) initSet.insert(htn->s0List[i]);
 	for (int svar = 0; svar < int(htn->numStateBits); svar++){
@@ -113,32 +113,27 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 		assertYes(solver,goalBase + htn->gList[i]);
 
 
-	for (PDT* & leaf : leafs){
-		for (const int & abs : leaf->abstractVariable)
-			if (abs != -1)
-				assertNot(solver,abs);
-	}
 }
 
-void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & leafs, unordered_set<int>* & after_leaf_invariants, Model* htn){
+void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<int> & block_base_variables, unordered_set<int>* & after_leaf_invariants, Model* htn){
 	// no blocks so just unit blocks
 	vector<vector<int>> blocks;
-	for (size_t time = 0; time < leafs.size(); time++){
+	for (size_t time = 0; time < block_base_variables.size(); time++){
 		vector<int> block;
 		block.push_back(time);
 		blocks.push_back(block);
 	}
 
-	generate_mutex_formula(solver, capsule, leafs, blocks, after_leaf_invariants, htn);
+	generate_mutex_formula(solver, capsule, block_base_variables, blocks, after_leaf_invariants, htn);
 }
 
 	
-void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & leafs, vector<vector<int>> & blocks, 
+void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<int> & block_base_variables, vector<vector<int>> & blocks, 
 		unordered_set<int>* & after_leaf_invariants, Model* htn){
 	std::clock_t solver_start = std::clock();
 
 	for (size_t time = 0; time < blocks.size(); time++){
-		int timeBase = leafs[blocks[time][0]]->baseStateVarVariable;
+		int timeBase = block_base_variables[time];
 
 		for (int v = 0; v < htn->numVars; v++){
 			if (htn->firstIndex[v] == htn->lastIndex[v]) continue; // STRIPS
@@ -225,6 +220,15 @@ void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<PDT*> & 
 	cout << " SM: " << htn->numStrictMutexes << " M: " << htn->numMutexes << " I: " << htn->numInvariants << " SI: " << count_invariants(htn) << endl;
 }
 
+void no_abstract_in_leaf(void* solver, vector<PDT*> & leafs, Model* htn){
+	// forbid abstract tasks in leafs
+	for (PDT* & leaf : leafs){
+		for (const int & abs : leaf->abstractVariable)
+			if (abs != -1)
+				assertNot(solver,abs);
+	}
+}
+
 
 void get_linear_state_atoms(sat_capsule & capsule, vector<PDT*> & leafs, vector<vector<pair<int,int>>> & ret){
 	// these are just the primitives in the correct order
@@ -233,11 +237,28 @@ void get_linear_state_atoms(sat_capsule & capsule, vector<PDT*> & leafs, vector<
 #ifndef NDEBUG
 		std::cout << "Position: " << ret.size() << " Leaf " << pad_path(leaf->path) << std::endl; 
 #endif
-		// TODO assert order!
 		vector<pair<int,int>> atoms;
 		for (size_t p = 0; p < leaf->possiblePrimitives.size(); p++)
 			if (leaf->primitiveVariable[p] != -1)
 				atoms.push_back(make_pair(leaf->primitiveVariable[p], leaf->possiblePrimitives[p]));
+		
+		ret.push_back(atoms);
+	}
+}
+
+void get_partial_state_atoms(sat_capsule & capsule, Model * htn, int numberOfTimeSteps,
+		vector<vector<pair<int,int>>> & ret){
+	// these are just the primitives in the correct order
+	for (int t = 0; t < numberOfTimeSteps; t++){
+#ifndef NDEBUG
+		std::cout << "Position: " << t << std::endl; 
+#endif
+		vector<pair<int,int>> atoms;
+		for (size_t p = 0; p < htn->numActions; p++){
+			int pvar = capsule.new_variable();
+			DEBUG(capsule.registerVariable(pvar,"action var " + pad_int(p) + " @ " + pad_int(t) + ": " + pad_string(htn->taskNames[p])));
+			atoms.push_back(make_pair(pvar, p));
+		}
 		
 		ret.push_back(atoms);
 	}

@@ -4,6 +4,7 @@
 #include "pdt.h"
 #include "state_formula.h"
 #include "disabling_graph.h"
+#include "partial_order.h"
 #include "../Util.h"
 #include "../Invariants.h"
 #include <cassert>
@@ -14,7 +15,10 @@
 #include <fstream>
 #include <iomanip>
 
-void printSolution(void * solver, Model * htn, PDT* pdt){
+
+
+
+void printSolution(void * solver, Model * htn, PDT* pdt, MatchingData & matching){
 	vector<PDT*> leafs;
 	pdt->getLeafs(leafs);
 
@@ -49,23 +53,47 @@ void printSolution(void * solver, Model * htn, PDT* pdt){
 	
 	cout << "==>" << endl;
 	/// extract the primitive plan
-	for (PDT* & leaf : leafs){
-		for (size_t pIndex = 0; pIndex < leaf->primitiveVariable.size(); pIndex++){
-			int prim = leaf->primitiveVariable[pIndex];
-			if (prim == -1) continue;
-			if (ipasir_val(solver,prim) > 0){
-				assert(leaf->outputID == -1);
-				leaf->outputID = currentID++;
-				std::cout << leaf->outputID << " " << htn->taskNames[leaf->possiblePrimitives[pIndex]] << endl;
+	
+	if (htn->isTotallyOrdered()){
+		for (PDT* & leaf : leafs){
+			for (size_t pIndex = 0; pIndex < leaf->primitiveVariable.size(); pIndex++){
+				int prim = leaf->primitiveVariable[pIndex];
+				if (prim == -1) continue;
+				if (ipasir_val(solver,prim) > 0){
+					assert(leaf->outputID == -1);
+					leaf->outputID = currentID++;
+					std::cout << leaf->outputID << " " << htn->taskNames[leaf->possiblePrimitives[pIndex]] << endl;
 #ifndef NDEBUG
-				cout << "Assigning " << leaf->outputID << " to atom " << prim << endl;
+					cout << "Assigning " << leaf->outputID << " to atom " << prim << endl;
 #endif
+				}
 			}
 		}
 	}
 
 	// assign numbers to decompositions
 	pdt->assignOutputNumbers(solver,currentID, htn);
+	
+	// if po output the primitive plan now
+	if (!htn->isTotallyOrdered()){
+		for (int p = 0; p < matching.matchingPerPosition.size(); p++){
+			for (auto [pvar, prim] : matching.vars[p]){
+				if (ipasir_val(solver,pvar) > 0){
+					// find the if of the matched leaf
+					for (int l = 0; l < matching.matchingPerPosition[p].size(); l++){
+						if (ipasir_val(solver,matching.matchingPerPosition[p][l]) > 0){
+							// get the output number of that leaf
+							PDT * leaf = matching.leafSOG->leafOfNode[l];
+							std::cout << leaf->outputID << " " << htn->taskNames[prim] << endl;
+						}
+					}
+					
+				}
+			}
+		}
+	}
+	
+		
 	cout << "root " << pdt->outputID << endl;
 
 	// out decompositions
@@ -218,7 +246,7 @@ bool filter_leafs_Rintanen(vector<PDT*> & leafs, Model * htn, unordered_set<int>
 
 
 
-bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & capsule, int depth){
+bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & capsule, MatchingData & matching, int depth){
 	std::clock_t beforePDT = std::clock();
 	pdt->expandPDTUpToLevel(depth,htn);
 	std::clock_t afterPDT = std::clock();
@@ -228,8 +256,19 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	cout << "Computed PDT. Extracting leafs ... ";
 	vector<PDT*> leafs;
 	pdt->getLeafs(leafs);
-	//exit(0);
 	cout << leafs.size() << " leafs" << endl;
+
+	SOG* leafsog = pdt->getLeafSOG();
+	
+	/*ofstream dfile;
+	dfile.open ("leafsog.dot");
+	dfile << " digraph graphname" << endl << "{" << endl;
+	leafsog->printDot(htn,dfile);
+	dfile << "}" << endl;
+	dfile.close();*/
+
+
+
 	/*ofstream dfile;
 	dfile.open ("pdt_" + to_string(depth) + ".dot");
 	dfile << " digraph graphname" << endl << "{" << endl;
@@ -242,31 +281,33 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 
 	unordered_set<int>* after_leaf_invariants = new unordered_set<int>[2*htn->numStateBits];
 
-	int pruningPhase = 1;
-	int round = 1;
-	int additionalInvariants = 0;
-	while(true){
-		//break;
-		cout << color(Color::BLUE,"Pruning round ") << round++ << " Phase: " << pruningPhase << endl;
-		if (pruningPhase == 1){
-			if (!filter_leafs_ff(leafs, htn))
-				//pruningPhase++;
-				break;
-		} else if (pruningPhase == 2){
-			if (!filter_leafs_Rintanen(leafs, htn, after_leaf_invariants, additionalInvariants))
-				break;
-		}
-		for (PDT* leaf : leafs) leaf->propagatePruning(htn);
-		if (pdt->prunedAbstracts[0]) return false;
-		
+	if (htn->isTotallyOrdered()){
+		int pruningPhase = 1;
+		int round = 1;
+		int additionalInvariants = 0;
+		while(true){
+			//break;
+			cout << color(Color::BLUE,"Pruning round ") << round++ << " Phase: " << pruningPhase << endl;
+			if (pruningPhase == 1){
+				if (!filter_leafs_ff(leafs, htn))
+					//pruningPhase++;
+					break;
+			} else if (pruningPhase == 2){
+				if (!filter_leafs_Rintanen(leafs, htn, after_leaf_invariants, additionalInvariants))
+					break;
+			}
+			for (PDT* leaf : leafs) leaf->propagatePruning(htn);
+			if (pdt->prunedAbstracts[0]) return false;
+			
 
-		int overallAssignments = 0;
-		int prunedAssignments = 0;
-		pdt->countPruning(overallAssignments, prunedAssignments);
-		cout << "Pruning: " << prunedAssignments << " of " << overallAssignments << endl;
+			int overallAssignments = 0;
+			int prunedAssignments = 0;
+			pdt->countPruning(overallAssignments, prunedAssignments);
+			cout << "Pruning: " << prunedAssignments << " of " << overallAssignments << endl;
+		}
+		
+		cout << "Pruning gave " << additionalInvariants << " new invariants" << endl;	
 	}
-	
-	cout << "Pruning gave " << additionalInvariants << " new invariants" << endl;	
 
 
 #ifndef NDEBUG
@@ -281,47 +322,64 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	int afterDecomp = get_number_of_clauses();
 	// assert the initial abstract task
 	assertYes(solver,pdt->abstractVariable[0]);
+	no_abstract_in_leaf(solver,leafs,htn);
 	
 	pdt->addPrunedClauses(solver);
 	//for (PDT* leaf : leafs) leaf->addPrunedClauses(solver); // add assertNo for pruned things
-	
 
+	if (htn->isTotallyOrdered()){	
 #ifdef BLOCK_COMPRESSION
-	vector<vector<int>> blocks = compute_block_compression(htn, leafs);
-	cout << "Block compression leads to " << blocks.size() << " timesteps." << endl;
+		vector<vector<int>> blocks = compute_block_compression(htn, leafs);
+		cout << "Block compression leads to " << blocks.size() << " timesteps." << endl;
 #ifndef NDEBUG
-	for (auto block : blocks){
-		cout << endl << "New Block" << endl;
-		for (int l : block){
-			cout << "\tLeaf: " << path_string(leafs[l]->path) << endl;
-			int i = 0;
-			for (int a : leafs[l]->possiblePrimitives){
-				if (!leafs[l]->prunedPrimitives[i])
-					cout << "\t\t" << htn->taskNames[a] << endl;
-				i++;
+		for (auto block : blocks){
+			cout << endl << "New Block" << endl;
+			for (int l : block){
+				cout << "\tLeaf: " << path_string(leafs[l]->path) << endl;
+				int i = 0;
+				for (int a : leafs[l]->possiblePrimitives){
+					if (!leafs[l]->prunedPrimitives[i])
+						cout << "\t\t" << htn->taskNames[a] << endl;
+					i++;
+				}
 			}
 		}
-	}
 #endif
 
 #endif
+	} else {
+	}
 
 	// generate primitive executability formula
 	vector<vector<pair<int,int>>> vars;
-	get_linear_state_atoms(capsule, leafs, vars);
+	
+	
+	if (htn->isTotallyOrdered()){	
+		get_linear_state_atoms(capsule, leafs, vars);
+	} else {
+		get_partial_state_atoms(capsule, htn, leafs.size(), vars);
+	}
+
+	vector<int> block_base_variables;
+
 #ifdef BLOCK_COMPRESSION
-	generate_state_transition_formula(solver, capsule, vars, leafs, blocks, htn);
+	generate_state_transition_formula(solver, capsule, vars, block_base_variables, blocks, htn);
 #else
-	generate_state_transition_formula(solver, capsule, vars, leafs, htn);
+	generate_state_transition_formula(solver, capsule, vars, block_base_variables, htn);
 #endif
 	int afterState = get_number_of_clauses();
 
+	if (!htn->isTotallyOrdered()){
+		generate_matching_formula(solver, capsule, htn, leafsog, vars, matching);
+	}
+
+	DEBUG(capsule.printVariables());
 
 #ifdef SAT_USEMUTEXES
 #ifdef BLOCK_COMPRESSION
-	generate_mutex_formula(solver,capsule,leafs, blocks, after_leaf_invariants, htn);
+	generate_mutex_formula(solver, capsule, block_base_variables, blocks, after_leaf_invariants, htn);
 #else
-	generate_mutex_formula(solver, capsule, leafs, after_leaf_invariants, htn);
+	generate_mutex_formula(solver, capsule, block_base_variables, after_leaf_invariants, htn);
 #endif
 #endif
 	int afterMutex = get_number_of_clauses();
@@ -499,14 +557,15 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 	sat_capsule capsule;
 	reset_number_of_clauses();
 
-	int depth = 1;
+	int depth = 3;
 	while (true){
 		void* solver = ipasir_init();
 		cout << endl << endl << color(Color::YELLOW, "Generating formula for depth " + to_string(depth)) << endl;
 		std::clock_t formula_start = std::clock();
 		int state = 20;
-		
-		if (createFormulaForDepth(solver,pdt,htn,capsule,depth)){
+
+		MatchingData matching;
+		if (createFormulaForDepth(solver,pdt,htn,capsule,matching,depth)){
 			std::clock_t formula_end = std::clock();
 			double formula_time_in_ms = 1000.0 * (formula_end-formula_start) / CLOCKS_PER_SEC;
 			cout << "Formula has " << capsule.number_of_variables << " vars and " << get_number_of_clauses() << " clauses." << endl;
@@ -531,13 +590,13 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 #ifndef NDEBUG
 			printVariableTruth(solver, htn, capsule);
 #endif
-			printSolution(solver,htn,pdt);
+			printSolution(solver,htn,pdt,matching);
 			ipasir_release(solver);
 			return;
 		} else {
 			depth++;
 		}
-		//return;
+		return;
 		// release the solver	
 		ipasir_release(solver);
 	}
@@ -582,7 +641,8 @@ void* run_sat_planner_for_depth(void * param){
 
 	sat_capsule capsule;
 	cout << "Generating formula for depth " << ret->depth << endl;
-	createFormulaForDepth(ret->solver,ret->pdt,ret->htn,capsule,ret->depth);
+	MatchingData matching;
+	createFormulaForDepth(ret->solver,ret->pdt,ret->htn,capsule,matching,ret->depth);
 	cout << "Formula has " << capsule.number_of_variables << " vars and " << get_number_of_clauses() << " clauses." << endl;
 	
 	cout << "Starting solver" << endl;
@@ -598,7 +658,7 @@ void* run_sat_planner_for_depth(void * param){
 #ifndef NDEBUG
 		printVariableTruth(ret->solver, ret->htn, capsule);
 #endif
-		printSolution(ret->solver, ret->htn, ret->pdt);
+		printSolution(ret->solver, ret->htn, ret->pdt, matching);
 		ipasir_release(ret->solver);
 		exit(0);
 	}
