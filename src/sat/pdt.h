@@ -88,6 +88,7 @@ struct PDT {
 
 	void addPrunedClauses(void* solver);
 	
+	SOG* getLeafSOG();
 
 	// output
 	void assignOutputNumbers(void* solver, int & currentID, Model * htn);

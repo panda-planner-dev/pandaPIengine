@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <iomanip>
 #include "sog.h"
+#include "pdt.h"
 
 
 SOG* runPOSOGOptimiser(SOG* sog, vector<tuple<int,int,int>> & methods, Model* htn){
@@ -146,6 +147,7 @@ next_vertex:;
 	//assert(sog->numberOfVertices >= maxSize);
 #endif
 
+
 	return sog;
 }
 
@@ -256,6 +258,13 @@ SOG* runTOSOGOptimiser(SOG* sog, vector<tuple<int,int,int>> & methods, Model* ht
 			indexSequence.push_back(taskID);
 		}	
 		addSequenceToSOG(sog, taskSequence, indexSequence, mID, 0, sog->numberOfVertices);
+	}
+
+	sog->adj.resize(sog->numberOfVertices);
+	for (int i = 0; i < sog->numberOfVertices; i++){
+		for (int j = i+1; j < sog->numberOfVertices; j++){
+			sog->adj[i].insert(j);
+		}
 	}
 
 	return sog;
@@ -451,6 +460,15 @@ SOG* runTOSOGOptimiserRecursive(SOG* sog, vector<tuple<int,int,int>> & methods, 
 		}
 	}
 
+	// add edges
+	sog->adj.resize(sog->numberOfVertices);
+	for (int i = 0; i < sog->numberOfVertices; i++){
+		for (int j = i+1; j < sog->numberOfVertices; j++){
+			sog->adj[i].insert(j);
+		}
+	}
+
+
 	return sog;
 }
 
@@ -476,11 +494,14 @@ SOG* optimiseSOG(vector<tuple<int,int,int>> & methods, Model* htn){
     });
 
 #ifndef NDEBUG
+#endif
 	int maxSize = 0;
 	for (size_t mID = 0; mID < methods.size(); mID++)
 		if (maxSize < htn->numSubTasks[get<0>(methods[mID])]) maxSize = htn->numSubTasks[get<0>(methods[mID])];
-	cout << endl << endl << endl << "Running PO SOG Optimiser with " << methods.size() << " methods with up to " << maxSize << " subtasks." << endl;
-#endif
+   	
+	if (allMethodsAreTotallyOrdered) cout << "Running TO SOG optimiser";
+	else                             cout << "Running PO SOG optimiser";
+	cout << " with " << methods.size() << " methods with up to " << maxSize << " subtasks." << endl;
 
 
 	if (allMethodsAreTotallyOrdered)
@@ -489,3 +510,111 @@ SOG* optimiseSOG(vector<tuple<int,int,int>> & methods, Model* htn){
 	else
 		return runPOSOGOptimiser(sog, methods, htn);
 }
+
+
+
+
+
+void SOG::printDot(Model * htn, ofstream & dfile){
+	for (int v = 0; v < numberOfVertices; v++){
+		dfile << "\tv" << v << "[label=\"" << leafOfNode[v] << "\"];" << endl;
+	}
+
+	for (int v = 0; v < numberOfVertices; v++){
+		for (int n : adj[v])
+			dfile << "\tv" << v << " -> v" << n << endl;
+	}
+}
+
+
+
+void SOG::removeTransitiveOrderings(){
+	vector<vector<bool>> trans (numberOfVertices);
+
+	for (int x = 0; x < numberOfVertices; x++)
+		for (int y = 0; y < numberOfVertices; y++)
+			trans[x].push_back(false);
+		
+	for (int j = 0; j < numberOfVertices; j++)
+		for (int nei : adj[j])
+			trans[j][nei] = true;
+	
+	for (int k = 0; k < numberOfVertices; k++)
+		for (int x = 0; x < numberOfVertices; x++)
+			for (int y = 0; y < numberOfVertices; y++)
+				if (adj[x].count(k) && adj[k].count(y)) trans[x][y] = false;
+
+	
+	for (int x = 0; x < numberOfVertices; x++){
+		adj[x].clear();	
+		for (int y = 0; y < numberOfVertices; y++)
+			if (trans[x][y])
+				adj[x].insert(y);
+	}
+
+}
+
+
+SOG* generateSOGForLeaf(PDT* leaf){
+	SOG * res = new SOG();
+	res->numberOfVertices = 1;
+	res->adj.resize(1);
+	res->leafOfNode.push_back(leaf);
+	res->labels.resize(1);
+	for (const int & p : leaf->possiblePrimitives)
+		res->labels[0].insert(p);
+	for (const int & a : leaf->possibleAbstracts)
+		res->labels[0].insert(a);
+
+	return res;
+}
+
+
+
+SOG* SOG::expandSOG(vector<SOG*> nodeSOGs){
+	assert(nodeSOGs.size() == numberOfVertices);
+	SOG * res = new SOG();
+	vector<vector<int>> mapping(this->numberOfVertices);
+
+	// create new node numbers
+	int curnum = 0;
+	for (int i = 0; i < nodeSOGs.size(); i++){
+		for (int j = 0; j < nodeSOGs[i]->numberOfVertices; j++){
+			mapping[i].push_back(curnum++);
+			res->labels.push_back(nodeSOGs[i]->labels[j]);
+			res->leafOfNode.push_back(nodeSOGs[i]->leafOfNode[j]);
+		}
+	}
+
+
+	res->numberOfVertices = curnum;
+	res->adj.resize(curnum);
+
+	// Ordering
+	for (int i = 0; i < nodeSOGs.size(); i++){
+		for (int j = 0; j < nodeSOGs[i]->numberOfVertices; j++){
+			for (int nei : nodeSOGs[i]->adj[j]){
+				cout << mapping[i][j] << " " << mapping[i][nei] << endl;
+				res->adj[mapping[i][j]].insert(mapping[i][nei]);
+			}
+		}
+	}
+
+
+	for (int i = 0; i < numberOfVertices; i++)
+		for (int nei : adj[i])
+			for (int iMap : mapping[i])
+				for (int neiMap : mapping[nei])
+					res->adj[iMap].insert(neiMap);
+
+
+	cout << "Res: " << res->numberOfVertices << endl;
+	// TODO potentially expensive ...
+	res->removeTransitiveOrderings();
+	return res;
+}
+
+
+
+
+

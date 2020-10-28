@@ -18,6 +18,7 @@ PDT::PDT(PDT * m){
 	outputID = -1;
 	outputTask = -1;
 	outputMethod = -1;
+	sog = nullptr;
 }
 
 
@@ -29,6 +30,7 @@ PDT::PDT(Model* htn){
 	outputID = -1;
 	outputTask = -1;
 	outputMethod = -1;
+	sog = nullptr;
 	mother = nullptr;
 	possibleAbstracts.push_back(htn->initialTask);
 }
@@ -81,6 +83,8 @@ void PDT::initialisePruning(Model * htn){
 	}
 }
 
+int SOGNUM = 0;
+
 void PDT::expandPDT(Model* htn){
 	if (expanded) {
 		//cout << "PDT is already expanded" << endl;
@@ -111,7 +115,7 @@ void PDT::expandPDT(Model* htn){
 #ifndef NDEBUG
 	std::clock_t before_sog = std::clock();
 #endif
-	SOG * sog = optimiseSOG(applicableMethodsForSOG, htn);
+	sog = optimiseSOG(applicableMethodsForSOG, htn);
 #ifndef NDEBUG
 	std::clock_t after_sog = std::clock();
 	//cout << "Computed SOG, size: " << sog->numberOfVertices << endl;
@@ -226,7 +230,17 @@ void PDT::expandPDT(Model* htn){
 	cout << "SOG " << setw(8) << setprecision(3) << prep_in_ms << " " << setw(8) << setprecision(3) << sog_in_ms << " " << setw(8) << setprecision(3) << after_in_ms << " ms" << endl;
 #endif
 
-	delete sog;
+
+	/*
+	ofstream dfile;
+	dfile.open ("sog_" + to_string(SOGNUM++) + ".dot");
+	dfile << " digraph graphname" << endl << "{" << endl;
+	sog->printDot(htn,dfile);
+	dfile << "}" << endl;
+	dfile.close();
+	*/
+
+	//delete sog;
 }
 
 
@@ -246,6 +260,20 @@ void PDT::getLeafs(vector<PDT*> & leafs){
 			child->getLeafs(leafs);
 	} else
 		leafs.push_back(this);
+}
+
+SOG* PDT::getLeafSOG(){
+	if (children.size()){
+		assert(sog != nullptr);
+		vector<SOG*> sogs;
+		for (PDT* child : children)
+			sogs.push_back(child->getLeafSOG());
+		return this->sog->expandSOG(sogs);
+	} else {
+		if (sog == nullptr)
+			return generateSOGForLeaf(this);
+		return sog;
+	}
 }
 
 
