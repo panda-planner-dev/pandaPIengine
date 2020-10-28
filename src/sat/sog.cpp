@@ -517,7 +517,8 @@ SOG* optimiseSOG(vector<tuple<int,int,int>> & methods, Model* htn){
 
 void SOG::printDot(Model * htn, ofstream & dfile){
 	for (int v = 0; v < numberOfVertices; v++){
-		dfile << "\tv" << v << "[label=\"" << leafOfNode[v] << "\"];" << endl;
+		//dfile << "\tv" << v << "[label=\"" << leafOfNode[v] << "\"];" << endl;
+		dfile << "\tv" << v << "[label=\"" << v << "\"];" << endl;
 	}
 
 	for (int v = 0; v < numberOfVertices; v++){

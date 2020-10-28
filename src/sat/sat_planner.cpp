@@ -260,12 +260,12 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 
 	SOG* leafsog = pdt->getLeafSOG();
 	
-	/*ofstream dfile;
+	ofstream dfile;
 	dfile.open ("leafsog.dot");
 	dfile << " digraph graphname" << endl << "{" << endl;
 	leafsog->printDot(htn,dfile);
 	dfile << "}" << endl;
-	dfile.close();*/
+	dfile.close();
 
 
 
@@ -588,7 +588,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 	
 		if (state == 10){
 #ifndef NDEBUG
-			printVariableTruth(solver, htn, capsule);
+			//printVariableTruth(solver, htn, capsule);
 #endif
 			printSolution(solver,htn,pdt,matching);
 			ipasir_release(solver);
@@ -596,7 +596,6 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 		} else {
 			depth++;
 		}
-		return;
 		// release the solver	
 		ipasir_release(solver);
 	}

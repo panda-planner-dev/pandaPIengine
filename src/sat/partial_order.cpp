@@ -122,6 +122,60 @@ void generate_matching_formula(void* solver, sat_capsule & capsule, Model * htn,
 	}
 
 
+
+
+	////////////////////////// impose the encoded order
+	
+	vector<vector<int>> forbiddenPerLeaf (leafSOG->numberOfVertices);
+	vector<vector<int>> forbiddenPerPosition (vars.size());
+
+	for (int l = 0; l < leafSOG->numberOfVertices; l++){
+		for (int p = 0; p < vars.size(); p++){
+			int forbiddenVar = capsule.new_variable();
+			DEBUG(capsule.registerVariable(forbiddenVar,"forbidden leaf " + pad_int(l) + " + position " + pad_int(p)));
+			forbiddenPerLeaf[l].push_back(forbiddenVar);
+			forbiddenPerPosition[p].push_back(forbiddenVar);
+		}	
+	}
+
+
+	// if leaf l @ position p, then any successor of l is forbidden at p-1
+	for (int l = 0; l < leafSOG->numberOfVertices; l++){
+		for (int lSucc : leafSOG->adj[l]){
+			for (int p = 1; p < vars.size(); p++){
+				implies(solver,matching.matchingPerLeaf[l][p],forbiddenPerLeaf[lSucc][p-1]);
+			}
+		}
+	}
+
+	// forbidden-ness gets implied onwards
+	for (int l = 0; l < leafSOG->numberOfVertices; l++){
+		for (int lSucc : leafSOG->adj[l]){
+			for (int p = 0; p < vars.size(); p++){
+				implies(solver, forbiddenPerLeaf[l][p], forbiddenPerLeaf[lSucc][p]);
+			}
+		}
+	}
+
+	// forbidden-ness gets implied on the positions
+	for (int l = 0; l < leafSOG->numberOfVertices; l++){
+		for (int p = 1; p < vars.size(); p++){
+			implies(solver, forbiddenPerLeaf[l][p], forbiddenPerLeaf[l][p-1]);
+		}
+	}
+
+
+	// forbidden-ness forbids matchings
+	for (int l = 0; l < leafSOG->numberOfVertices; l++){
+		for (int p = 0; p < vars.size(); p++){
+			impliesNot(solver,forbiddenPerLeaf[l][p],matching.matchingPerLeaf[l][p]);
+		}
+	}
+
+
+
+
+
 	cout << "Hallo!" << endl;
 }
 
