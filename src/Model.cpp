@@ -3076,16 +3076,30 @@ void Model::computeTransitiveChangeOfMethodOrderings(bool closure){
 	for (size_t i = 0; i < numMethods; i++){
 		// transitive closure
 		vector<vector<bool>> trans (numSubTasks[i]);
-		for (int x = 0; x < numSubTasks[i]; x++)
-			for (int y = 0; y < numSubTasks[i]; y++) trans[x].push_back(false);
 		
-		for (int o = 0; o < numOrderings[i]; o+=2)
+		vector<vector<bool>> transOrig (numSubTasks[i]);
+
+		for (int x = 0; x < numSubTasks[i]; x++)
+			for (int y = 0; y < numSubTasks[i]; y++){
+				trans[x].push_back(false);
+				if (!closure)
+					transOrig[x].push_back(false);
+			}
+		
+		for (int o = 0; o < numOrderings[i]; o+=2){
 			trans[ordering[i][o]][ordering[i][o+1]] = true;
+			if (!closure) transOrig[ordering[i][o]][ordering[i][o+1]] = true;
+		}
 
 		for (int k = 0; k < numSubTasks[i]; k++)
 			for (int x = 0; x < numSubTasks[i]; x++)
-				for (int y = 0; y < numSubTasks[i]; y++)
-					if (trans[x][k] && trans[k][y]) trans[x][y] = closure;
+				for (int y = 0; y < numSubTasks[i]; y++){
+					if (closure){
+						if (trans[x][k] && trans[k][y]) trans[x][y] = true;
+					} else {
+						if (transOrig[x][k] && transOrig[k][y]) trans[x][y] = false;
+					}
+				}
 
 		vector<int> ord;
 		for (int x = 0; x < numSubTasks[i]; x++)
