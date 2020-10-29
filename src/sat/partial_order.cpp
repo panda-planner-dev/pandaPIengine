@@ -7,6 +7,7 @@ void generate_matching_formula(void* solver, sat_capsule & capsule, Model * htn,
 	matching.matchingPerPosition.resize(vars.size());
 	matching.vars = vars;
 	matching.leafSOG = leafSOG;
+	
 
 	for (int l = 0; l < leafSOG->numberOfVertices; l++){
 		for (int p = 0; p < vars.size(); p++){
@@ -63,7 +64,6 @@ void generate_matching_formula(void* solver, sat_capsule & capsule, Model * htn,
 	for (int l = 0; l < leafSOG->numberOfVertices; l++)
 		impliesOr(solver,leafActive[l],matching.matchingPerLeaf[l]);
 
-
 	// actions at positions must be caused
 	for (int p = 0; p < vars.size(); p++){
 		vector<int> positionVariables;
@@ -78,6 +78,7 @@ void generate_matching_formula(void* solver, sat_capsule & capsule, Model * htn,
 	for (int p = 0; p < vars.size(); p++)
 		impliesOr(solver,positionActive[p],matching.matchingPerPosition[p]);
 
+
 	for (int p = 0; p < vars.size(); p++){
 		// variable data structure
 		vector<int> variablesPerPrimitive(htn->numActions);
@@ -88,17 +89,22 @@ void generate_matching_formula(void* solver, sat_capsule & capsule, Model * htn,
 		// go through all leafs
 		for (int l = 0; l < leafSOG->numberOfVertices; l++){
 			PDT * leaf = leafSOG->leafOfNode[l];
+			
+			if (leafSOG->firstPossible[l] > p || leafSOG->lastPossible[l] < p){
+				assertNot(solver,matching.matchingPerPosition[p][l]);
+				continue;
+			}
+
 			for (int primC = 0; primC < leaf->possiblePrimitives.size(); primC++){
 				if (leaf->primitiveVariable[primC] == -1) continue; // pruned
-				
 				int prim = leaf->possiblePrimitives[primC];
 
 				// if this leaf is connected then the task must be present
+
 				impliesAnd(solver,matching.matchingPerPosition[p][l],leaf->primitiveVariable[primC],variablesPerPrimitive[prim]);
 			}
 		}
 	}
-
 
 
 	for (int l = 0; l < leafSOG->numberOfVertices; l++){
@@ -120,7 +126,6 @@ void generate_matching_formula(void* solver, sat_capsule & capsule, Model * htn,
 				}
 			}
 	}
-
 
 
 
@@ -173,6 +178,7 @@ void generate_matching_formula(void* solver, sat_capsule & capsule, Model * htn,
 	}
 
 
+	return;
 
 
 

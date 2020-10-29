@@ -261,9 +261,11 @@ SOG* runTOSOGOptimiser(SOG* sog, vector<tuple<int,int,int>> & methods, Model* ht
 	}
 
 	sog->adj.resize(sog->numberOfVertices);
+	sog->bdj.resize(sog->numberOfVertices);
 	for (int i = 0; i < sog->numberOfVertices; i++){
 		for (int j = i+1; j < sog->numberOfVertices; j++){
 			sog->adj[i].insert(j);
+			sog->bdj[j].insert(i);
 		}
 	}
 
@@ -462,9 +464,11 @@ SOG* runTOSOGOptimiserRecursive(SOG* sog, vector<tuple<int,int,int>> & methods, 
 
 	// add edges
 	sog->adj.resize(sog->numberOfVertices);
+	sog->bdj.resize(sog->numberOfVertices);
 	for (int i = 0; i < sog->numberOfVertices; i++){
 		for (int j = i+1; j < sog->numberOfVertices; j++){
 			sog->adj[i].insert(j);
+			sog->bdj[j].insert(i);
 		}
 	}
 
@@ -552,7 +556,48 @@ void SOG::removeTransitiveOrderings(){
 			if (trans[x][y])
 				adj[x].insert(y);
 	}
+}
 
+
+void SOG::succdfs(int n, vector<bool> &visi){
+	if (visi[n]) return;
+	visi[n] = true;
+	successorSet[n].insert(n);
+
+	for (int nei : adj[n]){
+		succdfs(nei,visi);
+		successorSet[n].insert(successorSet[nei].begin(), successorSet[nei].end());
+	}
+}
+
+void SOG::calcSucessorSets(){
+	successorSet.clear();
+	successorSet.resize(numberOfVertices);
+	vector<bool> visi (numberOfVertices);
+
+	for (int i = 0; i < numberOfVertices; i++)
+		succdfs(i,visi);
+}
+
+
+void SOG::precdfs(int n, vector<bool> &visi){
+	if (visi[n]) return;
+	visi[n] = true;
+	predecessorSet[n].insert(n);
+
+	for (int nei : bdj[n]){
+		precdfs(nei,visi);
+		predecessorSet[n].insert(predecessorSet[nei].begin(), predecessorSet[nei].end());
+	}
+}
+
+void SOG::calcPredecessorSets(){
+	predecessorSet.clear();
+	predecessorSet.resize(numberOfVertices);
+	vector<bool> visi (numberOfVertices);
+
+	for (int i = 0; i < numberOfVertices; i++)
+		precdfs(i,visi);
 }
 
 
@@ -560,6 +605,7 @@ SOG* generateSOGForLeaf(PDT* leaf){
 	SOG * res = new SOG();
 	res->numberOfVertices = 1;
 	res->adj.resize(1);
+	res->bdj.resize(1);
 	res->leafOfNode.push_back(leaf);
 	res->labels.resize(1);
 	for (const int & p : leaf->possiblePrimitives)
@@ -590,26 +636,34 @@ SOG* SOG::expandSOG(vector<SOG*> nodeSOGs){
 
 	res->numberOfVertices = curnum;
 	res->adj.resize(curnum);
+	res->bdj.resize(curnum);
 
 	// Ordering
 	for (int i = 0; i < nodeSOGs.size(); i++){
 		for (int j = 0; j < nodeSOGs[i]->numberOfVertices; j++){
 			for (int nei : nodeSOGs[i]->adj[j]){
-				cout << mapping[i][j] << " " << mapping[i][nei] << endl;
 				res->adj[mapping[i][j]].insert(mapping[i][nei]);
+			}
+			for (int nei : nodeSOGs[i]->bdj[j]){
+				res->bdj[mapping[i][j]].insert(mapping[i][nei]);
 			}
 		}
 	}
 
 
-	for (int i = 0; i < numberOfVertices; i++)
+	for (int i = 0; i < numberOfVertices; i++){
 		for (int nei : adj[i])
 			for (int iMap : mapping[i])
 				for (int neiMap : mapping[nei])
 					res->adj[iMap].insert(neiMap);
+		
+		for (int nei : bdj[i])
+			for (int iMap : mapping[i])
+				for (int neiMap : mapping[nei])
+					res->bdj[iMap].insert(neiMap);
+	}
 
-
-	cout << "Res: " << res->numberOfVertices << endl;
+	//cout << "Res: " << res->numberOfVertices << endl;
 	// TODO potentially expensive ...
 	res->removeTransitiveOrderings();
 	return res;

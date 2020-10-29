@@ -23,6 +23,16 @@ struct SOG {
 
 
 	vector<PDT*> leafOfNode;
+	vector<unordered_set<int>> successorSet;
+	void succdfs(int n, vector<bool> &visi);
+	void calcSucessorSets();
+	
+	vector<unordered_set<int>> predecessorSet;
+	void precdfs(int n, vector<bool> &visi);
+	void calcPredecessorSets();
+
+	vector<int> firstPossible;
+	vector<int> lastPossible;
 };
 
 SOG* optimiseSOG(vector<tuple<int,int,int>> & methods, Model* htn);

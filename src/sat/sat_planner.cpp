@@ -258,15 +258,18 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	pdt->getLeafs(leafs);
 	cout << leafs.size() << " leafs" << endl;
 
+	cout << "Extracting leaf SOG ... ";
 	SOG* leafsog = pdt->getLeafSOG();
+	cout << "done" << endl;
 	
+	/*
 	ofstream dfile;
 	dfile.open ("leafsog.dot");
 	dfile << " digraph graphname" << endl << "{" << endl;
 	leafsog->printDot(htn,dfile);
 	dfile << "}" << endl;
 	dfile.close();
-
+	*/
 
 
 	/*ofstream dfile;
@@ -349,6 +352,8 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 #endif
 	} else {
 	}
+	
+	cout << "Decomp formula generated" << endl;
 
 	// generate primitive executability formula
 	vector<vector<pair<int,int>>> vars;
@@ -357,8 +362,10 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	if (htn->isTotallyOrdered()){	
 		get_linear_state_atoms(capsule, leafs, vars);
 	} else {
-		get_partial_state_atoms(capsule, htn, leafs.size(), vars);
+		get_partial_state_atoms(capsule, htn, leafsog, vars);
 	}
+	
+	cout << "State atoms" << endl;
 
 	vector<int> block_base_variables;
 
@@ -368,11 +375,13 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	generate_state_transition_formula(solver, capsule, vars, block_base_variables, htn);
 #endif
 	int afterState = get_number_of_clauses();
+	cout << "State formula" << endl;
 
 	if (!htn->isTotallyOrdered()){
 		generate_matching_formula(solver, capsule, htn, leafsog, vars, matching);
 	}
 
+	cout << "Matching" << endl;
 	DEBUG(capsule.printVariables());
 
 #ifdef SAT_USEMUTEXES
@@ -595,6 +604,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 			return;
 		} else {
 			depth++;
+			//return;
 		}
 		// release the solver	
 		ipasir_release(solver);

@@ -246,15 +246,55 @@ void get_linear_state_atoms(sat_capsule & capsule, vector<PDT*> & leafs, vector<
 	}
 }
 
-void get_partial_state_atoms(sat_capsule & capsule, Model * htn, int numberOfTimeSteps,
+void get_partial_state_atoms(sat_capsule & capsule, Model * htn, SOG* sog,
 		vector<vector<pair<int,int>>> & ret){
+	// determine to which times a given leaf can potentially be mapped
+	sog->calcSucessorSets();
+	sog->calcPredecessorSets();
+
+
+	sog->firstPossible.resize(sog->numberOfVertices);
+	sog->lastPossible.resize(sog->numberOfVertices);
+
+
+	vector<unordered_set<int>> actionsPerPosition (sog->numberOfVertices);
+
 	// these are just the primitives in the correct order
-	for (int t = 0; t < numberOfTimeSteps; t++){
+	for (int t = 0; t < sog->numberOfVertices; t++){
+		int numSucc = sog->successorSet[t].size() - 1;
+		int numPrec = sog->predecessorSet[t].size() - 1;
+
+		int firstPossible = numPrec;
+		int lastPossible = sog->numberOfVertices - 1 - numSucc;
+		
+		sog->firstPossible[t] = firstPossible;
+		sog->lastPossible[t] = lastPossible;
+
 #ifndef NDEBUG
-		std::cout << "Position: " << t << std::endl; 
+		std::cout << "Position: " << t << " succ: " << numSucc << " prec: " << numPrec;
+		std::cout << "\t\tfrom " << firstPossible << " to " << lastPossible << std::endl;
 #endif
+
+		for (int prim : sog->leafOfNode[t]->possiblePrimitives)
+			for (int pos = firstPossible; pos <= lastPossible; pos++)
+				actionsPerPosition[pos].insert(prim);
+
+	}
+
+/*	for (int t = 0; t < sog->numberOfVertices; t++){
 		vector<pair<int,int>> atoms;
 		for (size_t p = 0; p < htn->numActions; p++){
+			int pvar = capsule.new_variable();
+			DEBUG(capsule.registerVariable(pvar,"action var " + pad_int(p) + " @ " + pad_int(t) + ": " + pad_string(htn->taskNames[p])));
+			atoms.push_back(make_pair(pvar, p));
+		}
+		
+		ret.push_back(atoms);
+	}
+*/
+	for (int t = 0; t < sog->numberOfVertices; t++){
+		vector<pair<int,int>> atoms;
+		for (int p : actionsPerPosition[t]){
 			int pvar = capsule.new_variable();
 			DEBUG(capsule.registerVariable(pvar,"action var " + pad_int(p) + " @ " + pad_int(t) + ": " + pad_string(htn->taskNames[p])));
 			atoms.push_back(make_pair(pvar, p));
