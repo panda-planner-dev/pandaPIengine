@@ -70,6 +70,7 @@ public:
 	searchNode* prepareTNi(const Model* htn);
 
 	bool isHtnModel;
+    string filename;
 
 	// state-bits
 	int numStateBits;

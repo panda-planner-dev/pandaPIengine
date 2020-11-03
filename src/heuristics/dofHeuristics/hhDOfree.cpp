@@ -7,7 +7,7 @@
 
 #include "hhDOfree.h"
 
-
+#ifdef DOFREE
 hhDOfree::hhDOfree(Model *htn, searchNode *n, IloNumVar::Type IntType, IloNumVar::Type BoolType, csTdg tdgConstrs,
                    csPg pgConstrs, csAndOrLms aoLMConstrs, csLmcLms lmcLMConstrs, csNetChange ncConstrs,
                    csAddExternalLms addLMConstrs) :
@@ -1015,3 +1015,4 @@ int hhDOfree::recreateModel(searchNode *n) {
     lenv.end();
     return res;
 }
+#endif

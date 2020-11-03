@@ -3,6 +3,7 @@
 //
 
 #include "hhRC2.h"
+#ifdef RCHEURISTIC2
 
 hhRC2::hhRC2(Model *htnModel) {
 
@@ -164,4 +165,5 @@ void hhRC2::setHeuristicValue(searchNode *n, searchNode *parent, int absTask, in
     n->heuristicValue = this->setHeuristicValue(n);
     n->goalReachable = (n->heuristicValue != UNREACHABLE);
 }
+#endif
 
