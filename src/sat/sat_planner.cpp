@@ -349,6 +349,8 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	cout << " done. " << (capsule.number_of_variables - numVarsBefore) << " new variables." << endl;
 	printMemory();
 	DEBUG(capsule.printVariables());
+	
+	//exit(0);
 
 	int beforeDecomp = get_number_of_clauses();
 	pdt->addDecompositionClauses(solver, capsule, htn);
@@ -492,6 +494,7 @@ void bdfs(Model * htn, PDT * cur, PDT * source, vector<pair<int,int>> possibleAs
 		vector<unordered_set<pair<int,int>>> childrenPossibleAssignments (cur->children.size());
 
 		for (auto [tIndex,mIndex] : possibleAssignments){
+
 			if (tIndex != -1){
 				// applying method mIndex, which tasks will this result in
 				//assert(cur->listIndexOfChildrenForMethods.size() > tIndex);
@@ -532,10 +535,23 @@ void bdfs(Model * htn, PDT * cur, PDT * source, vector<pair<int,int>> possibleAs
 		// set for duplicate elimination
 		unordered_set<pair<int,int>> possibleMotherAssignments;
 		for (auto [tIndex,mIndex] : possibleAssignments){
+
 			if (tIndex != -1){
-				for (auto & cause : cur->causesForAbstracts[tIndex]) possibleMotherAssignments.insert(cause);
+				for (int c = 0; c < cur->numberOfCausesPerAbstract[tIndex]; c++){
+					pair<int,int> pp;
+					pp.first = cur->getCauseForAbstract(tIndex,c)->taskIndex;
+					pp.second = cur->getCauseForAbstract(tIndex,c)->methodIndex;
+					
+					possibleMotherAssignments.insert(pp);
+				}
 			} else {
-				for (auto & cause : cur->causesForPrimitives[mIndex]) possibleMotherAssignments.insert(cause);
+				for (int c = 0; c < cur->numberOfCausesPerPrimitive[mIndex]; c++){
+					pair<int,int> pp;
+					pp.first = cur->getCauseForAbstract(mIndex,c)->taskIndex;
+					pp.second = cur->getCauseForAbstract(mIndex,c)->methodIndex;
+					
+					possibleMotherAssignments.insert(pp);
+				}
 			}
 		}
 		
@@ -558,7 +574,17 @@ void temp(Model * htn, PDT * pdt){
 			int p = l->possiblePrimitives[pI];
 			cout << "Leaf " << l << " " << p << endl;
 			map<PDT*,vector<pair<int,int>>> overallAssignments;
-			bdfs(htn, l->mother, l, l->causesForPrimitives[pI], overallAssignments);
+			
+			
+			vector<pair<int,int>> possibleAssignments;
+			for (int c = 0; c < l->numberOfCausesPerPrimitive[pI]; c++){
+				pair<int,int> pp;
+				pp.first = l->getCauseForPrimitive(pI,c)->taskIndex;	
+				pp.second = l->getCauseForPrimitive(pI,c)->methodIndex;	
+			}
+
+
+			bdfs(htn, l->mother, l, possibleAssignments, overallAssignments);
 			cout << "  Computed implications for " << overallAssignments.size() << " other vertices." << endl;
 			cout << "  extracting mutexes" << endl;
 			for (auto & [node,possible] : overallAssignments){

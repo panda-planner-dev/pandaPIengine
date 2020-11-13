@@ -51,7 +51,7 @@ void PDT::resetPruning(Model * htn){
 		int prunedCausesSize = 0;	
 		for (unsigned int at = 0; at < possibleAbstracts.size(); at++){
 			prunedCausesAbstractStart[at] = prunedCausesSize;
-			prunedCausesSize += causesForAbstracts[at].size();
+			prunedCausesSize += numberOfCausesPerAbstract[at];
 		}
 		prunedCausesSize = (prunedCausesSize + 63) / 64;
 		prunedCausesForAbstract = (uint64_t*) calloc(prunedCausesSize, sizeof(uint64_t));
@@ -64,7 +64,7 @@ void PDT::resetPruning(Model * htn){
 		prunedCausesSize = 0;	
 		for (unsigned int p = 0; p < possiblePrimitives.size(); p++){
 			prunedCausesPrimitiveStart[p] = prunedCausesSize;
-			prunedCausesSize += causesForPrimitives[p].size();
+			prunedCausesSize += numberOfCausesPerPrimitive[p];
 		}
 		prunedCausesSize = (prunedCausesSize + 63) / 64;
 		prunedCausesForPrimitive = (uint64_t*) calloc(prunedCausesSize, sizeof(uint64_t));
@@ -93,7 +93,7 @@ void PDT::initialisePruning(Model * htn){
 			int prunedCausesSize = 0;	
 			for (unsigned int at = 0; at < possibleAbstracts.size(); at++){
 				prunedCausesAbstractStart[at] = prunedCausesSize;
-				prunedCausesSize += causesForAbstracts[at].size();
+				prunedCausesSize += numberOfCausesPerAbstract[at];
 			}
 			prunedCausesSize = (prunedCausesSize + 63) / 64;
 			prunedCausesForAbstract = (uint64_t*) calloc(prunedCausesSize, sizeof(uint64_t));
@@ -106,7 +106,7 @@ void PDT::initialisePruning(Model * htn){
 			int prunedCausesSize = 0;	
 			for (unsigned int p = 0; p < possiblePrimitives.size(); p++){
 				prunedCausesPrimitiveStart[p] = prunedCausesSize;
-				prunedCausesSize += causesForPrimitives[p].size();
+				prunedCausesSize += numberOfCausesPerPrimitive[p];
 			}
 			prunedCausesSize = (prunedCausesSize + 63) / 64;
 			prunedCausesForPrimitive = (uint64_t*) calloc(prunedCausesSize, sizeof(uint64_t));
@@ -117,7 +117,7 @@ void PDT::initialisePruning(Model * htn){
 }
 
 
-#undef NDEBUG
+//#undef NDEBUG
 
 void PDT::expandPDT(Model* htn){
 	if (expanded) {
@@ -175,9 +175,11 @@ void PDT::expandPDT(Model* htn){
 	listIndexOfChildrenForMethods = (causePointer*) calloc(c,sizeof(causePointer));
 	for (int i = 0; i < c; i++) listIndexOfChildrenForMethods[i].present = false;
 
+#ifndef NDEBUG
 	cout << "\t\t\tPA " << possibleAbstracts.size() << " " << c << endl;
 	cout << "B "; printMemory();
-	
+#endif
+
 	// maps tasks to possible causes (i.e. methods)
 	vector<map<int,vector<pair<int,int>>>> childrenTasks (sog->numberOfVertices);
 
@@ -212,15 +214,18 @@ void PDT::expandPDT(Model* htn){
 		children.push_back(child);
 	}
 	
+	vector<vector<vector<pair<int,int>>>> childCausesForAbstracts(sog->numberOfVertices);
+	vector<vector<vector<pair<int,int>>>> childCausesForPrimitives(sog->numberOfVertices);
+	
 	for (size_t c = 0; c < sog->numberOfVertices; c++){
 		PDT* child = children[c];
-		
+
 		for (const auto & [t,causes] : childrenTasks[c]){
 			int subIndex; // index of the task in the child
 			if (t < htn->numActions) {
 				subIndex = child->possiblePrimitives.size();
 				child->possiblePrimitives.push_back(t);
-				child->causesForPrimitives.push_back(_empty);
+				childCausesForPrimitives[c].push_back(_empty);
 				positionOfPrimitiveTasksInChildren [c][t] = subIndex;
 #ifndef NDEBUG
 		   		childPositions++;
@@ -228,19 +233,18 @@ void PDT::expandPDT(Model* htn){
 			} else {
 				subIndex = child->possibleAbstracts.size();
 				child->possibleAbstracts.push_back(t);
-				child->causesForAbstracts.push_back(_empty);
+				childCausesForAbstracts[c].push_back(_empty);
 			}
 
 			// go through the causes
 			for (const auto & [tIndex,mIndex] : causes){
-				
 				int position = -1;
 				if (t < htn->numActions){
-					position = child->causesForPrimitives.back().size();
-					child->causesForPrimitives.back().push_back(make_pair(tIndex,mIndex));
+					position = childCausesForPrimitives[c].back().size();
+					childCausesForPrimitives[c].back().push_back(make_pair(tIndex,mIndex));
 				} else {
-					position = child->causesForAbstracts.back().size();
-					child->causesForAbstracts.back().push_back(make_pair(tIndex,mIndex));
+					position = childCausesForAbstracts[c].back().size();
+					childCausesForAbstracts[c].back().push_back(make_pair(tIndex,mIndex));
 				}
 				
 				assert(!getListIndexOfChildrenForMethods(tIndex,mIndex,c)->present);
@@ -255,14 +259,13 @@ void PDT::expandPDT(Model* htn){
 #endif
 			}
 		}
-		
-		
+
 	}
+		
 
 #ifndef NDEBUG
 	cout << "D "; printMemory();
 #endif
-
 
 	// determine inheritance for primitives
 	if (sog->numberOfVertices > 0){ // if not we are a leaf and everything is ok
@@ -286,7 +289,7 @@ void PDT::expandPDT(Model* htn){
 				selectedChild = 0;
 				int subIndex = children[selectedChild]->possiblePrimitives.size();
 				children[selectedChild]->possiblePrimitives.push_back(p);
-				children[selectedChild]->causesForPrimitives.push_back(_empty);
+				childCausesForPrimitives[selectedChild].push_back(_empty);
 				positionOfPrimitiveTasksInChildren[selectedChild][p] = subIndex;
 			}
 			
@@ -294,10 +297,50 @@ void PDT::expandPDT(Model* htn){
 			positionOfPrimitivesInChildren.push_back(make_tuple(
 						selectedChild,
 						positionOfPrimitiveTasksInChildren[selectedChild][p],
-						children[selectedChild]->causesForPrimitives[positionOfPrimitiveTasksInChildren[selectedChild][p]].size()
+						childCausesForPrimitives[selectedChild][positionOfPrimitiveTasksInChildren[selectedChild][p]].size()
 						));
 			
-			children[selectedChild]->causesForPrimitives[positionOfPrimitiveTasksInChildren[selectedChild][p]].push_back(make_pair(-1,pIndex));
+			childCausesForPrimitives[selectedChild][positionOfPrimitiveTasksInChildren[selectedChild][p]].push_back(make_pair(-1,pIndex));
+		}
+	}
+
+
+	for (size_t c = 0; c < sog->numberOfVertices; c++){
+		// create causes data structures
+		children[c]->numberOfCausesPerAbstract = (uint32_t*) calloc(children[c]->possibleAbstracts.size(),sizeof(uint32_t));
+		children[c]->startOfCausesPerAbstract = (uint32_t*) calloc(children[c]->possibleAbstracts.size(),sizeof(uint32_t));
+		int currentPosition = 0;
+		for (int at = 0; at < children[c]->possibleAbstracts.size(); at++){
+			children[c]->startOfCausesPerAbstract[at] = currentPosition;
+			children[c]->numberOfCausesPerAbstract[at] = childCausesForAbstracts[c][at].size();
+			currentPosition += children[c]->numberOfCausesPerAbstract[at];
+		}
+
+		children[c]->causesForAbstracts = (taskCause*) calloc(currentPosition, sizeof(taskCause));
+		for (int at = 0; at < children[c]->possibleAbstracts.size(); at++){
+			for (int cause = 0; cause < children[c]->numberOfCausesPerAbstract[at]; cause++){
+				children[c]->getCauseForAbstract(at,cause)->taskIndex = childCausesForAbstracts[c][at][cause].first;
+				children[c]->getCauseForAbstract(at,cause)->methodIndex = childCausesForAbstracts[c][at][cause].second;
+			}
+		}
+
+		// and once for the primitives
+
+		children[c]->numberOfCausesPerPrimitive = (uint32_t*) calloc(children[c]->possiblePrimitives.size(),sizeof(uint32_t));
+		children[c]->startOfCausesPerPrimitive = (uint32_t*) calloc(children[c]->possiblePrimitives.size(),sizeof(uint32_t));
+		currentPosition = 0;
+		for (int at = 0; at < children[c]->possiblePrimitives.size(); at++){
+			children[c]->startOfCausesPerPrimitive[at] = currentPosition;
+			children[c]->numberOfCausesPerPrimitive[at] = childCausesForPrimitives[c][at].size();
+			currentPosition += children[c]->numberOfCausesPerPrimitive[at];
+		}
+
+		children[c]->causesForPrimitives = (taskCause*) calloc(currentPosition, sizeof(taskCause));
+		for (int at = 0; at < children[c]->possiblePrimitives.size(); at++){
+			for (int cause = 0; cause < children[c]->numberOfCausesPerPrimitive[at]; cause++){
+				children[c]->getCauseForPrimitive(at,cause)->taskIndex = childCausesForPrimitives[c][at][cause].first;
+				children[c]->getCauseForPrimitive(at,cause)->methodIndex = childCausesForPrimitives[c][at][cause].second;
+			}
 		}
 	}
 
@@ -305,8 +348,6 @@ void PDT::expandPDT(Model* htn){
 	cout << "E "; printMemory();
 	cout << "\t\tA" << setw(8) << possibleAbstracts.size() << " ";
 	cout << "P" << setw(8) << possiblePrimitives.size() << " ";
-	cout << "CA" << setw(8) << causesForAbstracts.size() << " ";
-	cout << "CP" << setw(8) << causesForPrimitives.size() << " ";
 	cout << "L" << setw(8) << listIndexOfChildrenForMethodsEntries << " ";
 	cout << "P" << setw(8) << childPositions << endl;
 	//cout << "\t\t\t\t" << listIndexOfChildrenForMethodsEntries * (sizeof(int)*3 + sizeof(bool)) / 1024 << endl;
@@ -582,15 +623,15 @@ void PDT::printDecomposition(Model * htn){
 	for (PDT* & child : children) child->printDecomposition(htn);
 }
 
-bool PDT::pruneCause(pair<int,int> & cause){
-	if (cause.first == -1){
-		if (mother->prunedPrimitives[cause.second])
+bool PDT::pruneCause(taskCause * cause){
+	if (cause->taskIndex == -1){
+		if (mother->prunedPrimitives[cause->methodIndex])
 		   return false;	
-		mother->prunedPrimitives[cause.second] = true;
+		mother->prunedPrimitives[cause->methodIndex] = true;
 	} else {
-		if (mother->prunedMethods[cause.first][cause.second])
+		if (mother->prunedMethods[cause->taskIndex][cause->methodIndex])
 			return false;
-		mother->prunedMethods[cause.first][cause.second] = true;
+		mother->prunedMethods[cause->taskIndex][cause->methodIndex] = true;
 	}
 	return true;
 }
@@ -652,18 +693,18 @@ void PDT::propagatePruning(Model * htn){
 	if (mother != nullptr){
 		for (size_t p = 0; p < possiblePrimitives.size(); p++)
 			if (prunedPrimitives[p]){
-				for (size_t c = 0; c < causesForPrimitives[p].size(); c++){
+				for (size_t c = 0; c < numberOfCausesPerPrimitive[p]; c++){
 					setPrunedCausesForPrimitive(p,c);
-					changedMother |= pruneCause(causesForPrimitives[p][c]);
+					changedMother |= pruneCause(getCauseForPrimitive(p,c));
 				}
 			}
 
 
 		for (size_t a = 0; a < possibleAbstracts.size(); a++)
 			if (prunedAbstracts[a]){
-				for (size_t c = 0; c < causesForAbstracts[a].size(); c++){
+				for (size_t c = 0; c < numberOfCausesPerAbstract[a]; c++){
 					setPrunedCausesForAbstract(a,c);
-					changedMother |= pruneCause(causesForAbstracts[a][c]);
+					changedMother |= pruneCause(getCauseForAbstract(a,c));
 				}
 			}
 
@@ -760,8 +801,9 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule, Model * h
 	if (!expanded) return; // if I am not expanded, I have no decomposition clauses
 	assert(vertexVariables);
 	assert(childrenVariables);
+#ifndef NDEBUG
 	printMemory();
-	
+#endif
 	// these clauses implement the rules of decomposition
 
 	// at most one task
@@ -876,10 +918,13 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule, Model * h
 			if (child->abstractVariable[a] == -1) continue;
 
 			vector<int> allCauses;
-			for (size_t i = 0; i < child->causesForAbstracts[a].size(); i++){
+			for (size_t i = 0; i < child->numberOfCausesPerAbstract[a]; i++){
 				if (child->getPrunedCausesForAbstract(a,i)) continue;
 			
-				const auto & [tIndex,mIndex] = child->causesForAbstracts[a][i];
+				taskCause * cause = child->getCauseForAbstract(a,i);
+				int tIndex = cause->taskIndex;
+				int mIndex = cause->methodIndex;
+
 				assert(tIndex != -1);
 				allCauses.push_back(*getMethodVariable(tIndex,mIndex));
 			}
@@ -892,11 +937,14 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule, Model * h
 			
 			vector<int> allCauses;
 			
-			for (size_t i = 0; i < child->causesForPrimitives[p].size(); i++){
+			for (size_t i = 0; i < child->numberOfCausesPerPrimitive[p]; i++){
 				if (child->getPrunedCausesForPrimitive(p,i)) continue;
 
 
-				const auto & [tIndex,mIndex] = child->causesForPrimitives[p][i];
+				taskCause * cause = child->getCauseForPrimitive(p,i);
+				int tIndex = cause->taskIndex;
+				int mIndex = cause->methodIndex;
+				
 				if (tIndex == -1){
 					// is inherited
 					allCauses.push_back(primitiveVariable[mIndex]);
@@ -987,7 +1035,7 @@ void PDT::setPrunedCausesForAbstract(int a, int b){
 
 
 bool PDT::areAllCausesPrunedAbstract(int a){
-	for (int c = 0; c < causesForAbstracts[a].size(); c++)
+	for (int c = 0; c < numberOfCausesPerAbstract[a]; c++)
 		if (!getPrunedCausesForAbstract(a,c)) return false;
 	return true;
 }
@@ -1013,7 +1061,7 @@ void PDT::setPrunedCausesForPrimitive(int a, int b){
 
 
 bool PDT::areAllCausesPrunedPrimitive(int a){
-	for (int c = 0; c < causesForPrimitives[a].size(); c++)
+	for (int c = 0; c < numberOfCausesPerPrimitive[a]; c++)
 		if (!getPrunedCausesForPrimitive(a,c)) return false;
 	return true;
 }
@@ -1023,5 +1071,17 @@ int32_t * PDT::getMethodVariable(int a, int m){
 	int base = methodVariablesStartIndex[a];
 	int add = base + m;
 	return methodVariables + add;
+}
+
+taskCause * PDT::getCauseForAbstract(int a, int i){
+	int base = startOfCausesPerAbstract[a];
+	int add = base + i;
+	return causesForAbstracts + add;
+}
+
+taskCause * PDT::getCauseForPrimitive(int p, int i){
+	int base = startOfCausesPerPrimitive[p];
+	int add = base + i;
+	return causesForPrimitives + add;
 }
 

@@ -14,6 +14,10 @@ struct causePointer {
 	unsigned taskIndex : 31, causeIndex : 31;
 };
 
+struct taskCause {
+	signed taskIndex : 32, methodIndex : 32;
+};
+
 struct PDT {
 	vector<int> path;
 	
@@ -27,9 +31,19 @@ struct PDT {
 	// for every abstract, the task and method index by which it can be created
 	// the task ID is relative to possibleAbstracts
 	// the method ID relative to htn->numMethodsForTask for the actual task 
-	vector<vector<pair<int,int>>> causesForAbstracts;
+	
+	uint32_t * numberOfCausesPerAbstract;
+	uint32_t * startOfCausesPerAbstract;
+	taskCause * getCauseForAbstract(int a, int i);
+	taskCause * causesForAbstracts;
 	// primitives can also be caused by primitive inheritance, this will be marked with a -1,primIndex (of parent)
-	vector<vector<pair<int,int>>> causesForPrimitives;
+	
+	uint32_t * numberOfCausesPerPrimitive;
+	uint32_t * startOfCausesPerPrimitive;
+	taskCause * getCauseForPrimitive(int p, int i);
+	taskCause * causesForPrimitives;
+
+	/// pruning information
 
 	uint32_t * prunedCausesAbstractStart = 0;
 	bool getPrunedCausesForAbstract(int a, int b);
@@ -116,7 +130,7 @@ struct PDT {
 
 
 private:
-	bool pruneCause(pair<int,int> & cause);
+	bool pruneCause(taskCause * cause);
 };
 
 
