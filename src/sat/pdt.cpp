@@ -5,6 +5,7 @@
 #include "ipasir.h"
 #include "../Util.h"
 
+void printMemory();
 
 
 //////////////////////////// actual PDT
@@ -81,6 +82,9 @@ void PDT::initialisePruning(Model * htn){
 	}
 }
 
+
+#undef NDEBUG
+
 void PDT::expandPDT(Model* htn){
 	if (expanded) {
 		//cout << "PDT is already expanded" << endl;
@@ -106,6 +110,7 @@ void PDT::expandPDT(Model* htn){
 			applicableMethodsForSOG.push_back(make_tuple(htn->taskToMethods[t][m],tIndex,m));
 		}
 	}
+
 
 	// get best possible SOG
 #ifndef NDEBUG
@@ -137,6 +142,11 @@ void PDT::expandPDT(Model* htn){
 	vector<pair<int,int>> _empty;
 	vector<map<int,int>> positionOfPrimitiveTasksInChildren (sog->numberOfVertices);
 	
+#ifndef NDEBUG
+	int listIndexOfChildrenForMethodsEntries = 0;
+	int childPositions = 0;
+#endif
+
 	// create children
 	for (size_t c = 0; c < sog->numberOfVertices; c++){
 		PDT* child = new PDT(this);
@@ -150,7 +160,10 @@ void PDT::expandPDT(Model* htn){
 				child->possiblePrimitives.push_back(t);
 				child->causesForPrimitives.push_back(_empty);
 				positionOfPrimitiveTasksInChildren [c][t] = subIndex;
-		   	} else {
+#ifndef NDEBUG
+		   		childPositions++;
+#endif
+			} else {
 				subIndex = child->possibleAbstracts.size();
 				child->possibleAbstracts.push_back(t);
 				child->causesForAbstracts.push_back(_empty);
@@ -175,12 +188,16 @@ void PDT::expandPDT(Model* htn){
 						   	subIndex,
 							position));
 
+#ifndef NDEBUG
+				listIndexOfChildrenForMethodsEntries++;
+#endif
 			}
 		}
 		
 		
 		children.push_back(child);
 	}
+
 
 
 	// determine inheritance for primitives
@@ -209,15 +226,29 @@ void PDT::expandPDT(Model* htn){
 				positionOfPrimitiveTasksInChildren[selectedChild][p] = subIndex;
 			}
 			
+			
 			positionOfPrimitivesInChildren.push_back(make_tuple(
 						selectedChild,
 						positionOfPrimitiveTasksInChildren[selectedChild][p],
 						children[selectedChild]->causesForPrimitives[positionOfPrimitiveTasksInChildren[selectedChild][p]].size()
 						));
-
+			
 			children[selectedChild]->causesForPrimitives[positionOfPrimitiveTasksInChildren[selectedChild][p]].push_back(make_pair(-1,pIndex));
 		}
 	}
+
+#ifndef NDEBUG
+	cout << "\t\tA" << setw(8) << possibleAbstracts.size() << " ";
+	cout << "P" << setw(8) << possiblePrimitives.size() << " ";
+	cout << "CA" << setw(8) << causesForAbstracts.size() << " ";
+	cout << "CP" << setw(8) << causesForPrimitives.size() << " ";
+	cout << "L" << setw(8) << listIndexOfChildrenForMethodsEntries << " ";
+	cout << "P" << setw(8) << childPositions << endl;
+	//cout << "\t\t\t\t" << listIndexOfChildrenForMethodsEntries * (sizeof(int)*3 + sizeof(bool)) / 1024 << endl;
+	cout << "A "; printMemory();
+#endif
+
+
 #ifndef NDEBUG
 	std::clock_t after_all = std::clock();
 	double prep_in_ms = 1000.0 * (before_sog-before_prep) / CLOCKS_PER_SEC;
@@ -227,6 +258,8 @@ void PDT::expandPDT(Model* htn){
 #endif
 
 	delete sog;
+	
+	cout << "B "; printMemory();
 }
 
 
@@ -320,8 +353,11 @@ void PDT::assignVariableIDs(sat_capsule & capsule, Model * htn){
 		);	
 	}
 
-	if (!vertexVariables)
-		primitiveVariable.assign(possiblePrimitives.size(),-1);
+	if (!vertexVariables){
+		primitiveVariable = (int*) calloc(possiblePrimitives.size(), sizeof(int));
+		for (size_t p = 0; p < possiblePrimitives.size(); p++)
+			possiblePrimitives[p] = -1;
+	}
 
 	for (size_t p = 0; p < possiblePrimitives.size(); p++){
 #ifdef NO_PRUNED_VARIABLES
@@ -340,8 +376,11 @@ void PDT::assignVariableIDs(sat_capsule & capsule, Model * htn){
 	}
 	
 	
-	if (!vertexVariables)
-		abstractVariable.assign(possibleAbstracts.size(),-1);
+	if (!vertexVariables){
+		abstractVariable = (int*) calloc(possibleAbstracts.size(), sizeof(int));
+		for (size_t a = 0; a < possibleAbstracts.size(); a++)
+			abstractVariable[a] = -1;
+	}
 
 	for (size_t a = 0; a < possibleAbstracts.size(); a++){
 #ifdef NO_PRUNED_VARIABLES
@@ -404,7 +443,7 @@ void PDT::assignOutputNumbers(void* solver, int & currentID, Model * htn){
 	if (outputID != -1) return;
 
 	if (children.size() == 0)
-		for (size_t pIndex = 0; pIndex < primitiveVariable.size(); pIndex++){
+		for (size_t pIndex = 0; pIndex < possiblePrimitives.size(); pIndex++){
 			int prim = primitiveVariable[pIndex];
 			if (prim == -1) continue; // pruned
 			if (ipasir_val(solver,prim) > 0){
@@ -417,7 +456,7 @@ void PDT::assignOutputNumbers(void* solver, int & currentID, Model * htn){
 			}
 		}
 	
-	for (size_t aIndex = 0; aIndex < abstractVariable.size(); aIndex++){
+	for (size_t aIndex = 0; aIndex < possibleAbstracts.size(); aIndex++){
 		int abs = abstractVariable[aIndex];
 		if (abs == -1) continue; // pruned
 		if (ipasir_val(solver,abs) > 0){
@@ -645,21 +684,24 @@ void PDT::addPrunedClauses(void* solver){
 }
 
 
+
 void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
 	if (!expanded) return; // if I am not expanded, I have no decomposition clauses
 	assert(vertexVariables);
 	assert(childrenVariables);
+	printMemory();
 	
 	// these clauses implement the rules of decomposition
 
 	// at most one task
 	vector<int> allTasks;
-	for (const int & x : primitiveVariable) 
-		if (x != -1)
-			allTasks.push_back(x);
-	for (const int & x : abstractVariable)
-		if (x != -1)
-			allTasks.push_back(x);
+	for (int p = 0; p < possiblePrimitives.size(); p++)
+		if (primitiveVariable[p] != -1)
+			allTasks.push_back(primitiveVariable[p]);
+
+	for (int a = 0; a < possibleAbstracts.size(); a++)
+		if (abstractVariable[a] != -1)
+			allTasks.push_back(abstractVariable[a]);
 	
 	if (allTasks.size() == 0) return; // no tasks can be here
 #ifndef NDEBUG
@@ -688,7 +730,6 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
 	// if a primitive task is chosen, it must be inherited
 	for (size_t p = 0; p < possiblePrimitives.size(); p++){
 		if (primitiveVariable[p] == -1) continue; // pruned
-		//auto & [child,pIndex] = positionOfPrimitivesInChildren[p];
 		int child = get<0>(positionOfPrimitivesInChildren[p]);
 		int pIndex = get<1>(positionOfPrimitivesInChildren[p]);
 		implies(solver,primitiveVariable[p], children[child]->primitiveVariable[pIndex]);
@@ -800,9 +841,10 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
 
 	// if no task is present at this node, then none is actually here
 	vector<int> temp;
-	for (const int & v : primitiveVariable)
-		if (v != -1)
-			temp.push_back(v);
+	
+	for (int p = 0; p < possiblePrimitives.size(); p++)
+		if (primitiveVariable[p] != -1)
+			temp.push_back(primitiveVariable[p]);
 	if (temp.size())
 		impliesAllNot(solver, noTaskPresent, temp);
 #ifndef NDEBUG
@@ -811,9 +853,10 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
 
 
 	temp.clear();
-	for (const int & v : abstractVariable)
-		if (v != -1)
-			temp.push_back(v);
+	for (int a = 0; a < possibleAbstracts.size(); a++)
+		if (abstractVariable[a] != -1)
+			temp.push_back(abstractVariable[a]);
+	
 	if (temp.size())
 		impliesAllNot(solver, noTaskPresent, temp);
 #ifndef NDEBUG

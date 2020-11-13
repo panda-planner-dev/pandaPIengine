@@ -53,8 +53,8 @@ struct PDT {
 	bool vertexVariables;
 	bool childrenVariables;
 	int noTaskPresent;
-	vector<int> primitiveVariable;
-	vector<int> abstractVariable;
+	int * primitiveVariable;
+	int * abstractVariable;
 	vector<vector<int>> methodVariables;
 
 ///// that's what Tree Rex does ... for incremental solving

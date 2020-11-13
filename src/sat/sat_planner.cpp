@@ -14,6 +14,67 @@
 #include <fstream>
 #include <iomanip>
 
+
+#include <sys/sysinfo.h>
+
+
+
+#include "stdlib.h"
+#include "stdio.h"
+#include "string.h"
+
+int parseLine(char* line){
+    // This assumes that a digit will be found and the line ends in " Kb".
+    int i = strlen(line);
+    const char* p = line;
+    while (*p <'0' || *p > '9') p++;
+    line[i-3] = '\0';
+    i = atoi(p);
+    return i;
+}
+
+int getValue(){ //Note: this value is in KB!
+    FILE* file = fopen("/proc/self/status", "r");
+    int result = -1;
+    char line[128];
+
+    while (fgets(line, 128, file) != NULL){
+        if (strncmp(line, "VmSize:", 7) == 0){
+            result = parseLine(line);
+            break;
+        }
+    }
+    fclose(file);
+    return result;
+}
+
+int getValue2(){ //Note: this value is in KB!
+    FILE* file = fopen("/proc/self/status", "r");
+    int result = -1;
+    char line[128];
+
+    while (fgets(line, 128, file) != NULL){
+        if (strncmp(line, "VmRSS:", 6) == 0){
+            result = parseLine(line);
+            break;
+        }
+    }
+    fclose(file);
+    return result;
+}
+
+
+
+int last;
+
+void printMemory(){
+	//cout << getValue() << " " << getValue2() << endl;
+	int now = getValue();
+	cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t" << color(Color::BLUE,"+MEM ") << setw(6) << (now - last) << " total: " << setw(6) << now/1024 <<  endl;
+	last = now;
+}
+
+
 void printSolution(void * solver, Model * htn, PDT* pdt){
 	vector<PDT*> leafs;
 	pdt->getLeafs(leafs);
@@ -50,7 +111,7 @@ void printSolution(void * solver, Model * htn, PDT* pdt){
 	cout << "==>" << endl;
 	/// extract the primitive plan
 	for (PDT* & leaf : leafs){
-		for (size_t pIndex = 0; pIndex < leaf->primitiveVariable.size(); pIndex++){
+		for (size_t pIndex = 0; pIndex < leaf->possiblePrimitives.size(); pIndex++){
 			int prim = leaf->primitiveVariable[pIndex];
 			if (prim == -1) continue;
 			if (ipasir_val(solver,prim) > 0){
@@ -219,11 +280,13 @@ bool filter_leafs_Rintanen(vector<PDT*> & leafs, Model * htn, unordered_set<int>
 
 
 bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & capsule, int depth){
+	printMemory();
 	std::clock_t beforePDT = std::clock();
 	pdt->expandPDTUpToLevel(depth,htn);
 	std::clock_t afterPDT = std::clock();
 	double pdt_time = 1000.0 * (afterPDT - beforePDT) / CLOCKS_PER_SEC;
 	cout << "Computing PDT took: " << setprecision(3) << pdt_time << " ms" << endl;
+	printMemory();
 	// get leafs
 	cout << "Computed PDT. Extracting leafs ... ";
 	vector<PDT*> leafs;
@@ -237,8 +300,13 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	dfile << "}" << endl;
 	dfile.close();*/
 	
+	
+	printMemory();
+	cout << "Clear pruning tables ...";
 	pdt->resetPruning(htn); // clear tables in whole tree
+	cout << " done." << endl;
 	//printPDT(htn,pdt);
+	printMemory();
 
 	unordered_set<int>* after_leaf_invariants = new unordered_set<int>[2*htn->numStateBits];
 
@@ -267,13 +335,18 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	}
 	
 	cout << "Pruning gave " << additionalInvariants << " new invariants" << endl;	
+	printMemory();
 
 
 #ifndef NDEBUG
 	printPDT(htn,pdt);
 #endif
 	/////////////////////////// generate the formula
+	int numVarsBefore = capsule.number_of_variables;
+	cout << "Assigning variable IDs for PDT ...";
 	pdt->assignVariableIDs(capsule, htn);
+	cout << " done. " << (capsule.number_of_variables - numVarsBefore) << " new variables." << endl;
+	printMemory();
 	DEBUG(capsule.printVariables());
 
 	int beforeDecomp = get_number_of_clauses();
@@ -281,9 +354,13 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	int afterDecomp = get_number_of_clauses();
 	// assert the initial abstract task
 	assertYes(solver,pdt->abstractVariable[0]);
+	cout << "Decomposition Clauses generated." << endl;	
+	printMemory();
 	
 	pdt->addPrunedClauses(solver);
 	//for (PDT* leaf : leafs) leaf->addPrunedClauses(solver); // add assertNo for pruned things
+	cout << "Pruned clauses." << endl;	
+	printMemory();
 	
 
 #ifdef BLOCK_COMPRESSION
@@ -499,7 +576,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 	sat_capsule capsule;
 	reset_number_of_clauses();
 
-	int depth = 1;
+	int depth = 5;
 	while (true){
 		void* solver = ipasir_init();
 		cout << endl << endl << color(Color::YELLOW, "Generating formula for depth " + to_string(depth)) << endl;

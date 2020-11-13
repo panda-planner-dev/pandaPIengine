@@ -114,9 +114,9 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 
 
 	for (PDT* & leaf : leafs){
-		for (const int & abs : leaf->abstractVariable)
-			if (abs != -1)
-				assertNot(solver,abs);
+		for (int a = 0; a < leaf->possibleAbstracts.size(); a++)
+			if (leaf->abstractVariable[a] != -1)
+				assertNot(solver,leaf->abstractVariable[a]);
 	}
 }
 
