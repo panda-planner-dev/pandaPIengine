@@ -386,7 +386,7 @@ void PDT::assignVariableIDs(sat_capsule & capsule, Model * htn){
 	if (!vertexVariables){
 		primitiveVariable = (int*) calloc(possiblePrimitives.size(), sizeof(int));
 		for (size_t p = 0; p < possiblePrimitives.size(); p++)
-			possiblePrimitives[p] = -1;
+			primitiveVariable[p] = -1;
 	}
 
 	for (size_t p = 0; p < possiblePrimitives.size(); p++){
