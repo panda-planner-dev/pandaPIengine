@@ -308,6 +308,7 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	//printPDT(htn,pdt);
 	printMemory();
 
+
 	unordered_set<int>* after_leaf_invariants = new unordered_set<int>[2*htn->numStateBits];
 
 	int pruningPhase = 1;
@@ -350,7 +351,7 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	DEBUG(capsule.printVariables());
 
 	int beforeDecomp = get_number_of_clauses();
-	pdt->addDecompositionClauses(solver, capsule);
+	pdt->addDecompositionClauses(solver, capsule, htn);
 	int afterDecomp = get_number_of_clauses();
 	// assert the initial abstract task
 	assertYes(solver,pdt->abstractVariable[0]);
@@ -382,6 +383,7 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 #endif
 
 #endif
+	printMemory();
 
 	// generate primitive executability formula
 	vector<vector<pair<int,int>>> vars;
@@ -392,7 +394,9 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	generate_state_transition_formula(solver, capsule, vars, leafs, htn);
 #endif
 	int afterState = get_number_of_clauses();
+	printMemory();
 
+	//exit(0);
 
 #ifdef SAT_USEMUTEXES
 #ifdef BLOCK_COMPRESSION

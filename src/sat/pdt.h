@@ -31,8 +31,17 @@ struct PDT {
 	// primitives can also be caused by primitive inheritance, this will be marked with a -1,primIndex (of parent)
 	vector<vector<pair<int,int>>> causesForPrimitives;
 
-	vector<vector<bool>> prunedCausesForAbstract;
-	vector<vector<bool>> prunedCausesForPrimitive;
+	uint32_t * prunedCausesAbstractStart = 0;
+	bool getPrunedCausesForAbstract(int a, int b);
+	void setPrunedCausesForAbstract(int a, int b);
+	bool areAllCausesPrunedAbstract(int a);
+	uint64_t * prunedCausesForAbstract = 0;
+
+	uint32_t * prunedCausesPrimitiveStart = 0;
+	bool getPrunedCausesForPrimitive(int a, int b);
+	void setPrunedCausesForPrimitive(int a, int b);
+	bool areAllCausesPrunedPrimitive(int a);
+	uint64_t * prunedCausesForPrimitive = 0;
 
 	bool expanded;
 
@@ -59,9 +68,13 @@ struct PDT {
 	bool vertexVariables;
 	bool childrenVariables;
 	int noTaskPresent;
-	int * primitiveVariable;
-	int * abstractVariable;
-	vector<vector<int>> methodVariables;
+	uint32_t * primitiveVariable;
+	uint32_t * abstractVariable;
+
+
+	uint32_t * methodVariablesStartIndex;
+	int32_t * getMethodVariable(int a, int m);
+	int32_t * methodVariables;
 
 ///// that's what Tree Rex does ... for incremental solving
 	int baseStateVarVariable;
@@ -90,7 +103,7 @@ struct PDT {
 	 */
 	void assignVariableIDs(sat_capsule & capsule, Model * htn);
 	
-	void addDecompositionClauses(void* solver, sat_capsule & capsule);
+	void addDecompositionClauses(void* solver, sat_capsule & capsule, Model * htn);
 
 	void addPrunedClauses(void* solver);
 	
