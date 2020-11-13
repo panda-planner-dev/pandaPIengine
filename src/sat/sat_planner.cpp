@@ -490,9 +490,13 @@ void bdfs(Model * htn, PDT * cur, PDT * source, vector<pair<int,int>> possibleAs
 		for (auto [tIndex,mIndex] : possibleAssignments){
 			if (tIndex != -1){
 				// applying method mIndex, which tasks will this result in
-				assert(cur->listIndexOfChildrenForMethods.size() > tIndex);
-				assert(cur->listIndexOfChildrenForMethods[tIndex].size() > mIndex);
-				for (auto [child,isPrimitive,subIndex,_] : cur->listIndexOfChildrenForMethods[tIndex][mIndex]){
+				//assert(cur->listIndexOfChildrenForMethods.size() > tIndex);
+				//assert(cur->listIndexOfChildrenForMethods[tIndex].size() > mIndex);
+				for (size_t child = 0; child < cur->children.size(); child++){
+					if (!cur->getListIndexOfChildrenForMethods(tIndex,mIndex,child)->present) continue;
+					bool isPrimitive = cur->getListIndexOfChildrenForMethods(tIndex,mIndex,child)->isPrimitive;
+					int subIndex = cur->getListIndexOfChildrenForMethods(tIndex,mIndex,child)->taskIndex;
+					
 					if (isPrimitive)
 						childrenPossibleAssignments[child].insert(make_pair(-1, subIndex));
 					else{
@@ -614,7 +618,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 		} else {
 			depth++;
 		}
-		//return;
+		return;
 		// release the solver	
 		ipasir_release(solver);
 	}

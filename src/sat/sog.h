@@ -7,15 +7,15 @@
 
 struct SOG {
 	int numberOfVertices;
-	vector<unordered_set<int>> labels;
+	vector<unordered_set<uint32_t>> labels;
 
-	vector<unordered_set<int>> adj; // successors
-	vector<unordered_set<int>> bdj; // predecessors
+	vector<unordered_set<uint16_t>> adj; // successors
+	vector<unordered_set<uint16_t>> bdj; // predecessors
 
-	vector<vector<int>> methodSubTasksToVertices;
+	vector<vector<uint16_t>> methodSubTasksToVertices;
 };
 
-SOG* optimiseSOG(vector<tuple<int,int,int>> & methods, Model* htn);
+SOG* optimiseSOG(vector<tuple<uint32_t,uint32_t,uint32_t>> & methods, Model* htn);
 
 
 #endif

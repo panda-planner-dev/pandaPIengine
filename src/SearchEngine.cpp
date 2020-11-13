@@ -38,11 +38,25 @@
 using namespace std;
 using namespace progression;
 
+struct test {
+	bool a:1;
+	unsigned b : 31, c:32;
+};
+
 int main(int argc, char *argv[]) {
 #ifndef NDEBUG
 	cout << "You have compiled the search engine without setting the NDEBUG flag. This will make it slow and should only be done for debug." << endl;
 #endif
 	//srand(atoi(argv[4]));
+
+
+	cout << sizeof (test) << endl;
+	cout << sizeof (uint64_t) << endl;
+	cout << sizeof (tuple<bool,uint32_t,uint32_t>) << endl;
+	cout << sizeof (tuple<int16_t,bool,uint32_t,uint32_t>) << endl;
+	cout << sizeof (tuple<int,bool,int,int>) << endl;
+
+	//return 0;
 
 	string s;
 	int seed = 42;

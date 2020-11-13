@@ -6,6 +6,13 @@
 #include "sog.h"
 #include "sat_encoder.h"
 
+struct causePointer {
+	// 1. Primitive task assigned to child
+	// 2. Index of the task in the child
+	// 3. Index of the cause in the child
+	bool present:1, isPrimitive:1;
+	unsigned taskIndex : 31, causeIndex : 31;
+};
 
 struct PDT {
 	vector<int> path;
@@ -36,18 +43,17 @@ struct PDT {
 	
 	vector<vector<bool>> prunedMethods;
 
-	// Tuple
-	// 1. Number of the child
-	// 2. Primitive task assigned to child
-	// 3. Index of the task in the child
-	// 4. Index of the cause in the child
-	vector<vector<vector<tuple<int,bool,int,int>>>> listIndexOfChildrenForMethods;
+	//vector<vector<vector<causePointer>>> listIndexOfChildrenForMethods;
+	uint32_t * taskStartingPosition;
+	causePointer * listIndexOfChildrenForMethods;
+	
+	causePointer * getListIndexOfChildrenForMethods(int a, int b, int c);
 
 	// for every primitive:
 	// 1. Number of the child 
 	// 2. Index of the task in the possible primitives array
 	// 3. Index of cause in the child
-	vector<tuple<int,int,int>> positionOfPrimitivesInChildren;
+	vector<tuple<uint16_t,uint32_t,uint32_t>> positionOfPrimitivesInChildren;
 	
 /// SAT encoding stuff
 	bool vertexVariables;

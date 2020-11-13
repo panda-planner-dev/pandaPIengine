@@ -97,32 +97,53 @@ void PDT::expandPDT(Model* htn){
 
 #ifndef NDEBUG
 	std::clock_t before_prep = std::clock();
+	cout << endl << endl << "======================" << endl << "0 "; printMemory();
 #endif
 	expanded = true;
 
-	vector<tuple<int,int,int>> applicableMethodsForSOG;
+	
+	vector<tuple<uint32_t,uint32_t,uint32_t>> applicableMethodsForSOG;
 	// gather applicable methods
-	listIndexOfChildrenForMethods.resize(possibleAbstracts.size());
 	for (int tIndex = 0; tIndex < possibleAbstracts.size(); tIndex++){
 		int & t = possibleAbstracts[tIndex];
-		listIndexOfChildrenForMethods[tIndex].resize(htn->numMethodsForTask[t]);
 		for (int m = 0; m < htn->numMethodsForTask[t]; m++){
 			applicableMethodsForSOG.push_back(make_tuple(htn->taskToMethods[t][m],tIndex,m));
 		}
 	}
 
-
 	// get best possible SOG
 #ifndef NDEBUG
+	cout << "A "; printMemory();
 	std::clock_t before_sog = std::clock();
 #endif
 	SOG * sog = optimiseSOG(applicableMethodsForSOG, htn);
 #ifndef NDEBUG
 	std::clock_t after_sog = std::clock();
-	//cout << "Computed SOG, size: " << sog->numberOfVertices << endl;
+	cout << "Computed SOG, size: " << sog->numberOfVertices << endl;
+	cout << "SOG "; printMemory();
 #endif
 
+	int c = 0;
+	taskStartingPosition = (uint32_t*) calloc(possibleAbstracts.size(), sizeof(uint32_t));
+	// gather applicable methods
+	//listIndexOfChildrenForMethods.resize(possibleAbstracts.size());
+	for (int tIndex = 0; tIndex < possibleAbstracts.size(); tIndex++){
+		taskStartingPosition[tIndex] = c;
+		int & t = possibleAbstracts[tIndex];
+		//listIndexOfChildrenForMethods[tIndex].resize(htn->numMethodsForTask[t]);
+		//for (int m = 0; m < htn->numMethodsForTask[t]; m++){
+			//listIndexOfChildrenForMethods[tIndex][m].resize(sog->numberOfVertices);
+			//for (size_t c = 0; c < sog->numberOfVertices; c++)
+			//	listIndexOfChildrenForMethods[tIndex][m][c].present = false;
+		//}
+		c += htn->numMethodsForTask[t] * sog->numberOfVertices;
+	}
+	listIndexOfChildrenForMethods = (causePointer*) calloc(c,sizeof(causePointer));
+	for (int i = 0; i < c; i++) listIndexOfChildrenForMethods[i].present = false;
 
+	cout << "\t\t\tPA " << possibleAbstracts.size() << " " << c << endl;
+	cout << "B "; printMemory();
+	
 	// maps tasks to possible causes (i.e. methods)
 	vector<map<int,vector<pair<int,int>>>> childrenTasks (sog->numberOfVertices);
 
@@ -145,6 +166,7 @@ void PDT::expandPDT(Model* htn){
 #ifndef NDEBUG
 	int listIndexOfChildrenForMethodsEntries = 0;
 	int childPositions = 0;
+	cout << "C "; printMemory();
 #endif
 
 	// create children
@@ -152,7 +174,13 @@ void PDT::expandPDT(Model* htn){
 		PDT* child = new PDT(this);
 		child->path = path;
 		child->path.push_back(c);
-
+		
+		children.push_back(child);
+	}
+	
+	for (size_t c = 0; c < sog->numberOfVertices; c++){
+		PDT* child = children[c];
+		
 		for (const auto & [t,causes] : childrenTasks[c]){
 			int subIndex; // index of the task in the child
 			if (t < htn->numActions) {
@@ -181,12 +209,12 @@ void PDT::expandPDT(Model* htn){
 					child->causesForAbstracts.back().push_back(make_pair(tIndex,mIndex));
 				}
 				
+				assert(!getListIndexOfChildrenForMethods(tIndex,mIndex,c)->present);
 				
-				listIndexOfChildrenForMethods[tIndex][mIndex].push_back(make_tuple(
-							c,
-							t < htn->numActions,
-						   	subIndex,
-							position));
+				getListIndexOfChildrenForMethods(tIndex,mIndex,c)->present = true;
+				getListIndexOfChildrenForMethods(tIndex,mIndex,c)->isPrimitive = t < htn->numActions;
+				getListIndexOfChildrenForMethods(tIndex,mIndex,c)->taskIndex = subIndex;
+				getListIndexOfChildrenForMethods(tIndex,mIndex,c)->causeIndex = position;
 
 #ifndef NDEBUG
 				listIndexOfChildrenForMethodsEntries++;
@@ -195,9 +223,11 @@ void PDT::expandPDT(Model* htn){
 		}
 		
 		
-		children.push_back(child);
 	}
 
+#ifndef NDEBUG
+	cout << "D "; printMemory();
+#endif
 
 
 	// determine inheritance for primitives
@@ -238,6 +268,7 @@ void PDT::expandPDT(Model* htn){
 	}
 
 #ifndef NDEBUG
+	cout << "E "; printMemory();
 	cout << "\t\tA" << setw(8) << possibleAbstracts.size() << " ";
 	cout << "P" << setw(8) << possiblePrimitives.size() << " ";
 	cout << "CA" << setw(8) << causesForAbstracts.size() << " ";
@@ -245,7 +276,6 @@ void PDT::expandPDT(Model* htn){
 	cout << "L" << setw(8) << listIndexOfChildrenForMethodsEntries << " ";
 	cout << "P" << setw(8) << childPositions << endl;
 	//cout << "\t\t\t\t" << listIndexOfChildrenForMethodsEntries * (sizeof(int)*3 + sizeof(bool)) / 1024 << endl;
-	cout << "A "; printMemory();
 #endif
 
 
@@ -259,7 +289,7 @@ void PDT::expandPDT(Model* htn){
 
 	delete sog;
 	
-	cout << "B "; printMemory();
+	//cout << "F "; printMemory();
 }
 
 
@@ -622,7 +652,11 @@ void PDT::propagatePruning(Model * htn){
 			for (size_t m = 0; m < htn->numMethodsForTask[possibleAbstracts[a]]; m++){
 				if (!prunedMethods[a][m]) continue;
 
-				for (auto [childIndex, isPrimitive, childTaskIndex, childCauseIndex] : listIndexOfChildrenForMethods[a][m]){
+				for (size_t childIndex = 0; childIndex < children.size(); childIndex++){
+					if (!getListIndexOfChildrenForMethods(a,m,childIndex)->present) continue;
+					bool isPrimitive = getListIndexOfChildrenForMethods(a,m,childIndex)->isPrimitive;
+					int childTaskIndex = getListIndexOfChildrenForMethods(a,m,childIndex)->taskIndex;
+					int childCauseIndex = getListIndexOfChildrenForMethods(a,m,childIndex)->causeIndex;
 					bool causePruned = (isPrimitive) ? 
 						children[childIndex]->prunedCausesForPrimitive[childTaskIndex][childCauseIndex]:
 						children[childIndex]->prunedCausesForAbstract[childTaskIndex][childCauseIndex];
@@ -758,31 +792,29 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
 			// if the method is chosen, its abstract task has to be there
 			implies(solver,mv,av);
 
-			//determine unassigned children for this method
-			vector<bool> childAssigned;
-			childAssigned.resize(children.size(),false);
 			// this method will imply subtasks
-			for (const auto & [child, isPrimitive, listIndex,_] : listIndexOfChildrenForMethods[a][mi]){
-				childAssigned[child] = true;
-				
-				int childVariable;
-				if (isPrimitive)
-					childVariable = children[child]->primitiveVariable[listIndex];
-				else
-					childVariable = children[child]->abstractVariable[listIndex];
+			for (size_t child = 0; child < children.size(); child++){
+				if (getListIndexOfChildrenForMethods(a,mi,child)->present) {
+					bool isPrimitive = getListIndexOfChildrenForMethods(a,mi,child)->isPrimitive;
+					int listIndex = getListIndexOfChildrenForMethods(a,mi,child)->taskIndex;
+					
+					int childVariable;
+					if (isPrimitive)
+						childVariable = children[child]->primitiveVariable[listIndex];
+					else
+						childVariable = children[child]->abstractVariable[listIndex];
 
-				if (childVariable == -1){
-					cout << "OO" << endl;
-					exit(0);
-				}
+					if (childVariable == -1){
+						cout << "OO" << endl;
+						exit(0);
+					}
 
-				implies(solver,mv,childVariable);
-			}
-
-			// TODO: try out the explicit encoding (m -> -task@child) for all children/tasks [this should lead to a larger encoding ..]
-			for (size_t child = 0; child < children.size(); child++)
-				if (!childAssigned[child])
+					implies(solver,mv,childVariable);
+				} else {
+					// TODO: try out the explicit encoding (m -> -task@child) for all children/tasks [this should lead to a larger encoding ..]
 					implies(solver,mv,children[child]->noTaskPresent);
+				}
+			}
 		}
 
 		vector<int> temp;
@@ -886,3 +918,11 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule){
 	for (PDT* & child : children)
 		child->addDecompositionClauses(solver, capsule);
 }
+
+
+causePointer * PDT::getListIndexOfChildrenForMethods(int a, int b, int c){
+	int base = taskStartingPosition[a];
+	int add = base + b*children.size() + c;
+	return listIndexOfChildrenForMethods + add;
+}
+
