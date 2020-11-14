@@ -34,7 +34,7 @@ public:
 	noDelIntSet reachableTasksSet;
 	noDelIntSet reachableMethodsSet;
 private:
-	IntPairHeap* queue;
+	IntPairHeap<int>* queue;
 	IntStack* stack;
 	int* hValPropInit;
 

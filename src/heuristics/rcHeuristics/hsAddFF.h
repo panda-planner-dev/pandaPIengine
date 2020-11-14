@@ -16,6 +16,10 @@
 #include "../../intDataStructures/IntStack.h"
 #include "../../Model.h"
 
+// inner Types
+typedef unsigned long innerH;
+#define innerUnr ULONG_MAX;
+
 using namespace std;
 
 namespace progression {
@@ -45,8 +49,8 @@ public:
 	int calls = 0;
 private:
 	// todo: when parallelized, this must be per core
-	IntPairHeap* queue;
-	int* hValPropInit;
+	IntPairHeap<innerH>* queue;
+	innerH* hValPropInit;
 
 	int* numSatPrecs;
 	int* hValOp;

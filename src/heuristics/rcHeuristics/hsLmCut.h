@@ -48,7 +48,7 @@ private:
 	list<landmark*> cuts;
 
 	// hMax stuff
-	IntPairHeap* heap;
+	IntPairHeap<int>* heap;
 	int* hValInit;
 
 	int* unsatPrecs;

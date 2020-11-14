@@ -15,11 +15,11 @@ hsAddFF::hsAddFF(Model* sas) {
 	heuristic = sasFF;
 	assert(!sas->isHtnModel);
 	m = sas;
-	hValPropInit = new int[m->numStateBits];
+	hValPropInit = new innerH[m->numStateBits];
 	for (int i = 0; i < m->numStateBits; i++) {
-		hValPropInit[i] = UNREACHABLE;
+		hValPropInit[i] = innerUnr;
 	}
-	queue = new IntPairHeap(m->numStateBits * 2);
+	queue = new IntPairHeap<innerH>(m->numStateBits * 2);
 	numSatPrecs = new int[m->numActions];
 	hValOp = new int[m->numActions];
 	hValProp = new int[m->numStateBits];
