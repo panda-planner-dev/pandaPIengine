@@ -194,6 +194,8 @@ namespace progression {
         } else if (hVal >= INT_MAX) {
             if (!this->reportedOverflow) {
                 cout << "WARNING: Integer overflow in hAdd/hFF calculation. Value has been cut." << endl;
+                cout << "         You can choose a different data type for the Add/FF calculation (look for \"hType\" in heuristic class)" << endl;
+                cout << "         This message will only be reported once!" << endl;
                 this->reportedOverflow = true;
             }
             return INT_MAX - 2;
