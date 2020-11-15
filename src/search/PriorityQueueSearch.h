@@ -32,13 +32,16 @@ public:
 	hhLMCount *hF;
 #endif
 private:
+    	Model* m;
 	searchNode* handleNewSolution(searchNode* newSol, searchNode* globalSolPointer, long time);
 	const bool optimzeSol = OPTIMIZEUNTILTIMELIMIT;
 	int foundSols = 0;
 	int solImproved = 0;
 	long firstSolTime = 0;
 	long bestSolTime = 0;
-};
+
+        bool insertVisi2(searchNode *n);
+    };
 
 } /* namespace progression */
 

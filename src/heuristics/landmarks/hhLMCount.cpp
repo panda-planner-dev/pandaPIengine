@@ -13,6 +13,7 @@
 #include "lmExtraction/LmFdConnector.h"
 #include "lmDataStructures/LmMap.h"
 
+#if false
 namespace progression {
 
 #if ((HEURISTIC == LMCFD) ||(HEURISTIC == LMCANDOR) || (HEURISTIC == LMCLOCAL))
@@ -371,5 +372,5 @@ void hhLMCount::prettyPrintLMs(Model* htn, searchNode *n) {
 }
 
 #endif
-
 } /* namespace progression */
+#endif

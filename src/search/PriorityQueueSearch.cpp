@@ -32,12 +32,13 @@
 #include <map>
 #include <algorithm>
 #include <bitset>
-
+#include "primeNumbers.h"
 
 namespace progression {
 
 
 map<vector<uint64_t>, set<vector<int>>> visited;
+map<vector<uint64_t>, set<int>> visited2;
 
 
 vector<uint64_t> state2Int(vector<bool> & state){
@@ -82,6 +83,31 @@ void to_dfs(planStep * s, vector<int> & seq){
 
 int A = 0, B = 0;
 double time = 0;
+
+bool PriorityQueueSearch::insertVisi2(searchNode * n) {
+    long lhash = 1;
+    for(int i = 0; i < n->numContainedTasks; i++) {
+        int numTasks = this->m->numTasks;
+        int task = n->containedTasks[i];
+        int count = n->containedTaskCount[i];
+        cout << task << " " << count << endl;
+        for(int j = 0; j < count; j++) {
+            int p_index = j * numTasks + task;
+            int p = getPrime(p_index);
+            cout << "p: " << p << endl;
+            lhash = lhash * p;
+            lhash = lhash % 104729;
+        }
+    }
+    int hash = (int) lhash;
+
+    vector<uint64_t> ss = state2Int(n->state);
+    auto it = visited2[ss].find(hash);
+    if (it != visited2[ss].end()) {
+        return false;
+    }
+    visited2[ss].insert(hash);
+}
 
 bool insertVisi(searchNode * n){
 	//set<planStep*> psp; map<planStep*,int> prec;
@@ -225,6 +251,7 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 	const int checkAfter = CHECKAFTER;
 	int lastCheck = 0;
 
+	this->m = htn;
 	searchNode* tnSol = nullptr;
 	bool continueSearch = true;
 

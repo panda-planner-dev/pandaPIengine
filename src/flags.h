@@ -68,11 +68,13 @@
 #define ONEMODAC
 //#define ONEMODMETH
 
-#define CORRECTTASKCOUNT 
+#define CORRECTTASKCOUNT
 #define CALCMINIMALIMPLIEDCOSTS
 
 // select a heuristic function
 #define HEURISTIC RCFF
+
+#define TRACKTASKSINTN
 
 #define RCHEURISTIC
 #define CHECKAFTER 5000 // nodes after which the timelimit is checked
