@@ -17,8 +17,10 @@
 #include "../../Model.h"
 
 // inner Types
-typedef unsigned long hType;
-#define hUnreachable ULONG_MAX;
+//typedef long long hType;
+//#define hUnreachable  LONG_LONG_MAX
+typedef int hType;
+#define hUnreachable  INT_MAX
 
 using namespace std;
 
@@ -28,11 +30,6 @@ namespace progression {
         sasAdd, sasFF
     };
 
-    class ComparePair {
-    public:
-        bool operator()(pair<int, int> *n1, pair<int, int> *n2);
-    };
-
     class hsAddFF {
     public:
         hsAddFF(Model *sas);
@@ -40,6 +37,7 @@ namespace progression {
         virtual ~hsAddFF();
 
         int getHeuristicValue(bucketSet &s, noDelIntSet &g);
+        bool reportedOverflow = false;
 
         Model *m;
         myHeu heuristic = sasFF;
@@ -60,7 +58,9 @@ namespace progression {
 
         bool allActionsCostOne = false;
 
-        int getFF(noDelIntSet &g, int hVal);
+        hType getFF(noDelIntSet &g);
+
+        bool assertPrecAddDelSets();
     };
 
 } /* namespace progression */
