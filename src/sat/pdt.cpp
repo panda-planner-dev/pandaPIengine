@@ -638,6 +638,9 @@ bool PDT::pruneCause(taskCause * cause){
 
 
 void PDT::propagatePruning(Model * htn){
+#ifndef NDEBUG
+	cout << "Pruning at " << path_string(this->path) << endl; 
+#endif
 	// 1. Step: check what I can infer about me based on my surrounding
 
 	// check whether I can prune an AT based on the methods
@@ -650,8 +653,12 @@ void PDT::propagatePruning(Model * htn){
 			for (bool m : prunedMethods[a])
 				all_methods_pruned &= m;
 
-		if (all_methods_pruned)
+		if (all_methods_pruned){
+#ifndef NDEBUG
+			cout << "  A1 " << a << endl;
+#endif
 			prunedAbstracts[a] = true;
+		}
 	}
 
 	if (mother != nullptr){
@@ -660,16 +667,24 @@ void PDT::propagatePruning(Model * htn){
 		for (size_t p = 0; p < possiblePrimitives.size(); p++){
 			if (prunedPrimitives[p]) continue;
 
-			if (areAllCausesPrunedPrimitive(p))
+			if (areAllCausesPrunedPrimitive(p)){
+#ifndef NDEBUG
+				cout << "  P  " << p << endl;
+#endif
 				prunedPrimitives[p] = true;
+			}
 		}
 
 
 		for (size_t a = 0; a < possibleAbstracts.size(); a++){
 			if (prunedAbstracts[a]) continue;
 
-			if (areAllCausesPrunedAbstract(a))
+			if (areAllCausesPrunedAbstract(a)){
+#ifndef NDEBUG
+				cout << "  A2 " << a << endl;
+#endif
 				prunedAbstracts[a] = true;
+			}
 		}
 	}
 
@@ -677,8 +692,12 @@ void PDT::propagatePruning(Model * htn){
 	for (size_t a = 0; a < possibleAbstracts.size(); a++)
 		if (prunedAbstracts[a]) {
 			if (expanded)
-				for (size_t m = 0; m < htn->numMethodsForTask[possibleAbstracts[a]]; m++)
+				for (size_t m = 0; m < htn->numMethodsForTask[possibleAbstracts[a]]; m++){
+#ifndef NDEBUG
+					cout << "  M  " << a << " " << m << endl;
+#endif
 					prunedMethods[a][m] = true; // if the AT is pruned, all methods are
+				}
 		}
 
 
@@ -694,6 +713,9 @@ void PDT::propagatePruning(Model * htn){
 		for (size_t p = 0; p < possiblePrimitives.size(); p++)
 			if (prunedPrimitives[p]){
 				for (size_t c = 0; c < numberOfCausesPerPrimitive[p]; c++){
+#ifndef NDEBUG
+					cout << "  SS PC " << p << " " << c << endl;
+#endif
 					setPrunedCausesForPrimitive(p,c);
 					changedMother |= pruneCause(getCauseForPrimitive(p,c));
 				}
@@ -703,6 +725,9 @@ void PDT::propagatePruning(Model * htn){
 		for (size_t a = 0; a < possibleAbstracts.size(); a++)
 			if (prunedAbstracts[a]){
 				for (size_t c = 0; c < numberOfCausesPerAbstract[a]; c++){
+#ifndef NDEBUG
+					cout << "  SS AC " << a << " " << c << endl;
+#endif
 					setPrunedCausesForAbstract(a,c);
 					changedMother |= pruneCause(getCauseForAbstract(a,c));
 				}
@@ -721,6 +746,9 @@ void PDT::propagatePruning(Model * htn){
 				int childCauseIndex = get<2>(positionOfPrimitivesInChildren[p]);
 	
 				if (!children[childIndex]->getPrunedCausesForPrimitive(childPrimIndex,childCauseIndex)){
+#ifndef NDEBUG
+					cout << "  SS CC " << childIndex << " " << childPrimIndex << " " << childCauseIndex << endl;
+#endif
 					childrenChanged[childIndex] = true;
 					children[childIndex]->setPrunedCausesForPrimitive(childPrimIndex,childCauseIndex);
 				}
@@ -738,13 +766,16 @@ void PDT::propagatePruning(Model * htn){
 					bool causePruned = (isPrimitive) ? 
 						children[childIndex]->getPrunedCausesForPrimitive(childTaskIndex,childCauseIndex):
 						children[childIndex]->getPrunedCausesForAbstract(childTaskIndex,childCauseIndex);
-	
+					
 					if (!causePruned){
 						if (isPrimitive)  
 							children[childIndex]->setPrunedCausesForPrimitive(childTaskIndex,childCauseIndex);
 						else
 							children[childIndex]->setPrunedCausesForAbstract(childTaskIndex,childCauseIndex);
 						childrenChanged[childIndex] = true;
+#ifndef NDEBUG	
+						cout << "  SS PCC " << childIndex << " " << childTaskIndex << " " << childCauseIndex << endl;
+#endif
 					}
 				}
 			}
@@ -1030,7 +1061,7 @@ void PDT::setPrunedCausesForAbstract(int a, int b){
 	int num = add / 64;
 	int bit = add % 64;
 
-	prunedCausesForAbstract[num] = prunedCausesForAbstract[num] & (1 << bit);
+	prunedCausesForAbstract[num] = prunedCausesForAbstract[num] | (1 << bit);
 }
 
 
@@ -1056,7 +1087,7 @@ void PDT::setPrunedCausesForPrimitive(int a, int b){
 	int num = add / 64;
 	int bit = add % 64;
 
-	prunedCausesForPrimitive[num] = prunedCausesForPrimitive[num] & (1 << bit);
+	prunedCausesForPrimitive[num] = prunedCausesForPrimitive[num] | (1 << bit);
 }
 
 
