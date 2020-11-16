@@ -1,6 +1,7 @@
 #include <cassert>
 #include <fstream>
 #include <iomanip>
+#include <bitset>
 #include "pdt.h"
 #include "ipasir.h"
 #include "../Util.h"
@@ -636,6 +637,7 @@ bool PDT::pruneCause(taskCause * cause){
 	return true;
 }
 
+//#undef NDEBUG
 
 void PDT::propagatePruning(Model * htn){
 #ifndef NDEBUG
@@ -767,6 +769,7 @@ void PDT::propagatePruning(Model * htn){
 						children[childIndex]->getPrunedCausesForPrimitive(childTaskIndex,childCauseIndex):
 						children[childIndex]->getPrunedCausesForAbstract(childTaskIndex,childCauseIndex);
 					
+					//cout << "  SS PCC " << childIndex << " " << childTaskIndex << " " << childCauseIndex << " " << causePruned <<" " << isPrimitive <<  endl;
 					if (!causePruned){
 						if (isPrimitive)  
 							children[childIndex]->setPrunedCausesForPrimitive(childTaskIndex,childCauseIndex);
@@ -790,6 +793,8 @@ void PDT::propagatePruning(Model * htn){
 	if (changedMother)
 	   mother->propagatePruning(htn);	
 }
+
+//#define NDEBUG
 
 void PDT::countPruning(int & overallSize, int & overallPruning){
 	for (size_t p = 0; p < possiblePrimitives.size(); p++)
@@ -1052,7 +1057,7 @@ bool PDT::getPrunedCausesForAbstract(int a, int b){
 	int num = add / 64;
 	int bit = add % 64;
 
-	return prunedCausesForAbstract[num] & (1 << bit);
+	return prunedCausesForAbstract[num] & (uint64_t(1) << bit);
 }
 
 void PDT::setPrunedCausesForAbstract(int a, int b){
@@ -1061,7 +1066,7 @@ void PDT::setPrunedCausesForAbstract(int a, int b){
 	int num = add / 64;
 	int bit = add % 64;
 
-	prunedCausesForAbstract[num] = prunedCausesForAbstract[num] | (1 << bit);
+	prunedCausesForAbstract[num] = prunedCausesForAbstract[num] | (uint64_t(1) << bit);
 }
 
 
@@ -1078,7 +1083,7 @@ bool PDT::getPrunedCausesForPrimitive(int a, int b){
 	int num = add / 64;
 	int bit = add % 64;
 
-	return prunedCausesForPrimitive[num] & (1 << bit);
+	return prunedCausesForPrimitive[num] & (uint64_t(1) << bit);
 }
 
 void PDT::setPrunedCausesForPrimitive(int a, int b){
@@ -1087,7 +1092,7 @@ void PDT::setPrunedCausesForPrimitive(int a, int b){
 	int num = add / 64;
 	int bit = add % 64;
 
-	prunedCausesForPrimitive[num] = prunedCausesForPrimitive[num] | (1 << bit);
+	prunedCausesForPrimitive[num] = prunedCausesForPrimitive[num] | (uint64_t(1) << bit);
 }
 
 
