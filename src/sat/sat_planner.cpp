@@ -610,7 +610,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 	sat_capsule capsule;
 	reset_number_of_clauses();
 
-	int depth = 5;
+	int depth = 1;
 	while (true){
 		void* solver = ipasir_init();
 		cout << endl << endl << color(Color::YELLOW, "Generating formula for depth " + to_string(depth)) << endl;
@@ -648,7 +648,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 		} else {
 			depth++;
 		}
-		return;
+		//return;
 		// release the solver	
 		ipasir_release(solver);
 	}
