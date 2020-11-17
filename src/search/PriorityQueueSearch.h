@@ -40,7 +40,7 @@ private:
 	long firstSolTime = 0;
 	long bestSolTime = 0;
 
-        bool insertVisi2(searchNode *n);
+        bool insertVisi(searchNode *n);
     };
 
 } /* namespace progression */
