@@ -84,7 +84,7 @@ void to_dfs(planStep * s, vector<int> & seq){
 int A = 0, B = 0;
 double time = 0;
 
-bool PriorityQueueSearch::insertVisi(searchNode * n) {
+bool PriorityQueueSearch::insertVisi2(searchNode * n) {
     long lhash = 1;
     for(int i = 0; i < n->numContainedTasks; i++) {
         int numTasks = this->m->numTasks;
@@ -110,7 +110,7 @@ bool PriorityQueueSearch::insertVisi(searchNode * n) {
 	return true;
 }
 
-bool insertVisi2(searchNode * n){
+bool insertVisi(searchNode * n){
 	//set<planStep*> psp; map<planStep*,int> prec;
 	//for (int a = 0; a < n->numAbstract; a++) dfsdfs(n->unconstraintAbstract[a], psp, prec);
 	//for (int a = 0; a < n->numPrimitive; a++) dfsdfs(n->unconstraintPrimitive[a], psp, prec);

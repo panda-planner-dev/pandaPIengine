@@ -937,6 +937,11 @@ searchNode* Model::decompose(searchNode *n, int taskNo, int method) {
 		numOneModMethods++;
 	}
 #endif
+
+#ifdef SAVESEARCHSPACE
+	cout << "\t\t\t\t" << n->searchNodeID << " " << result->searchNodeID << endl;
+#endif
+	
 	return result;
 }
 
@@ -1407,6 +1412,10 @@ searchNode* Model::apply(searchNode* n, int taskNo) {
 		result = n2;
 		numOneModMethods++;
 	}
+#endif
+
+#ifdef SAVESEARCHSPACE
+	cout << "\t\t\t\t" << n->searchNodeID << " " << result->searchNodeID << endl;
 #endif
 	return result;
 }

@@ -14,6 +14,10 @@ namespace progression {
 int currentSolutionStepInstanceNumber = 0;
 #endif
 
+#ifdef SAVESEARCHSPACE
+int currentSearchNodeID = 0;
+#endif 
+
 ////////////////////////////////
 // solutionStep
 ////////////////////////////////
@@ -68,6 +72,7 @@ searchNode::searchNode() {
 	numAbstract = 0;
 	numPrimitive = 0;
 	solution = nullptr;
+	searchNodeID = currentSearchNodeID++;
 }
 
 searchNode::~searchNode() {

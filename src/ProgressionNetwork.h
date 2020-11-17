@@ -24,6 +24,9 @@ namespace progression {
 #ifdef TRACESOLUTION
 extern int currentSolutionStepInstanceNumber;
 #endif
+#ifdef SAVESEARCHSPACE
+extern int currentSearchNodeID;
+#endif 
 
 struct solutionStep {
 	int task;
@@ -90,6 +93,10 @@ struct searchNode {
 	searchNode();
 
 	int hRand;
+
+#ifdef SAVESEARCHSPACE
+	int searchNodeID;
+#endif 
 
 #ifdef TRACKTASKSINTN
 	int numContainedTasks = -1;
