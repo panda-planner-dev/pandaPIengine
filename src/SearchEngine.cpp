@@ -225,12 +225,10 @@ int main(int argc, char *argv[]) {
     cout << "Heuristic: RC encoding" << endl;
 
 #if HEURISTIC == RCFF2
-	search.hF = new hhRC2(htn);
-	search.hF->sasH->heuristic = sasFF;
+    search.hF = new hhRC2(htn);
 	cout << "- Inner heuristic: FF" << endl;
 #elif HEURISTIC == RCADD2
-	search.hF = new hhRC2(htn);
-	search.hF->sasH->heuristic = sasAdd;
+    search.hF = new hhRC2(htn);
 	cout << "- Inner heuristic: Add" << endl;
 #elif HEURISTIC == RCLMC2
 	search.hF = new hhRC2(htn);

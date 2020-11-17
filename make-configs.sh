@@ -25,9 +25,9 @@ for config in ../configs/active/*.h; do
   echo "*" >> ../makeLog.txt
   cp "$config" ../src/flags.h
   rm -rf *
-  cmake ../src/ &>> ../makeLog.txt
+  cmake .. &>> ../makeLog.txt
   make -j &>> ../makeLog.txt 
-  mv pandaPIengine "../temp/ppro-$confName"
+  mv ./src/pandaPIengine "../temp/ppro-$confName"
 done
 
 grep -i "error" ../makeLog.txt

@@ -71,6 +71,7 @@ public:
 
 	string filename;
 	bool isHtnModel;
+    string filename;
 
 	// state-bits
 	int numStateBits;
