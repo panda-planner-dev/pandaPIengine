@@ -13,6 +13,8 @@
 #include <stdlib.h>
 #include <cassert>
 #include <unordered_set>
+#include <EnforcedHillClimbing.h>
+#include <visitedLists/vlDummy.h>
 
 #if SEARCHTYPE == HEURISTICSEARCH
 #include "./search/PriorityQueueSearch.h"
@@ -112,7 +114,17 @@ int main(int argc, char *argv[]) {
  */
 	int timeL = TIMELIMIT;
 	cout << "Time limit: " << timeL << " seconds" << endl;
-	search.search(htn, tnI, timeL);
+
+/*
+    vlDummy d;
+
+	EnforcedHillClimbing<hhRC,vlDummy> ehc;
+    hhRC *h = new hhRC(htn, new hsAddFF(heuristicModel));
+    h->sasH->heuristic = sasFF;
+    ehc.search(htn, tnI, timeL, h, new vlDummy);
+*/
+    searchNode* tnI2 = htn->prepareTNi(htn);
+	search.search(htn, tnI2, timeL);
 	delete htn;
 #ifdef RCHEURISTIC
 	delete heuristicModel;
