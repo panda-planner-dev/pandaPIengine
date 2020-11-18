@@ -143,6 +143,9 @@ public:
 
 	// initial task
 	int initialTask;
+	
+	//
+	bool isTotallyOrdered;
 
 	// method definitions
 	int numMethods;

@@ -12,6 +12,8 @@
 #include <vector>
 #include <unordered_set>
 #include <functional>
+#include <map>
+#include <set>
 #include <iostream>
 #include <forward_list>
 #include "heuristics/landmarks/lmDataStructures/landmark.h"
@@ -24,6 +26,9 @@ namespace progression {
 #ifdef TRACESOLUTION
 extern int currentSolutionStepInstanceNumber;
 #endif
+#ifdef SAVESEARCHSPACE
+extern int currentSearchNodeID;
+#endif 
 
 struct solutionStep {
 	int task;
@@ -91,6 +96,10 @@ struct searchNode {
 
 	int hRand;
 
+#ifdef SAVESEARCHSPACE
+	int searchNodeID;
+#endif 
+
 #ifdef TRACKTASKSINTN
 	int numContainedTasks = -1;
 	int* containedTasks = nullptr;
@@ -124,6 +133,12 @@ struct searchNode {
 	int reachedmLMs = 0; // number of method landmarks already *reached*
 #endif
 
+
+	void printNode(std::ostream & out);
+	void node2Dot(std::ostream & out);
+
+private:
+	void printDFS(planStep * s, map<planStep*,int> & psp, set<pair<planStep*,planStep*>> & orderpairs);
 };
 
 struct CmpNodePtrs {

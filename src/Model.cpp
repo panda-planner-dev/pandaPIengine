@@ -937,6 +937,11 @@ searchNode* Model::decompose(searchNode *n, int taskNo, int method) {
 		numOneModMethods++;
 	}
 #endif
+
+#ifdef SAVESEARCHSPACE
+	cout << "\t\t\t\t" << n->searchNodeID << " " << result->searchNodeID << endl;
+#endif
+	
 	return result;
 }
 
@@ -1407,6 +1412,10 @@ searchNode* Model::apply(searchNode* n, int taskNo) {
 		result = n2;
 		numOneModMethods++;
 	}
+#endif
+
+#ifdef SAVESEARCHSPACE
+	cout << "\t\t\t\t" << n->searchNodeID << " " << result->searchNodeID << endl;
 #endif
 	return result;
 }
@@ -1891,6 +1900,7 @@ void Model::readHierarchical(istream& domainFile) {
 	ordering = new int*[numMethods];
 	numOrderings = new int[numMethods];
 	methodNames = new string[numMethods];
+	isTotallyOrdered = true;
 	for (int i = 0; i < numMethods; i++) {
 		getline(domainFile, line);
 		if (domainFile.eof()){
@@ -1939,12 +1949,16 @@ void Model::readHierarchical(istream& domainFile) {
 					if (transOriginal[x][k] && transOriginal[k][y]) trans[x][y] = false;
 
 		vector<int> ord;
+		int notOneSuccessor = 0;
 		for (int x = 0; x < numSubTasks[i]; x++){
-			int after = 0;
+			int numSucc = 0;
 			for (int y = 0; y < numSubTasks[i]; y++)
 				if (trans[x][y])
-					ord.push_back(x), ord.push_back(y);
+					numSucc++,ord.push_back(x), ord.push_back(y);
+			if (numSucc != 1) notOneSuccessor++;
 		}
+
+		if (notOneSuccessor > 1) isTotallyOrdered = false;
 
 		ordering[i] = new int[ord.size()];
 		for (int x = 0; x < ord.size(); x++)
@@ -2261,6 +2275,7 @@ void Model::printSummary() {
 				<< endl;
 	}
 	cout << "- State-based goal contains " << gSize << " bits." << endl;
+	cout << "- Instance is totally-ordered: " << ((isTotallyOrdered)?"yes":"no") << endl;
 }
 
 void Model::printActions() {
