@@ -41,14 +41,7 @@ template<class Heuristic, class VisitedList, class Fringe>
 		bool continueSearch = true;
 	
 		cout << "Search Configuration" << endl;
-	
-#if SEARCHALG == PROGRESSIONORG
-		cout << "- Using original progression algorithm" << endl;
-#elif SEARCHALG == ICAPS18
-		cout << "- Using ICAPS 2018 progression algorithm" << endl;
-#elif SEARCHALG == JAIR19
 		cout << "- Using JAIR 2019 progression algorithm" << endl;
-#endif
 	
 		if (optimzeSol) {
 			cout << "- After first solution is found, search is continued until ";
@@ -102,9 +95,7 @@ template<class Heuristic, class VisitedList, class Fringe>
 #endif
 	
 	
-#if SEARCHALG == JAIR19
 			if (n->numAbstract == 0) {
-#endif
 				for (int i = 0; i < n->numPrimitive; i++) {
 					if (!htn->isApplicable(n, n->unconstraintPrimitive[i]->task))
 						continue;
@@ -167,19 +158,13 @@ template<class Heuristic, class VisitedList, class Fringe>
 					}
 #endif
 				}
-#if SEARCHALG == JAIR19
 			}
-#endif
 			if (!continueSearch)
 				break;
-#if (SEARCHALG == JAIR19) || (SEARCHALG == ICAPS18)
 			if (n->numAbstract > 0) {
 				int decomposedStep = rand() % n->numAbstract;
 				int task = n->unconstraintAbstract[decomposedStep]->task;
-#elif (SEARCHALG == PROGRESSIONORG)
-				for (int decomposedStep = 0; decomposedStep < n->numAbstract; decomposedStep++) {
-					int task = n->unconstraintAbstract[decomposedStep]->task;
-#endif
+				
 				for (int i = 0; i < htn->numMethodsForTask[task]; i++) {
 					int method = htn->taskToMethods[task][i];
 					searchNode *n2 = htn->decompose(n, decomposedStep, method);
