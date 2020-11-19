@@ -25,6 +25,12 @@ using namespace std;
 
 namespace progression {
 
+#ifdef SAVESEARCHSPACE
+	extern ofstream* stateSpaceFile;
+#endif
+
+
+
 class Model {
 private:
 	bool first = true;

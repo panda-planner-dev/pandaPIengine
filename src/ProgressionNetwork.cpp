@@ -73,7 +73,9 @@ searchNode::searchNode() {
 	numAbstract = 0;
 	numPrimitive = 0;
 	solution = nullptr;
+#ifdef SAVESEARCHSPACE
 	searchNodeID = currentSearchNodeID++;
+#endif
 }
 
 searchNode::~searchNode() {

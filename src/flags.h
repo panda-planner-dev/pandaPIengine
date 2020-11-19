@@ -60,8 +60,8 @@
 #define SEARCHTYPE HEURISTICSEARCH // choose from [search-type]
 
 // options for heuristic search
-//#define ASTAR
-//#define GASTARWEIGHT 2
+#define ASTAR
+#define GASTARWEIGHT 1
 
 #define PRGEFFECTLESS // always progress effectless actions
 
@@ -89,6 +89,15 @@
 #endif
 
 #define TRACESOLUTION
+//#define SAVESEARCHSPACE
+
+// if we write the state space to file, we need to disable pretty much all optimisations ...
+#ifdef SAVESEARCHSPACE
+#undef OPTIMIZEUNTILTIMELIMIT
+#undef PRGEFFECTLESS
+#undef ONEMODAC
+#define OPTIMIZEUNTILTIMELIMIT true
+#endif
 
 
 #endif /* FLAGS_H_ */

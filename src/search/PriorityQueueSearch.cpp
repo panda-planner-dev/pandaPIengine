@@ -37,8 +37,12 @@
 
 namespace progression {
 
-
+#ifndef SAVESEARCHSPACE 
 map<vector<uint64_t>, set<vector<int>>> visited;
+#else
+map<vector<uint64_t>, map<vector<int>,int>> visited;
+#endif
+
 map<vector<uint64_t>, set<int>> visited2;
 
 
@@ -263,10 +267,18 @@ bool insertVisi(searchNode * n){
 		if (it != visited[ss].end()) {
 			std::clock_t after = std::clock();
 			time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
+#ifdef SAVESEARCHSPACE 
+			*stateSpaceFile << "duplicate " << n->searchNodeID << " " << it->second << endl;
+#endif
 			return false;
 		}
 
+#ifndef SAVESEARCHSPACE 
 		visited[ss].insert(it,seq);
+#else
+		visited[ss][seq] = n->searchNodeID;
+#endif
+
 		B++;
 
 		std::clock_t after = std::clock();
@@ -471,24 +483,24 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 #if SEARCHTYPE == DFSEARCH
 	StackFringe fringe;
 	assert(fringe.empty());
-	if (insertVisi(tnI))
+	if (insertVisi(tnI));
 		fringe.push(tnI);
 	assert(!fringe.empty());
 #elif SEARCHTYPE == BFSEARCH
 	QueueFringe fringe;
-	if (insertVisi(tnI))
+	if (insertVisi(tnI));
 		fringe.push(tnI);
 #else
 #ifdef PREFMOD
 	cout << "- using preferred modifications and an alternating fringe."
 	<< endl;
 	AlternatingFringe fringe;
-	if (insertVisi(tnI))
+	if (insertVisi(tnI));
 		fringe.push(tnI, true);
 #else // SEARCHTYPE == HEURISTICSEARCH
 	cout << "- using priority queue as fringe." << endl;
 	priority_queue<searchNode*, vector<searchNode*>, CmpNodePtrs> fringe;
-	if (insertVisi(tnI))
+	if (insertVisi(tnI));
 		fringe.push(tnI);
 #endif
 #endif
@@ -496,10 +508,16 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 
 	while (!fringe.empty()) {
 		searchNode *n = fringe.top();
+#ifdef SAVESEARCHSPACE 
+		*stateSpaceFile << "expanded " << n->searchNodeID << endl;
+#endif
 		assert(n != nullptr);
 		fringe.pop();
 #ifndef EARLYGOALTEST
 		if (htn->isGoal(n)) {
+#ifdef SAVESEARCHSPACE 
+			*stateSpaceFile << "goal " << n->searchNodeID << endl;
+#endif
 			// A non-early goal test makes only sense in an optimal planning setting.
 			// -> continuing search makes not really sense here
 			gettimeofday(&tp, NULL);
@@ -521,26 +539,50 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 				searchNode *n2 = htn->apply(n, i);
 				numSearchNodes++;
 				if (!n2->goalReachable) { // progression has detected unsol
+#ifdef SAVESEARCHSPACE
+					*stateSpaceFile << "nogoal " << n2->searchNodeID << endl;
+#endif
 					delete n2;
 					continue;
 				}
 
 				hF->setHeuristicValue(n2, n, n->unconstraintPrimitive[i]->task);
 
+#ifdef SAVESEARCHSPACE
+				*stateSpaceFile << "heuristic " << n2->searchNodeID << " " << n2->heuristicValue << endl;
+#endif
+				
 				assert(n2->goalReachable || (!htn->isGoal(n2))); // otherwise the heuristic is not save
 
-				if (n2->goalReachable) {
+#ifndef SAVESEARCHSPACE
+				if (n2->goalReachable)
+#endif
+				{
 #ifdef ASTAR
 #ifdef ASTARAC
-					n2->heuristicValue += (n2->actionCosts / GASTARWEIGHT);
+					n2->heuristicValue 
+#ifndef SAVESEARCHSPACE
+						+= 
 #else
-					n2->heuristicValue +=
-							(n2->modificationDepth / GASTARWEIGHT);
+						=
+#endif
+						(n2->actionCosts / GASTARWEIGHT);
+#else
+					n2->heuristicValue 
+#ifndef SAVESEARCHSPACE
+						+= 
+#else
+						=
+#endif
+						(n2->modificationDepth / GASTARWEIGHT);
 //							(n2->mixedModificationDepth / GASTARWEIGHT);
 #endif
 #endif
 #ifdef EARLYGOALTEST
 					if (htn->isGoal(n2)) {
+#ifdef SAVESEARCHSPACE 
+						*stateSpaceFile << "goal " << n2->searchNodeID << endl;
+#endif
 						gettimeofday(&tp, NULL);
 						currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 						tnSol =	handleNewSolution(n2, tnSol, currentT - startT);
@@ -549,12 +591,15 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 							break;
 					} else
 #endif
-					if (insertVisi(n2))
+					if (insertVisi(n2));
 						fringe.push(n2);
 
-				} else {
+				}
+#ifndef SAVESEARCHSPACE   
+				else {
 					delete n2;
 				}
+#endif
 			}
 #if SEARCHALG == JAIR19
 		}
@@ -574,19 +619,40 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 				searchNode *n2 = htn->decompose(n, decomposedStep, method);
 				numSearchNodes++;
 				if (!n2->goalReachable) { // decomposition has detected unsol
+#ifdef SAVESEARCHSPACE
+					*stateSpaceFile << "nogoal " << n2->searchNodeID << endl;
+#endif
 					delete n2;
 					continue; // with next method
 				}
 				hF->setHeuristicValue(n2, n, decomposedStep, method);
-
+				
+#ifdef SAVESEARCHSPACE
+				*stateSpaceFile << "heuristic " << n2->searchNodeID << " " << n2->heuristicValue << endl;
+#endif
+				
 				assert(n2->goalReachable || (!htn->isGoal(n2))); // otherwise the heuristic is not save
 
-				if (n2->goalReachable) {
+#ifndef SAVESEARCHSPACE
+				if (n2->goalReachable)
+#endif
+				{
 #ifdef ASTAR
 #ifdef ASTARAC
-					n2->heuristicValue += (n2->actionCosts / GASTARWEIGHT);
+					n2->heuristicValue
+#ifndef SAVESEARCHSPACE
+						+=
 #else
-					n2->heuristicValue +=
+						=
+#endif					
+						(n2->actionCosts / GASTARWEIGHT);
+#else
+					n2->heuristicValue 
+#ifndef SAVESEARCHSPACE
+						+=
+#else
+						=
+#endif					
 							(n2->modificationDepth / GASTARWEIGHT);
 //							(n2->mixedModificationDepth / GASTARWEIGHT);
 #endif
@@ -602,12 +668,15 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 
 					} else
 #endif
-						if (insertVisi(n2))
+						if (insertVisi(n2));
 							fringe.push(n2);
 
-				} else {
+				}
+#ifndef SAVESEARCHSPACE
+				else {
 					delete n2;
 				}
+#endif
 			}
 		}
 		int allnodes = numSearchNodes + htn->numOneModActions + htn->numOneModMethods + htn->numEffLessProg;
@@ -645,7 +714,9 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 	cout << "Search Results" << endl;
 	cout << "- Search time " << double(currentT - startT) / 1000 << " seconds"	<< endl;
 	cout << "- Visited list time " << time / 1000 <<  " seconds" << endl;
+	cout << "- Visited list inserts " << A << endl;
 	cout << "- Visited list pruned " << A-B << endl;
+	cout << "- Visited list contains " << B << endl;
 	cout << "- Generated " << (numSearchNodes + htn->numOneModActions + htn->numOneModMethods + htn->numEffLessProg) << " search nodes" << endl;
 	cout << "  Calculated heuristic for " << numSearchNodes << " nodes" << endl;
 	cout << "  One modifications " << (htn->numOneModActions + htn->numOneModMethods) << endl;

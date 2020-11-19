@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <cassert>
 #include <unordered_set>
+#include <fstream>
 
 #if SEARCHTYPE == HEURISTICSEARCH
 #include "./search/PriorityQueueSearch.h"
@@ -32,7 +33,18 @@
 using namespace std;
 using namespace progression;
 
+
+namespace progression {
+#ifdef SAVESEARCHSPACE
+	ofstream* stateSpaceFile;
+#endif
+}
+
 int main(int argc, char *argv[]) {
+#ifdef SAVESEARCHSPACE
+	stateSpaceFile = new ofstream("statespace.txt",ofstream::out);
+#endif
+
 #ifndef NDEBUG
 	cout << "You have compiled the search engine without setting the NDEBUG flag. This will make it slow and should only be done for debug." << endl;
 #endif

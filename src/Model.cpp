@@ -939,7 +939,7 @@ searchNode* Model::decompose(searchNode *n, int taskNo, int method) {
 #endif
 
 #ifdef SAVESEARCHSPACE
-	cout << "\t\t\t\t" << n->searchNodeID << " " << result->searchNodeID << endl;
+	*stateSpaceFile << "edge " << n->searchNodeID << " " << result->searchNodeID << endl;
 #endif
 	
 	return result;
@@ -1415,7 +1415,7 @@ searchNode* Model::apply(searchNode* n, int taskNo) {
 #endif
 
 #ifdef SAVESEARCHSPACE
-	cout << "\t\t\t\t" << n->searchNodeID << " " << result->searchNodeID << endl;
+	*stateSpaceFile << "edge " << n->searchNodeID << " " << result->searchNodeID << endl;
 #endif
 	return result;
 }
