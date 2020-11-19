@@ -32,21 +32,12 @@
 #define BFSEARCH 1
 #define HEURISTICSEARCH 2
 
-// [algorithm]
-#define PROGRESSIONORG 0 // branches over abstract and primitive tasks
-#define ICAPS18 1        // branches over primitive and one abstract task
-#define JAIR19 2         // processes abstract tasks first
-
 // *****************
 // * Configuration *
 // *****************
 
 // time limit in seconds
 #define TIMELIMIT 600
-
-//#define SEARCHALG PROGRESSIONORG
-//#define SEARCHALG ICAPS18
-#define SEARCHALG JAIR19 // choose from [algorithm]
 
 #define EARLYGOALTEST
 
@@ -90,6 +81,16 @@
 
 #define TRACESOLUTION
 //#define SAVESEARCHSPACE
+
+
+
+//#define VISITEDONLYSTATISTICS
+#define TOVISI_SEQ  1
+#define TOVISI_PRIM 2
+#define TOVISI_PRIM_EXACT 3
+#define TOVISI TOVISI_PRIM
+
+
 
 
 // if we write the state space to file, we need to disable pretty much all optimisations ...

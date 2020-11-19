@@ -94,7 +94,6 @@ template<class Heuristic, class VisitedList, class Fringe>
 			}
 #endif
 	
-	
 			if (n->numAbstract == 0) {
 				for (int i = 0; i < n->numPrimitive; i++) {
 					if (!htn->isApplicable(n, n->unconstraintPrimitive[i]->task))
@@ -108,7 +107,15 @@ template<class Heuristic, class VisitedList, class Fringe>
 						delete n2;
 						continue;
 					}
+			
+					// check whether we have seen this one already	
+					if (!visitedList.insertVisi(n2)){
+						delete n2;
+						continue;	
+					}
 	
+
+					// compute the heuristic
 					hF.setHeuristicValue(n2, n, n->unconstraintPrimitive[i]->task);
 	
 #ifdef SAVESEARCHSPACE
@@ -148,7 +155,6 @@ template<class Heuristic, class VisitedList, class Fringe>
 								break;
 						} else
 #endif
-						if (visitedList.insertVisi(n2))
 							fringe.push(n2);
 	
 					}
@@ -176,6 +182,14 @@ template<class Heuristic, class VisitedList, class Fringe>
 						delete n2;
 						continue; // with next method
 					}
+				
+					// check whether we have seen this one already	
+					if (!visitedList.insertVisi(n2)){
+						delete n2;
+						continue;	
+					}
+	
+					// compute the heuristic
 					hF.setHeuristicValue(n2, n, decomposedStep, method);
 					
 #ifdef SAVESEARCHSPACE
@@ -213,8 +227,7 @@ template<class Heuristic, class VisitedList, class Fringe>
 	
 						} else
 #endif
-							if (visitedList.insertVisi(n2))
-								fringe.push(n2);
+						fringe.push(n2);
 	
 					}
 #ifndef SAVESEARCHSPACE
@@ -234,14 +247,15 @@ template<class Heuristic, class VisitedList, class Fringe>
 	
 				if (((currentT - lastOutput) / 1000) > 0) {
 					cout << setw(4) << int((currentT - startT) / 1000) << "s "
-							<< "visitime " << setw(10) << fixed << setprecision(5) << visitedList.time/1000 << "s"
-						    << " generated nodes: " << setw(9) << allnodes
-						   	<< " nodes/sec.: " << setw(7) << int(double(allnodes) / (currentT - startT) * 1000)
-						    << " current heuristic: " << setw(5) << n->heuristicValue
-						   	<< " mod.depth " << setw(5) << n->modificationDepth
-						   	<< " inserts " << setw(9) << visitedList.A
-						   	<< " duplicates " << setw(9) << visitedList.A - visitedList.B
-						   	<< " size " << setw(9) << visitedList.B
+							<< "visitime " << setw(7) << fixed << setprecision(2) << visitedList.time/1000 << "s"
+						    << " generated nodes " << setw(9) << allnodes
+						   	<< " nodes/sec " << setw(7) << int(double(allnodes) / (currentT - startT) * 1000)
+						    << " cur h " << setw(4) << n->heuristicValue
+						   	<< " mod.depth " << setw(4) << n->modificationDepth
+						   	<< " inserts " << setw(9) << visitedList.attemptedInsertions
+						   	<< " duplicates " << setw(9) << visitedList.attemptedInsertions - visitedList.uniqueInsertions
+						   	<< " size " << setw(9) << visitedList.uniqueInsertions
+						   	<< " hash fail " << setw(6) << visitedList.subHashCollision
 							<< endl;
 					lastOutput = currentT;
 				}
@@ -252,16 +266,17 @@ template<class Heuristic, class VisitedList, class Fringe>
 				}
 			}
 	
-			//delete n;
+			if (visitedList.canDeleteProcessedNodes)
+				delete n;
 		}
 		gettimeofday(&tp, NULL);
 		currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 		cout << "Search Results" << endl;
 		cout << "- Search time " << double(currentT - startT) / 1000 << " seconds"	<< endl;
 		cout << "- Visited list time " << visitedList.time / 1000 <<  " seconds" << endl;
-		//cout << "- Visited list inserts " << A << endl;
-		//cout << "- Visited list pruned " << A-B << endl;
-		//cout << "- Visited list contains " << B << endl;
+		cout << "- Visited list inserts " << visitedList.attemptedInsertions << endl;
+		cout << "- Visited list pruned " << visitedList.attemptedInsertions - visitedList.uniqueInsertions << endl;
+		cout << "- Visited list contains " << visitedList.uniqueInsertions << endl;
 		cout << "- Generated " << (numSearchNodes + htn->numOneModActions + htn->numOneModMethods + htn->numEffLessProg) << " search nodes" << endl;
 		cout << "  Calculated heuristic for " << numSearchNodes << " nodes" << endl;
 		cout << "  One modifications " << (htn->numOneModActions + htn->numOneModMethods) << endl;
@@ -284,8 +299,8 @@ template<class Heuristic, class VisitedList, class Fringe>
 #endif
 			cout << "- Status: Solved" << endl;
 			cout << "- Found solution of length " << sLength << endl;
-			cout << "- Total costs of actions: " << tnSol->actionCosts << endl
-					<< endl;
+			cout << "- Total costs of actions: " << tnSol->actionCosts << endl;
+			cout << sol << endl;
 #ifdef TRACKLMSFULL
 			assert(tnSol->lookForT->size == 0);
 			assert(tnSol->lookForM->size == 0);

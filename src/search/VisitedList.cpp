@@ -9,10 +9,9 @@
 VisitedList::VisitedList(Model * m){
 	this->htn = m;
 	this->useTotalOrderMode = this->htn->isTotallyOrdered;
+	this->canDeleteProcessedNodes = this->useTotalOrderMode;
 }
 
-
-map<vector<uint64_t>, set<int>> visited2;
 
 
 vector<uint64_t> state2Int(vector<bool> & state){
@@ -171,34 +170,10 @@ bool matching(searchNode* one, searchNode* other){
 
 
 
-/*
-bool insertVisi2(searchNode * n) {
-    long lhash = 1;
-    for(int i = 0; i < n->numContainedTasks; i++) {
-        int numTasks = this->m->numTasks;
-        int task = n->containedTasks[i];
-        int count = n->containedTaskCount[i];
-        cout << task << " " << count << endl;
-        for(int j = 0; j < count; j++) {
-            int p_index = j * numTasks + task;
-            int p = getPrime(p_index);
-            cout << "p: " << p << endl;
-            lhash = lhash * p;
-            lhash = lhash % 104729;
-        }
-    }
-    int hash = (int) lhash;
 
-    vector<uint64_t> ss = state2Int(n->state);
-    auto it = visited2[ss].find(hash);
-    if (it != visited2[ss].end()) {
-        return false;
-    }
-    visited2[ss].insert(hash);
+bool insertVisi2(searchNode * n) {
 	return true;
 }
-
-*/
 
 bool VisitedList::insertVisi(searchNode * n){
 	//set<planStep*> psp; map<planStep*,int> prec;
@@ -222,35 +197,79 @@ bool VisitedList::insertVisi(searchNode * n){
 
 	std::clock_t before = std::clock();
 	if (useTotalOrderMode){
+		attemptedInsertions++;
+		
+		vector<uint64_t> ss = state2Int(n->state);
+		
+#if (TOVISI == TOVISI_SEQ) || (TOVISI == TOVISI_PRIM_EXACT)
 		vector<int> seq;
 		if (n->numPrimitive) to_dfs(n->unconstraintPrimitive[0],seq);
 		if (n->numAbstract)  to_dfs(n->unconstraintAbstract[0], seq);
+#endif
 
-		A++;
-		vector<uint64_t> ss = state2Int(n->state);
+#if (TOVISI == TOVISI_PRIM) || (TOVISI == TOVISI_PRIM_EXACT)
+	    long lhash = 1;
+	    for(int i = 0; i < n->numContainedTasks; i++) {
+	        int numTasks = this->htn->numTasks;
+	        int task = n->containedTasks[i];
+	        int count = n->containedTaskCount[i];
+	        //cout << task << " " << count << endl;
+	        for(int j = 0; j < count; j++) {
+	            int p_index = j * numTasks + task;
+	            int p = getPrime(p_index);
+	            //icout << "p: " << p << endl;
+	            lhash = lhash * p;
+	            lhash = lhash % 104729;
+	        }
+	    }
+	    int hash = (int) lhash;
+#endif
+
+#if (TOVISI == TOVISI_SEQ)
 		auto it = visited[ss].find(seq);
+#elif (TOVISI == TOVISI_PRIM) || (TOVISI == TOVISI_PRIM_EXACT)
+	    auto it = visited[ss].find(hash);
+#endif
+
+#if (TOVISI == TOVISI_SEQ) || (TOVISI == TOVISI_PRIM)
 		if (it != visited[ss].end()) {
+#elif (TOVISI == TOVISI_PRIM_EXACT)
+		if (it != visited[ss].end() && it->second.count(seq)) {
+#endif
 			std::clock_t after = std::clock();
 			this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
 #ifdef SAVESEARCHSPACE 
 			*stateSpaceFile << "duplicate " << n->searchNodeID << " " << it->second << endl;
 #endif
+#ifndef	VISITEDONLYSTATISTICS
 			return false;
+#else
+			return true;
+#endif
 		}
 
+
+#if (TOVISI == TOVISI_SEQ)
 #ifndef SAVESEARCHSPACE 
 		visited[ss].insert(it,seq);
 #else
 		visited[ss][seq] = n->searchNodeID;
 #endif
+#elif (TOVISI == TOVISI_PRIM)
+		visited[ss].insert(it,hash);
+#elif (TOVISI == TOVISI_PRIM_EXACT)
+		if (visited[ss][hash].size() > 0) subHashCollision++;
+		visited[ss][hash].insert(seq);
+#endif
 
-		B++;
+		uniqueInsertions++;
 
 		std::clock_t after = std::clock();
 		this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
 		return true;
 	} else {
-		A++;
+		attemptedInsertions++;
+		
 		set<planStep*> psp;
 		map<int,set<planStep*>> initial_Layers;
 		set<pair<int,int>> pairs;
@@ -283,7 +302,6 @@ bool VisitedList::insertVisi(searchNode * n){
 		vector<uint64_t> ss = state2Int(n->state);
 		
 		
-		int i = 0;
 		for (searchNode* other :  po_occ[{ss, layerCounts, pairs}]){
 			/*			
 			cout << "Checking ... #" << ++i << endl;
@@ -303,11 +321,15 @@ bool VisitedList::insertVisi(searchNode * n){
 			if (result) {
 				std::clock_t after = std::clock();
 				this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
+#ifndef	VISITEDONLYSTATISTICS
 				return false;
+#else
+				return true;
+#endif
 			}
 		}
 		po_occ[{ss, layerCounts, pairs}].push_back(n);	
-		B++;
+		uniqueInsertions++;
 		
 		std::clock_t after = std::clock();
 		this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
