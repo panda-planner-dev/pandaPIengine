@@ -17,6 +17,8 @@
 #include <EnforcedHillClimbing.h>
 #include <visitedLists/vlDummy.h>
 
+#include "search/VisitedList.h"
+
 #if SEARCHTYPE == HEURISTICSEARCH
 #include "./search/PriorityQueueSearch.h"
 #endif
@@ -83,19 +85,11 @@ int main(int argc, char *argv[]) {
 	htn->updateReachability(tnI);
 #endif
 
-/*
- * Create Search
- */
-#if SEARCHTYPE == HEURISTICSEARCH
-	PriorityQueueSearch search;
-#endif
+///////////////// Create Heuristic
 
-/*
- * Create Heuristic
- */
 #if HEURISTIC == ZERO
 	cout << "Heuristic: 0 for every node" << endl;
-	search.hF = new hhZero(htn);
+	hhZero hF (htn);
 #endif
 #ifdef RCHEURISTIC
 	cout << "Heuristic: RC encoding" << endl;
@@ -106,26 +100,55 @@ int main(int argc, char *argv[]) {
 	delete factory;
 
 #if HEURISTIC == RCFF
-	search.hF = new hhRC(htn, new hsAddFF(heuristicModel));
-	search.hF->sasH->heuristic = sasFF;
+	hhRC hF (htn, new hsAddFF(heuristicModel));
+	hF.sasH->heuristic = sasFF;
 	cout << "- Inner heuristic: FF" << endl;
 #elif HEURISTIC == RCADD
-	search.hF = new hhRC(htn, new hsAddFF(heuristicModel));
-	search.hF->sasH->heuristic = sasAdd;
+	hhRC hF (htn, new hsAddFF(heuristicModel));
+	hF.sasH->heuristic = sasAdd;
 	cout << "- Inner heuristic: Add" << endl;
 #elif HEURISTIC == RCLMC
-	search.hF = new hhRC(htn, new hsLmCut(heuristicModel));
+	hhRC hF (htn, new hsLmCut(heuristicModel));
 	cout << "- Inner heuristic: LM-Cut" << endl;
 #elif HEURISTIC == RCFILTER
-	search.hF = new hhRC(htn, new hsFilter(heuristicModel));
+	hhRC hF (htn, new hsFilter(heuristicModel));
 	cout << "- Inner heuristic: Filter" << endl;
 #endif
 #endif
-/*
- * Start Search
- */
+
+	
+
+#if SEARCHTYPE == DFSEARCH
+	StackFringe fringe;
+#elif SEARCHTYPE == BFSEARCH
+	QueueFringe fringe;
+#else
+#ifdef PREFMOD
+	cout << "- using preferred modifications and an alternating fringe." << endl;
+	AlternatingFringe fringe;
+	// fringe push is different ---> macro! fringe.push(tnI, true);
+#else // SEARCHTYPE == HEURISTICSEARCH
+	cout << "- using priority queue as fringe." << endl;
+	priority_queue<searchNode*, vector<searchNode*>, CmpNodePtrs> fringe;
+#endif
+#endif
+
 	int timeL = TIMELIMIT;
 	cout << "Time limit: " << timeL << " seconds" << endl;
+
+
+	VisitedList visi (htn);
+
+
+    searchNode* tnI2 = htn->prepareTNi(htn);
+	
+	// create search object and start	
+
+#if SEARCHTYPE == HEURISTICSEARCH
+	PriorityQueueSearch search;
+	search.search(htn, tnI2, timeL, hF, visi, fringe);
+#endif
+
 
 /*
     vlDummy d;
@@ -135,8 +158,6 @@ int main(int argc, char *argv[]) {
     h->sasH->heuristic = sasFF;
     ehc.search(htn, tnI, timeL, h, new vlDummy);
 */
-    searchNode* tnI2 = htn->prepareTNi(htn);
-	search.search(htn, tnI2, timeL);
 	delete htn;
 #ifdef RCHEURISTIC
 	delete heuristicModel;

@@ -18,10 +18,16 @@
 #include <forward_list>
 #include "heuristics/landmarks/lmDataStructures/landmark.h"
 #include "heuristics/landmarks/lmDataStructures/lookUpTab.h"
+#include "flags.h"
 
 using namespace std;
 
 namespace progression {
+
+
+// forward declaration due to cyclic dependency
+struct Model;
+
 
 #ifdef TRACESOLUTION
 extern int currentSolutionStepInstanceNumber;
@@ -141,6 +147,12 @@ private:
 	void printDFS(planStep * s, map<planStep*,int> & psp, set<pair<planStep*,planStep*>> & orderpairs);
 };
 
+///////////////////// Functions for extracting results from search nodes
+pair<string,int> extractSolutionFromSearchNode(Model * htn, searchNode* tnSol);
+pair<string,int> printTraceOfSearchNode(Model* htn, searchNode* tnSol);
+
+
+//////////////////// comparator
 struct CmpNodePtrs {
 	bool operator()(const searchNode* a, const searchNode* b) const;
 };

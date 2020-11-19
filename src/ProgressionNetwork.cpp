@@ -5,9 +5,11 @@
  *      Author: Daniel Höller
  */
 
-#include "ProgressionNetwork.h"
 #include <stdlib.h>
 #include <iomanip>
+#include <algorithm>
+#include "ProgressionNetwork.h"
+#include "Model.h"
 
 namespace progression {
 
@@ -152,6 +154,81 @@ void searchNode::node2Dot(std::ostream & out){
 	for (auto [a,b] : orderpairs) out << "\tn" << a << " -> n" << b << ";" << endl;
 	out << "}"; 
 }
+
+
+
+
+#ifdef TRACESOLUTION
+pair<string,int> extractSolutionFromSearchNode(Model * htn, searchNode* tnSol){
+	int sLength = 0;
+	string sol = "";
+	solutionStep* sost = tnSol->solution;
+	bool done = sost == nullptr || sost->prev == nullptr;
+
+	map<int,vector<pair<int,int>>> children;
+	vector<pair<int,string>> decompositionStructure;
+
+	int root = -1;
+
+	while (!done) {
+		sLength++;
+		if (sost->method >= 0){
+			pair<int,string> application;
+			application.first = sost->mySolutionStepInstanceNumber;
+			application.second = htn->taskNames[sost->task] + " -> " + htn->methodNames[sost->method];
+			decompositionStructure.push_back(application);
+			if (sost->task == htn->initialTask) root = application.first;
+		} else {
+			sol = to_string(sost->mySolutionStepInstanceNumber) + " " +
+					htn->taskNames[sost->task] + "\n" + sol;
+		}
+		
+		if (sost->mySolutionStepInstanceNumber != 0)
+			children[sost->parentSolutionStepInstanceNumber].push_back(
+					make_pair(
+						sost->myPositionInParent,
+						sost->mySolutionStepInstanceNumber));
+		
+		done = sost->prev == nullptr;
+		sost = sost->prev;
+	}
+
+	sol = "==>\n" + sol;
+	sol = sol + "root " + to_string(root) + "\n";
+	for (auto x : decompositionStructure){
+		sol += to_string(x.first) + " " + x.second;
+		sort(children[x.first].begin(), children[x.first].end());
+		for (auto [_,y] : children[x.first])
+			sol += " " + to_string(y);
+		sol += "\n";
+	}
+
+	sol += "<==";
+
+	return make_pair(sol,sLength);
+}
+#endif
+
+
+pair<string,int> printTraceOfSearchNode(Model* htn, searchNode* tnSol){
+	int sLength = 0;
+	string sol = "";
+	solutionStep* sost = tnSol->solution;
+	bool done = sost == nullptr || sost->prev == nullptr;
+	while (!done) {
+		sLength++;
+		if (sost->method >= 0)
+			sol = htn->methodNames[sost->method] + " @ "
+					+ htn->taskNames[sost->task] + "\n" + sol;
+		else
+			sol = htn->taskNames[sost->task] + "\n" + sol;
+		done = sost->prev == nullptr;
+		sost = sost->prev;
+	}
+
+	return make_pair(sol,sLength);
+}
+
 
 ////////////////////////////////
 // CmpNodePtrs

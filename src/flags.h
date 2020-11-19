@@ -91,6 +91,7 @@
 #define TRACESOLUTION
 //#define SAVESEARCHSPACE
 
+
 // if we write the state space to file, we need to disable pretty much all optimisations ...
 #ifdef SAVESEARCHSPACE
 #undef OPTIMIZEUNTILTIMELIMIT
