@@ -483,24 +483,24 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 #if SEARCHTYPE == DFSEARCH
 	StackFringe fringe;
 	assert(fringe.empty());
-	if (insertVisi(tnI));
+	if (insertVisi(tnI))
 		fringe.push(tnI);
 	assert(!fringe.empty());
 #elif SEARCHTYPE == BFSEARCH
 	QueueFringe fringe;
-	if (insertVisi(tnI));
+	if (insertVisi(tnI))
 		fringe.push(tnI);
 #else
 #ifdef PREFMOD
 	cout << "- using preferred modifications and an alternating fringe."
 	<< endl;
 	AlternatingFringe fringe;
-	if (insertVisi(tnI));
+	if (insertVisi(tnI))
 		fringe.push(tnI, true);
 #else // SEARCHTYPE == HEURISTICSEARCH
 	cout << "- using priority queue as fringe." << endl;
 	priority_queue<searchNode*, vector<searchNode*>, CmpNodePtrs> fringe;
-	if (insertVisi(tnI));
+	if (insertVisi(tnI))
 		fringe.push(tnI);
 #endif
 #endif
@@ -558,22 +558,16 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 				if (n2->goalReachable)
 #endif
 				{
+#ifdef SAVESEARCHSPACE 
+					n2->heuristicValue = 0;
+#endif
+
 #ifdef ASTAR
 #ifdef ASTARAC
-					n2->heuristicValue 
-#ifndef SAVESEARCHSPACE
-						+= 
-#else
-						=
-#endif
+					n2->heuristicValue +=
 						(n2->actionCosts / GASTARWEIGHT);
 #else
-					n2->heuristicValue 
-#ifndef SAVESEARCHSPACE
-						+= 
-#else
-						=
-#endif
+					n2->heuristicValue +=
 						(n2->modificationDepth / GASTARWEIGHT);
 //							(n2->mixedModificationDepth / GASTARWEIGHT);
 #endif
@@ -591,7 +585,7 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 							break;
 					} else
 #endif
-					if (insertVisi(n2));
+					if (insertVisi(n2))
 						fringe.push(n2);
 
 				}
@@ -637,22 +631,16 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 				if (n2->goalReachable)
 #endif
 				{
+#ifdef SAVESEARCHSPACE 
+					n2->heuristicValue = 0;
+#endif
+
 #ifdef ASTAR
 #ifdef ASTARAC
-					n2->heuristicValue
-#ifndef SAVESEARCHSPACE
-						+=
-#else
-						=
-#endif					
+					n2->heuristicValue +=
 						(n2->actionCosts / GASTARWEIGHT);
 #else
-					n2->heuristicValue 
-#ifndef SAVESEARCHSPACE
-						+=
-#else
-						=
-#endif					
+					n2->heuristicValue +=
 							(n2->modificationDepth / GASTARWEIGHT);
 //							(n2->mixedModificationDepth / GASTARWEIGHT);
 #endif
@@ -668,7 +656,7 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 
 					} else
 #endif
-						if (insertVisi(n2));
+						if (insertVisi(n2))
 							fringe.push(n2);
 
 				}
