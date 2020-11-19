@@ -277,6 +277,7 @@ template<class Heuristic, class VisitedList, class Fringe>
 		cout << "- Visited list inserts " << visitedList.attemptedInsertions << endl;
 		cout << "- Visited list pruned " << visitedList.attemptedInsertions - visitedList.uniqueInsertions << endl;
 		cout << "- Visited list contains " << visitedList.uniqueInsertions << endl;
+		cout << "- Visited list hash collisions " << visitedList.subHashCollision << endl;
 		cout << "- Generated " << (numSearchNodes + htn->numOneModActions + htn->numOneModMethods + htn->numEffLessProg) << " search nodes" << endl;
 		cout << "  Calculated heuristic for " << numSearchNodes << " nodes" << endl;
 		cout << "  One modifications " << (htn->numOneModActions + htn->numOneModMethods) << endl;
