@@ -176,6 +176,10 @@ bool insertVisi2(searchNode * n) {
 }
 
 bool VisitedList::insertVisi(searchNode * n){
+#ifdef NOVISI
+	return true;
+#endif
+
 	//set<planStep*> psp; map<planStep*,int> prec;
 	//for (int a = 0; a < n->numAbstract; a++) dfsdfs(n->unconstraintAbstract[a], psp, prec);
 	//for (int a = 0; a < n->numPrimitive; a++) dfsdfs(n->unconstraintPrimitive[a], psp, prec);
