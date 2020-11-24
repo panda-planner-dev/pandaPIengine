@@ -126,6 +126,10 @@ void searchNode::printDFS(planStep * s, map<planStep*,int> & psp, set<pair<planS
 
 void searchNode::printNode(std::ostream & out){
 	out << "Node: " << this << endl;
+	for (int a = 0; a < this->numAbstract; a++)  cout << "\tUC A: " << this->unconstraintAbstract[a] << endl;
+	for (int a = 0; a < this->numPrimitive; a++) cout << "\tUV P: " << this->unconstraintPrimitive[a] << endl;
+	
+	
 	map<planStep*,int> psp;
 	set<pair<planStep*,planStep*>> orderpairs;
 	for (int a = 0; a < this->numAbstract; a++)  this->printDFS(this->unconstraintAbstract[a], psp, orderpairs);

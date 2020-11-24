@@ -38,9 +38,10 @@ vector<uint64_t> state2Int(vector<bool> & state){
 }
 
 
-void dfsdfs(planStep * s, int depth, set<planStep*> & psp, set<pair<int,int>> & orderpairs, map<int,set<planStep*>> & layer){
+void dfsdfs(planStep * s, int depth, set<planStep*> & psp, unordered_set<pair<int,int>> & orderpairs, vector<set<planStep*>> & layer){
 	if (psp.count(s)) return;
 	psp.insert(s);
+	if (layer.size() <= depth) layer.resize(depth+1);
 	layer[depth].insert(s);
 	for (int ns = 0; ns < s->numSuccessors; ns++){
 		orderpairs.insert({s->task,s->successorList[ns]->task});
@@ -128,10 +129,12 @@ bool matchingDFS(searchNode* one, searchNode* other, planStep* oneStep, planStep
 	for (int i = 0; i < oneStep->numSuccessors; i++){
 		planStep* ps = oneStep->successorList[i];
 		oneNextTasks[ps->task].insert(ps);
+		tasks.insert(ps->task);
 	}
 	for (int i = 0; i < otherStep->numSuccessors; i++){
 		planStep* ps = otherStep->successorList[i];
 		otherNextTasks[ps->task].insert(ps);
+		tasks.insert(ps->task);
 	}
 	
 	for (int t : tasks) if (oneNextTasks[t].size() != otherNextTasks[t].size()) return false;
@@ -200,34 +203,35 @@ bool VisitedList::insertVisi(searchNode * n){
 
 	//return true;
 
+	attemptedInsertions++;
 	std::clock_t before = std::clock();
+	vector<uint64_t> ss = state2Int(n->state);
+	
+#if (TOVISI == TOVISI_PRIM) || (TOVISI == TOVISI_PRIM_EXACT)
+    long lhash = 1;
+    for(int i = 0; i < n->numContainedTasks; i++) {
+        int numTasks = this->htn->numTasks;
+        int task = n->containedTasks[i];
+        int count = n->containedTaskCount[i];
+        //cout << task << " " << count << endl;
+        for(int j = 0; j < count; j++) {
+            int p_index = j * numTasks + task;
+            int p = getPrime(p_index);
+            //icout << "p: " << p << endl;
+            lhash = lhash * p;
+            lhash = lhash % 104729;
+        }
+    }
+    int hash = (int) lhash;
+#endif
+
+	
+	
 	if (useTotalOrderMode){
-		attemptedInsertions++;
-		
-		vector<uint64_t> ss = state2Int(n->state);
-		
 #if (TOVISI == TOVISI_SEQ) || (TOVISI == TOVISI_PRIM_EXACT)
 		vector<int> seq;
 		if (n->numPrimitive) to_dfs(n->unconstraintPrimitive[0],seq);
 		if (n->numAbstract)  to_dfs(n->unconstraintAbstract[0], seq);
-#endif
-
-#if (TOVISI == TOVISI_PRIM) || (TOVISI == TOVISI_PRIM_EXACT)
-	    long lhash = 1;
-	    for(int i = 0; i < n->numContainedTasks; i++) {
-	        int numTasks = this->htn->numTasks;
-	        int task = n->containedTasks[i];
-	        int count = n->containedTaskCount[i];
-	        //cout << task << " " << count << endl;
-	        for(int j = 0; j < count; j++) {
-	            int p_index = j * numTasks + task;
-	            int p = getPrime(p_index);
-	            //icout << "p: " << p << endl;
-	            lhash = lhash * p;
-	            lhash = lhash % 104729;
-	        }
-	    }
-	    int hash = (int) lhash;
 #endif
 
 #if (TOVISI == TOVISI_SEQ)
@@ -273,28 +277,70 @@ bool VisitedList::insertVisi(searchNode * n){
 		this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
 		return true;
 	} else {
-		attemptedInsertions++;
-		
+		tuple<vector<uint64_t>
+#ifdef POVISI_HASH	
+			,int
+#endif
+#ifdef POVISI_LAYERS	
+			,vector<unordered_map<int,int>>
+#endif
+#ifdef POVISI_ORDERPAIRS	
+			,unordered_set<pair<int,int>>
+#endif
+		> access;
+
+		// state
+		get<0>(access) = ss;
+
+
+#if defined(POVISI_ORDERPAIRS) || defined(POVISI_LAYERS)
 		set<planStep*> psp;
-		map<int,set<planStep*>> initial_Layers;
-		set<pair<int,int>> pairs;
+		vector<set<planStep*>> initial_Layers;
+		unordered_set<pair<int,int>> pairs;
 		for (int a = 0; a < n->numAbstract; a++) dfsdfs(n->unconstraintAbstract[a], 0, psp, pairs, initial_Layers);
 		for (int a = 0; a < n->numPrimitive; a++) dfsdfs(n->unconstraintPrimitive[a], 0, psp, pairs, initial_Layers);
-		
+#endif
+
+#ifdef POVISI_LAYERS
 		psp.clear();
-		map<int,set<planStep*>> layers;
-		for (auto [d,pss] : initial_Layers){
-			for (auto ps : pss)
+		vector<set<planStep*>> layers (initial_Layers.size());
+		for (int d = 0; d < initial_Layers.size(); d++){
+			for (auto ps : initial_Layers[d])
 				if (!psp.count(ps)){
 					psp.insert(ps);
 					layers[d].insert(ps);
 				}
 		}
 		
-		map<int,map<int,int>> layerCounts;
-		for (auto [d,pss] : layers)
-			for (auto ps : pss)
+		vector<unordered_map<int,int>> layerCounts (initial_Layers.size());
+		for (int d = 0; d < layers.size(); d++)
+			for (auto ps : layers[d])
 				layerCounts[d][ps->task]++;
+#endif
+
+#define POS1 1
+#ifdef POVISI_HASH			
+		get<POS1>(access) = hash;
+#define POS2 (POS1+1)
+#else
+#define POS2 POS1
+#endif
+
+
+#ifdef POVISI_LAYERS			
+		get<POS2>(access) = layerCounts;
+#define POS3 (POS2+1)
+#else
+#define POS3 POS2
+#endif
+
+
+#ifdef POVISI_ORDERPAIRS			
+		get<POS3>(access) = pairs;
+#define POS4 (POS3+1)
+#else
+#define POS4 POS3
+#endif
 		
 		//cout << "Node:" << endl;
 		//for (auto [a,b] : pairs) cout << setw(3) << a << " " << setw(3) << b << endl;
@@ -303,12 +349,12 @@ bool VisitedList::insertVisi(searchNode * n){
 		//	for (auto ps : pss) cout << " " << ps;
 		//	cout << endl;
 		//}
-		
-		vector<uint64_t> ss = state2Int(n->state);
-		
-		
-		int i = 0;
-		for (searchNode* other :  po_occ[{ss, layerCounts, pairs}]){
+	
+
+#ifdef POVISI_EXACT
+		//int i = 0;
+		auto & dups = po_occ[access];
+		for (searchNode* other : dups){
 						
 			//cout << "Checking ... #" << ++i << endl;
 			//cout << "This:" << endl;
@@ -324,9 +370,12 @@ bool VisitedList::insertVisi(searchNode * n){
 			
 			bool result = matching(n,other);
 			//cout << "Result: " << (result?"yes":"no") << endl;
-			
 
 			if (result) {
+				//exit(0);
+#else
+		if (po_occ.count(access)){
+#endif	
 				std::clock_t after = std::clock();
 				this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
 #ifndef	VISITEDONLYSTATISTICS
@@ -335,10 +384,19 @@ bool VisitedList::insertVisi(searchNode * n){
 				return true;
 #endif
 			}
+#ifdef POVISI_EXACT
 		}
-		po_occ[{ss, layerCounts, pairs}].push_back(n);	
-		uniqueInsertions++;
+#endif
+
+#ifdef POVISI_EXACT
 		
+		if (dups.size() > 0) subHashCollision++;
+		dups.push_back(n);	
+#else
+		po_occ.insert(access);	
+#endif
+
+		uniqueInsertions++;
 		std::clock_t after = std::clock();
 		this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
 		return true;

@@ -52,7 +52,7 @@
 
 // options for heuristic search
 #define ASTAR
-#define GASTARWEIGHT 1
+#define GASTARWEIGHT 2
 
 #define PRGEFFECTLESS // always progress effectless actions
 
@@ -63,7 +63,7 @@
 #define CALCMINIMALIMPLIEDCOSTS
 
 // select a heuristic function
-#define HEURISTIC RCFF
+#define HEURISTIC RCADD
 
 #define TRACKTASKSINTN
 
@@ -89,6 +89,17 @@
 #define TOVISI_PRIM 2
 #define TOVISI_PRIM_EXACT 3
 #define TOVISI TOVISI_PRIM
+
+//#define NOVISI
+
+
+
+
+#define POVISI_EXACT
+
+#define POVISI_HASH
+#define POVISI_LAYERS
+#define POVISI_ORDERPAIRS
 
 
 
