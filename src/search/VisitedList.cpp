@@ -2,6 +2,7 @@
 #include "../Model.h"
 #include <cassert>
 #include <chrono>
+#include <iomanip>
 #include "primeNumbers.h"
 
 
@@ -306,13 +307,16 @@ bool VisitedList::insertVisi(searchNode * n){
 		vector<uint64_t> ss = state2Int(n->state);
 		
 		
+		int i = 0;
 		for (searchNode* other :  po_occ[{ss, layerCounts, pairs}]){
-			/*			
-			cout << "Checking ... #" << ++i << endl;
-			n->printNode(std::cout);
-			other->printNode(std::cout);
+						
+			//cout << "Checking ... #" << ++i << endl;
+			//cout << "This:" << endl;
+			//n->printNode(std::cout);
+			//cout << "Memory:" << endl;
+			//other->printNode(std::cout);
 			
-			fstream nf ("occurs_" + to_string(A) + "_n_" + to_string(i) + ".dot", fstream::out);
+			/*fstream nf ("occurs_" + to_string(A) + "_n_" + to_string(i) + ".dot", fstream::out);
 			fstream of ("occurs_" + to_string(A) + "_o_" + to_string(i) + ".dot", fstream::out);
 			n->node2Dot(nf);
 			other->node2Dot(of);

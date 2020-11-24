@@ -160,6 +160,7 @@ template<class Heuristic, class VisitedList, class Fringe>
 					}
 #ifndef SAVESEARCHSPACE   
 					else {
+						if (visitedList.canDeleteProcessedNodes)
 						delete n2;
 					}
 #endif
@@ -232,6 +233,7 @@ template<class Heuristic, class VisitedList, class Fringe>
 					}
 #ifndef SAVESEARCHSPACE
 					else {
+						if (visitedList.canDeleteProcessedNodes)
 						delete n2;
 					}
 #endif
