@@ -315,9 +315,9 @@ template<class Heuristic, class VisitedList, class Fringe>
 	
 #ifndef NDEBUG
 		cout << "Deleting elements in fringe..." << endl;
-		while (!fringe->empty()) {
-			searchNode *n = fringe->top();
-			fringe->pop();
+		while (!fringe.empty()) {
+			searchNode *n = fringe.top();
+			fringe.pop();
 			delete n;
 		}
 		delete tnSol;
