@@ -152,6 +152,7 @@ public:
 	
 	//
 	bool isTotallyOrdered;
+	bool isUniquePaths;
 	bool isParallelSequences;
 
 	// method definitions

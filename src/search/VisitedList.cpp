@@ -11,7 +11,7 @@
 VisitedList::VisitedList(Model * m){
 	this->htn = m;
 	this->useTotalOrderMode = this->htn->isTotallyOrdered;
-	this->useSequencesMode = this->htn->isParallelSequences;
+	this->useSequencesMode = this->htn->isUniquePaths;
 	this->canDeleteProcessedNodes = this->useTotalOrderMode || this->useSequencesMode;
 #ifdef NOVISI
 	this->canDeleteProcessedNodes = true;

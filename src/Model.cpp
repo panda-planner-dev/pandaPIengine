@@ -1901,6 +1901,7 @@ void Model::readHierarchical(istream& domainFile) {
 	numOrderings = new int[numMethods];
 	methodNames = new string[numMethods];
 	isTotallyOrdered = true;
+	isUniquePaths = true;
 	isParallelSequences = true;
 	for (int i = 0; i < numMethods; i++) {
 		getline(domainFile, line);
@@ -1949,6 +1950,8 @@ void Model::readHierarchical(istream& domainFile) {
 				for (int y = 0; y < numSubTasks[i]; y++)
 					if (transOriginal[x][k] && transOriginal[k][y]) trans[x][y] = false;
 
+
+		/////// the method is totally ordered iff every task has exactly one successor and one predecessor except for one task each
 		vector<int> ord;
 		int notOneSuccessor = 0;
 		bool notZeroOrOneSuccessor = false;
@@ -1960,11 +1963,25 @@ void Model::readHierarchical(istream& domainFile) {
 			if (numSucc != 1) notOneSuccessor++;
 			if (numSucc > 1) notZeroOrOneSuccessor = true;
 		}
+		
+		int notOnePredecessor = 0;
+		bool notZeroOrOnePredecessor = false;
+		for (int y = 0; y < numSubTasks[i]; y++){
+			int numPrec = 0;
+			for (int x = 0; x < numSubTasks[i]; x++)
+				if (trans[x][y])
+					numPrec++;
+			if (numPrec != 1) notOnePredecessor++;
+			if (numPrec > 1) notZeroOrOnePredecessor = true;
+		}
 
-		if (notOneSuccessor > 1) {
+		if (notOneSuccessor > 1 || notOnePredecessor > 1) {
 			isTotallyOrdered = false;
-			if (notZeroOrOneSuccessor || decomposedTask[i] != initialTask)
-				isParallelSequences = false;
+			if (notZeroOrOneSuccessor || decomposedTask[i] != initialTask){
+				isUniquePaths = false;
+				if (notZeroOrOnePredecessor || decomposedTask[i] != initialTask)
+					isParallelSequences = false;
+			}
 		}
 
 		ordering[i] = new int[ord.size()];
@@ -2284,6 +2301,7 @@ void Model::printSummary() {
 	}
 	cout << "- State-based goal contains " << gSize << " bits." << endl;
 	cout << "- Instance is totally-ordered: " << ((isTotallyOrdered)?"yes":"no") << endl;
+	cout << "- Instance has unique paths: " << ((isUniquePaths)?"yes":"no") << endl;
 	cout << "- Instance is parallel sequences: " << ((isParallelSequences)?"yes":"no") << endl;
 }
 
