@@ -2,6 +2,7 @@
 #include "../Model.h"
 #include <cassert>
 #include <chrono>
+#include <algorithm>
 #include <iomanip>
 #include "primeNumbers.h"
 
@@ -10,7 +11,8 @@
 VisitedList::VisitedList(Model * m){
 	this->htn = m;
 	this->useTotalOrderMode = this->htn->isTotallyOrdered;
-	this->canDeleteProcessedNodes = this->useTotalOrderMode;
+	this->useSequencesMode = this->htn->isParallelSequences;
+	this->canDeleteProcessedNodes = this->useTotalOrderMode || this->useSequencesMode;
 #ifdef NOVISI
 	this->canDeleteProcessedNodes = true;
 #endif
@@ -346,33 +348,44 @@ bool VisitedList::insertVisi(searchNode * n){
 		//	for (auto ps : pss) cout << " " << ps;
 		//	cout << endl;
 		//}
-	
 
-#ifdef POVISI_EXACT
-		//int i = 0;
-		auto & dups = po_occ[access];
-		for (searchNode* other : dups){
-						
-			//cout << "Checking ... #" << ++i << endl;
-			//cout << "This:" << endl;
-			//n->printNode(std::cout);
-			//cout << "Memory:" << endl;
-			//other->printNode(std::cout);
-			
-			/*fstream nf ("occurs_" + to_string(A) + "_n_" + to_string(i) + ".dot", fstream::out);
-			fstream of ("occurs_" + to_string(A) + "_o_" + to_string(i) + ".dot", fstream::out);
-			n->node2Dot(nf);
-			other->node2Dot(of);
-			*/
-			
-			bool result = matching(n,other);
-			//cout << "Result: " << (result?"yes":"no") << endl;
-
-			if (result) {
-				//exit(0);
-#else
+		////////////////////////////////
+		// approximate test
+#ifndef POVISI_EXACT
 		if (po_occ.count(access)){
-#endif	
+			std::clock_t after = std::clock();
+			this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
+#ifndef	VISITEDONLYSTATISTICS
+			return false;
+#else
+			return true;
+#endif
+		}
+		// insert into the visited list as this one is new
+		po_occ.insert(access);	
+#endif
+
+		////////////////////////////////
+		// exact test
+#ifdef POVISI_EXACT
+		if (useSequencesMode){
+			// get sequences
+			vector<vector<int>> sequences;
+			for (int a = 0; a < n->numAbstract; a++) {
+				vector<int> seq;
+				to_dfs(n->unconstraintAbstract[a], seq);
+				sequences.push_back(seq);
+			}
+			for (int a = 0; a < n->numPrimitive; a++) {
+				vector<int> seq;
+				to_dfs(n->unconstraintPrimitive[a], seq);
+				sequences.push_back(seq);
+			}
+			// sort them to be unique
+			sort(sequences.begin(), sequences.end());
+			
+			auto & dups = po_seq_occ[access];
+			if (dups.count(sequences)){
 				std::clock_t after = std::clock();
 				this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
 #ifndef	VISITEDONLYSTATISTICS
@@ -381,17 +394,31 @@ bool VisitedList::insertVisi(searchNode * n){
 				return true;
 #endif
 			}
-#ifdef POVISI_EXACT
+
+			// insert into the visited list as this one is new
+			if (dups.size() > 0) subHashCollision++;
+			dups.insert(sequences);
+		} else {
+			auto & dups = po_occ[access];
+			for (searchNode* other : dups){
+				bool result = matching(n,other);
+				if (result) {
+					std::clock_t after = std::clock();
+					this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
+#ifndef	VISITEDONLYSTATISTICS
+					return false;
+#else
+					return true;
+#endif
+				}
+			}
+
+			// insert into the visited list as this one is new
+			if (dups.size() > 0) subHashCollision++;
+			dups.push_back(n);
 		}
 #endif
 
-#ifdef POVISI_EXACT
-		
-		if (dups.size() > 0) subHashCollision++;
-		dups.push_back(n);	
-#else
-		po_occ.insert(access);	
-#endif
 
 		uniqueInsertions++;
 		std::clock_t after = std::clock();

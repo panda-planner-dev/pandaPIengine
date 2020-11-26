@@ -103,6 +103,7 @@ struct VisitedList{
 private:
 	Model * htn;
 	bool useTotalOrderMode;
+	bool useSequencesMode;
 
 #if (TOVISI == TOVISI_SEQ)
 #ifndef SAVESEARCHSPACE 
@@ -115,6 +116,18 @@ private:
 #elif (TOVISI == TOVISI_PRIM_EXACT)
 	map<vector<uint64_t>, map<int,set<vector<int>>>> visited;
 #endif
+
+#ifdef POVISI_EXACT
+	unordered_map<
+#else
+	unordered_set<
+#endif
+	po_hash_tuple
+#ifdef POVISI_EXACT
+   	, set< vector<vector<int>> >
+#endif
+	> po_seq_occ;
+
 
 #ifdef POVISI_EXACT
 	unordered_map<

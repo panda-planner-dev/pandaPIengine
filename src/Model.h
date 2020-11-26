@@ -152,6 +152,7 @@ public:
 	
 	//
 	bool isTotallyOrdered;
+	bool isParallelSequences;
 
 	// method definitions
 	int numMethods;

@@ -1901,6 +1901,7 @@ void Model::readHierarchical(istream& domainFile) {
 	numOrderings = new int[numMethods];
 	methodNames = new string[numMethods];
 	isTotallyOrdered = true;
+	isParallelSequences = true;
 	for (int i = 0; i < numMethods; i++) {
 		getline(domainFile, line);
 		if (domainFile.eof()){
@@ -1950,15 +1951,21 @@ void Model::readHierarchical(istream& domainFile) {
 
 		vector<int> ord;
 		int notOneSuccessor = 0;
+		bool notZeroOrOneSuccessor = false;
 		for (int x = 0; x < numSubTasks[i]; x++){
 			int numSucc = 0;
 			for (int y = 0; y < numSubTasks[i]; y++)
 				if (trans[x][y])
 					numSucc++,ord.push_back(x), ord.push_back(y);
 			if (numSucc != 1) notOneSuccessor++;
+			if (numSucc > 1) notZeroOrOneSuccessor = true;
 		}
 
-		if (notOneSuccessor > 1) isTotallyOrdered = false;
+		if (notOneSuccessor > 1) {
+			isTotallyOrdered = false;
+			if (notZeroOrOneSuccessor || decomposedTask[i] != initialTask)
+				isParallelSequences = false;
+		}
 
 		ordering[i] = new int[ord.size()];
 		for (int x = 0; x < ord.size(); x++)
@@ -2017,6 +2024,7 @@ void Model::readHierarchical(istream& domainFile) {
 		}
 #endif
 	}
+
 
 	// Mapping from task to methods where it is a subtasks
 	stToMethodNum = new int[this->numTasks];
@@ -2276,6 +2284,7 @@ void Model::printSummary() {
 	}
 	cout << "- State-based goal contains " << gSize << " bits." << endl;
 	cout << "- Instance is totally-ordered: " << ((isTotallyOrdered)?"yes":"no") << endl;
+	cout << "- Instance is parallel sequences: " << ((isParallelSequences)?"yes":"no") << endl;
 }
 
 void Model::printActions() {
