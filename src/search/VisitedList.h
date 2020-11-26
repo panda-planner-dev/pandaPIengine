@@ -4,6 +4,21 @@
 #include "../ProgressionNetwork.h"
 #include <unordered_map>
 
+
+typedef	tuple<vector<uint64_t>
+#ifdef POVISI_HASH	
+		,int
+#endif
+#ifdef POVISI_LAYERS	
+		,vector<unordered_map<int,int>>
+#endif
+#ifdef POVISI_ORDERPAIRS	
+		,unordered_set<pair<int,int>>
+#endif
+	> po_hash_tuple;
+
+
+
 using namespace progression;
 
 namespace std {
@@ -29,31 +44,8 @@ struct hash<vector<uint64_t>> {
 	
 	
 template<>
-struct hash<
-	tuple<vector<uint64_t>
-#ifdef POVISI_HASH	
-		,int
-#endif
-#ifdef POVISI_LAYERS	
-		,vector<unordered_map<int,int>>
-#endif
-#ifdef POVISI_ORDERPAIRS	
-		,unordered_set<pair<int,int>>
-#endif
-	>
-> {
-	size_t operator()(const 
-	tuple<vector<uint64_t>
-#ifdef POVISI_HASH	
-		,int
-#endif
-#ifdef POVISI_LAYERS	
-		,vector<unordered_map<int,int>>
-#endif
-#ifdef POVISI_ORDERPAIRS	
-		,unordered_set<pair<int,int>>
-#endif
-	> & arg) const {
+struct hash<po_hash_tuple> {
+	size_t operator()(const po_hash_tuple & arg) const {
 		size_t h = hash<vector<uint64_t>>{}(get<0>(arg));
 
 #define POS1 1
@@ -129,17 +121,7 @@ private:
 #else
 	unordered_set<
 #endif
-	tuple<vector<uint64_t>
-#ifdef POVISI_HASH	
-		,int
-#endif
-#ifdef POVISI_LAYERS	
-		,vector<unordered_map<int,int>>
-#endif
-#ifdef POVISI_ORDERPAIRS	
-		,unordered_set<pair<int,int>>
-#endif
-	>
+	po_hash_tuple
 #ifdef POVISI_EXACT
    	, vector<searchNode*>
 #endif

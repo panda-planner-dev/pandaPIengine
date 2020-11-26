@@ -277,17 +277,7 @@ bool VisitedList::insertVisi(searchNode * n){
 		this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
 		return true;
 	} else {
-		tuple<vector<uint64_t>
-#ifdef POVISI_HASH	
-			,int
-#endif
-#ifdef POVISI_LAYERS	
-			,vector<unordered_map<int,int>>
-#endif
-#ifdef POVISI_ORDERPAIRS	
-			,unordered_set<pair<int,int>>
-#endif
-		> access;
+		po_hash_tuple access;
 
 		// state
 		get<0>(access) = ss;
