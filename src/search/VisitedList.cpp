@@ -11,6 +11,13 @@ VisitedList::VisitedList(Model * m){
 	this->htn = m;
 	this->useTotalOrderMode = this->htn->isTotallyOrdered;
 	this->canDeleteProcessedNodes = this->useTotalOrderMode;
+#ifdef NOVISI
+	this->canDeleteProcessedNodes = true;
+#endif
+#ifndef POVISI_EXACT
+	this->canDeleteProcessedNodes = true;
+#endif
+	cout << "- Visited list allows deletion of search nodes: " << ((this->canDeleteProcessedNodes)?"true":"false") << endl;
 }
 
 
