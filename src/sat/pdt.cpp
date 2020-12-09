@@ -796,18 +796,21 @@ void PDT::propagatePruning(Model * htn){
 
 //#define NDEBUG
 
-void PDT::countPruning(int & overallSize, int & overallPruning){
+void PDT::countPruning(int & overallSize, int & overallPruning, bool onlyPrimitives){
 	for (size_t p = 0; p < possiblePrimitives.size(); p++)
 		if (prunedPrimitives[p])
 			overallPruning++;
 	
-	for (size_t a = 0; a < possibleAbstracts.size(); a++)
-		if (prunedAbstracts[a])
-			overallPruning++;
+	if (!onlyPrimitives)
+		for (size_t a = 0; a < possibleAbstracts.size(); a++)
+			if (prunedAbstracts[a])
+				overallPruning++;
 
-	overallSize += possiblePrimitives.size() + possibleAbstracts.size();
+	overallSize += possiblePrimitives.size();
+	if (!onlyPrimitives) overallSize += possibleAbstracts.size();
+	
 	for (PDT * child : children)
-		child->countPruning(overallSize, overallPruning);
+		child->countPruning(overallSize, overallPruning, onlyPrimitives);
 }
 
 void PDT::addPrunedClauses(void* solver){

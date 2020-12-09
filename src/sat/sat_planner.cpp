@@ -339,8 +339,13 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	
 	int overallAssignments = 0;
 	int prunedAssignments = 0;
-	pdt->countPruning(overallAssignments, prunedAssignments);
+	pdt->countPruning(overallAssignments, prunedAssignments, false);
 	cout << "Pruning: " << prunedAssignments << " of " << overallAssignments << endl;
+	overallAssignments = 0;
+	prunedAssignments = 0;
+	for (PDT* leaf : leafs)
+		leaf->countPruning(overallAssignments, prunedAssignments, true);
+	cout << "Leaf Primitive Pruning: " << prunedAssignments << " of " << overallAssignments << endl;
 
 	// if we have pruned the initial abstract task, return ...	
 	if (pdt->prunedAbstracts[0]) return false;

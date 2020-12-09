@@ -110,7 +110,7 @@ struct PDT {
 	void resetPruning(Model * htn);
 	void propagatePruning(Model * htn);
 
-	void countPruning(int & overallSize, int & overallPruning);
+	void countPruning(int & overallSize, int & overallPruning, bool onlyPrimitives);
 
 	/**
 	 * Recursively assigns variable IDs needed for encoding this PDT
