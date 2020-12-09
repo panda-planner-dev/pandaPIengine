@@ -280,13 +280,13 @@ bool filter_leafs_Rintanen(vector<PDT*> & leafs, Model * htn, unordered_set<int>
 
 
 bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & capsule, int depth){
-	printMemory();
+	//printMemory();
 	std::clock_t beforePDT = std::clock();
 	pdt->expandPDTUpToLevel(depth,htn);
 	std::clock_t afterPDT = std::clock();
 	double pdt_time = 1000.0 * (afterPDT - beforePDT) / CLOCKS_PER_SEC;
 	cout << "Computing PDT took: " << setprecision(3) << pdt_time << " ms" << endl;
-	printMemory();
+	//printMemory();
 	// get leafs
 	cout << "Computed PDT. Extracting leafs ... ";
 	vector<PDT*> leafs;
@@ -301,15 +301,24 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	dfile.close();*/
 	
 	
-	printMemory();
+	//printMemory();
 	cout << "Clear pruning tables ...";
 	pdt->resetPruning(htn); // clear tables in whole tree
 	cout << " done." << endl;
 	//printPDT(htn,pdt);
-	printMemory();
+	//printMemory();
 
 
 	unordered_set<int>* after_leaf_invariants = new unordered_set<int>[2*htn->numStateBits];
+
+	
+	// mark all abstracts in leafs as pruned
+	for (PDT* l : leafs)
+		for (size_t a = 0; a < l->prunedAbstracts.size(); a++)
+			l->prunedAbstracts[a] = true;
+	
+	for (PDT* leaf : leafs) leaf->propagatePruning(htn);
+
 
 	int pruningPhase = 1;
 	int round = 1;
@@ -326,17 +335,18 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 				break;
 		}
 		for (PDT* leaf : leafs) leaf->propagatePruning(htn);
-		if (pdt->prunedAbstracts[0]) return false;
-		
-
-		int overallAssignments = 0;
-		int prunedAssignments = 0;
-		pdt->countPruning(overallAssignments, prunedAssignments);
-		cout << "Pruning: " << prunedAssignments << " of " << overallAssignments << endl;
 	}
 	
+	int overallAssignments = 0;
+	int prunedAssignments = 0;
+	pdt->countPruning(overallAssignments, prunedAssignments);
+	cout << "Pruning: " << prunedAssignments << " of " << overallAssignments << endl;
+
+	// if we have pruned the initial abstract task, return ...	
+	if (pdt->prunedAbstracts[0]) return false;
+	
 	cout << "Pruning gave " << additionalInvariants << " new invariants" << endl;	
-	printMemory();
+	//printMemory();
 
 
 #ifndef NDEBUG
@@ -347,7 +357,7 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	cout << "Assigning variable IDs for PDT ...";
 	pdt->assignVariableIDs(capsule, htn);
 	cout << " done. " << (capsule.number_of_variables - numVarsBefore) << " new variables." << endl;
-	printMemory();
+	//printMemory();
 	DEBUG(capsule.printVariables());
 	
 	//exit(0);
@@ -358,12 +368,12 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	// assert the initial abstract task
 	assertYes(solver,pdt->abstractVariable[0]);
 	cout << "Decomposition Clauses generated." << endl;	
-	printMemory();
+	//printMemory();
 	
 	pdt->addPrunedClauses(solver);
 	//for (PDT* leaf : leafs) leaf->addPrunedClauses(solver); // add assertNo for pruned things
 	cout << "Pruned clauses." << endl;	
-	printMemory();
+	//printMemory();
 	
 
 #ifdef BLOCK_COMPRESSION
@@ -385,7 +395,7 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 #endif
 
 #endif
-	printMemory();
+	//printMemory();
 
 	// generate primitive executability formula
 	vector<vector<pair<int,int>>> vars;
@@ -396,7 +406,7 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	generate_state_transition_formula(solver, capsule, vars, leafs, htn);
 #endif
 	int afterState = get_number_of_clauses();
-	printMemory();
+	//printMemory();
 
 	//exit(0);
 
