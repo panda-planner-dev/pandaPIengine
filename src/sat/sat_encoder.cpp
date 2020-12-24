@@ -126,6 +126,14 @@ void impliesAllNot(void* solver, int i, std::vector<int> & j){
 	}
 }
 
+void andImplies(void* solver, int i, int j, int k){
+	ipasir_add(solver,-i);
+	ipasir_add(solver,-j);
+	ipasir_add(solver,k);
+	ipasir_add(solver,0);
+	number_of_clauses++;
+}
+
 void atMostOne(void* solver, sat_capsule & capsule, std::vector<int> & is){
 	if (is.size() <= 1) return; // nothing to do
 
