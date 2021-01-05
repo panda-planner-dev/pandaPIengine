@@ -142,6 +142,13 @@ void andImplies(void* solver, std::set<int> i, int j){
 	number_of_clauses++;
 }
 
+void notAll(void* solver, std::set<int> i){
+	for (const int & x : i)
+		ipasir_add(solver,-x);
+	ipasir_add(solver,0);
+	number_of_clauses++;
+}
+
 void atMostOne(void* solver, sat_capsule & capsule, std::vector<int> & is){
 	if (is.size() <= 1) return; // nothing to do
 
