@@ -149,8 +149,23 @@ void notAll(void* solver, std::set<int> i){
 	number_of_clauses++;
 }
 
+void atMostOneBinomial(void* solver, sat_capsule & capsule, std::vector<int> & is){
+	for (size_t i = 0; i < is.size(); i++){
+		int ii = is[i];
+		for (size_t j = i+1; j < is.size(); j++){
+			impliesNot(solver,ii,is[j]);
+		}
+	}
+}
+
+
 void atMostOne(void* solver, sat_capsule & capsule, std::vector<int> & is){
 	if (is.size() <= 1) return; // nothing to do
+
+	if (is.size() < 256){
+		atMostOneBinomial(solver,capsule,is);
+		return;
+	}
 
 	int bits = (int) ceil(log(is.size()) / log(2));
 
