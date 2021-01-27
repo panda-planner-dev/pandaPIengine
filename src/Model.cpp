@@ -2905,5 +2905,180 @@ void Model::calcMinimalImpliedX() {
         pfile << ")" << endl;
         pfile.close();
     }
+
+    void Model::writeToFastDown(string sasName) {
+        ofstream sasfile;
+        sasfile.open (sasName);
+        // version
+        sasfile << "begin_version" << endl;
+        sasfile << "3" << endl;
+        sasfile << "end_version" << endl;
+        sasfile <<  endl;
+        // metric
+        sasfile << "begin_metric" << endl;
+        sasfile << "0" << endl;
+        sasfile << "end_metric" << endl;
+        sasfile <<  endl;
+
+	int** convertMutexVars = new int*[this->numStateBits];
+	for (int i = 0; i < this->numStateBits; i++) {
+		convertMutexVars[i] = new int[2];
+	}
+	
+        // variable section
+        sasfile <<  this->numVars << endl;
+        for (int i = 0; i < this->numVars; i++){
+        	int first_index = this->firstIndex[i];
+        	int last_index = this->lastIndex[i];
+        	sasfile << "begin_variable" << endl;
+		sasfile << this->varNames[i] << endl;
+		sasfile << -1 << endl;
+		sasfile << last_index - first_index + 1 << endl;
+		for (int j = 0; j < last_index - first_index + 1; j++){
+			string ns = this->factStrs[first_index + j];
+			convertMutexVars[first_index + j][0] = i;
+			convertMutexVars[first_index + j][1] = j;
+			ns.replace(ns.find("+"), 1, "");
+			ns.replace(ns.find("["), 1, "(");
+			ns.replace(ns.find("]"), 1, ")");
+			ns.insert(ns.find(",") + 1, " ");
+			sasfile << "Atom " << ns << endl;
+		}
+
+        	sasfile << "end_variable" << endl;
+        }
+
+        sasfile <<  endl;
+        // mutex section
+        sasfile <<  this->numMutexes << endl;
+        for (int i = 0; i < this->numMutexes; i++){
+        	int size = this->mutexesSize[i];
+        	sasfile << "begin_mutex_group" << endl;
+		sasfile << size << endl;
+	        for (int j = 0; j < size; j++){
+			sasfile << convertMutexVars[this->mutexes[i][j]][0] << " ";
+			sasfile << convertMutexVars[this->mutexes[i][j]][1] << endl;
+		}
+        	sasfile << "end_mutex_group" << endl;
+        }
+        sasfile <<  endl;
+        // initial state
+        sasfile << "begin_state" << endl;
+        for (int i = 0; i < this->s0Size; i++) {
+        	sasfile << convertMutexVars[this->s0List[i]][1] << endl;
+        }
+        sasfile << "end_state" << endl;
+        sasfile <<  endl;
+        // goal state
+        sasfile << "begin_goal" << endl;
+        int g = this->gSize;
+	sasfile << g << endl;
+        
+        for (int i = 0; i < g; i++) {
+		sasfile << convertMutexVars[this->gList[i]][0] << " ";
+		sasfile << convertMutexVars[this->gList[i]][1] << endl;
+        }
+        sasfile << "end_goal" << endl;
+        sasfile <<  endl;
+        
+        // operator section
+        int a = this->numActions;
+        sasfile << a << endl;
+        for (int i = 0; i < a; i++) {
+		sasfile << "begin_operator" << endl;
+		/*
+		string tn = this->taskNames[i];
+		int j = tn.find("[");
+		while (j < tn.length()) {
+			tn.replace(j, 1, " ");
+			j = tn.find(",");
+		}
+		j = tn.find("]");
+		tn.replace(j, 1, " ");
+		sasfile << tn << endl;
+		*/
+		int numP = this->numPrecs[i];
+		int** precs = new int*[numP];
+		int n = numP;
+		int eff = 0;
+		for (int j = 0; j < numP; j++){
+			precs[j] = new int[3];
+		}
+		for (int j = 0; j < numP; j++) {
+			precs[j][0] = convertMutexVars[this->precLists[i][j]][0];
+			precs[j][1] = convertMutexVars[this->precLists[i][j]][1];
+			precs[j][2] = 0;
+		}
+		int numD = this->numDels[i];
+		for (int j = 0; j < numP; j++) {
+			for (int k = 0; k < numD; k++) {
+				if (precs[j][0] == convertMutexVars[delLists[i][k]][0]){
+					precs[j][2] += 1;
+					n--;
+					eff++;
+				}
+			}
+		}
+		int numA = this->numAdds[i];
+		for (int j = 0; j < numP; j++) {
+			for (int k = 0; k < numA; k++) {
+				if (precs[j][0] == convertMutexVars[addLists[i][k]][0]){
+					precs[j][2] += 2;
+					if (precs[j][2] == 2){
+						n--;
+						eff++;
+					}
+				}
+			}
+		}
+		
+		sasfile << n << endl;
+		for (int j = 0; j < numP; j++) {
+			if (precs[j][2] == 0){
+				sasfile << precs[j][0] << " ";
+				sasfile << precs[j][1] << endl;
+			}
+		}
+
+		sasfile << eff << endl;
+		for (int j = 0; j < numA; j++) {
+			int cost = 0;
+			int var0 = convertMutexVars[addLists[i][j]][0];
+			int var1 = convertMutexVars[addLists[i][j]][1];
+			int preco = -1;
+			for (int k = 0; k < numP; k++){
+				if (precs[k][0] == var0){
+					preco = precs[k][1];
+				}
+			}
+			sasfile << cost << " " << var0 << " " << var1 << " " << preco << endl;
+		}
+		for (int j = 0; j < numD; j++){
+			bool p = false;
+			int cost = 0;
+			int var0 = convertMutexVars[addLists[i][j]][0];
+			int var1 = -1;
+			int preco = -1;
+			for (int k = 0; k < numP; k++){
+				if (precs[k][0] == var0){
+					preco = precs[k][1];
+				}
+				if (precs[k][2] == 1){
+					p = true;
+				}
+			}
+			if (p) {
+				sasfile << cost << " " << var0 << " " << var1 << " " << preco << endl;
+			}
+		}
+		sasfile << this->actionCosts[i] << endl;
+		sasfile << "end_operator" << endl;
+	}
+        // axiom section
+	sasfile << 0 << endl;
+        sasfile.close();
+
+    }
 }
+
 /* namespace progression */

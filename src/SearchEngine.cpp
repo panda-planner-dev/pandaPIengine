@@ -39,17 +39,16 @@ int main(int argc, char *argv[]) {
 	//srand(atoi(argv[4]));
 
 	string s;
-	int seed = 42;
-	if (argc == 1) {
-		cout << "No file name passed. Reading input from stdin";
-		s = "stdin";
+	string sasfile;
+	if (argc < 3) {
+		cout << "Usage: PandaPIengine <intput_file> <output_file>" << endl;
+		cout << "<intput_file>: grounded htn problem" << endl;
+		cout << "<output_file>: grounded translated pddl problem" << endl;
+		return 0;
 	} else {
 		s = argv[1];
-		if (argc > 2) seed = atoi(argv[2]);
+		sasfile = argv[2];
 	}
-	cout << "Random seed: " << seed << endl;
-	srand(seed);
-
 
 /*
  * Read model
@@ -57,6 +56,13 @@ int main(int argc, char *argv[]) {
 	cerr << "Reading HTN model from file \"" << s << "\" ... " << endl;
 	Model* htn = new Model();
 	htn->read(s);
+	if (argc == 2) return 0;
+	cerr << "Printing HTN model to file \"" << sasfile << "\" ... " << endl;
+	htn->writeToFastDown(sasfile);
+	return 0;
+
+
+
 	assert(htn->isHtnModel);
 	searchNode* tnI = htn->prepareTNi(htn);
 

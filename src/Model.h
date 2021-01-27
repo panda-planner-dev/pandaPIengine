@@ -238,6 +238,7 @@ public:
 	int** reachable = nullptr;
 
 	void writeToPDDL(string dName, string pName);
+	void writeToFastDown(string sasName);
 };
 }
 #endif /* MODEL_H_ */
