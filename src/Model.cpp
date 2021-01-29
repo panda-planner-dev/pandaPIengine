@@ -2986,7 +2986,6 @@ void Model::calcMinimalImpliedX() {
         sasfile << a << endl;
         for (int i = 0; i < a; i++) {
 		sasfile << "begin_operator" << endl;
-		/*
 		string tn = this->taskNames[i];
 		int j = tn.find("[");
 		while (j < tn.length()) {
@@ -2996,7 +2995,6 @@ void Model::calcMinimalImpliedX() {
 		j = tn.find("]");
 		tn.replace(j, 1, " ");
 		sasfile << tn << endl;
-		*/
 		int numP = this->numPrecs[i];
 		int** precs = new int*[numP];
 		int n = numP;
@@ -3051,7 +3049,7 @@ void Model::calcMinimalImpliedX() {
 					preco = precs[k][1];
 				}
 			}
-			sasfile << cost << " " << var0 << " " << var1 << " " << preco << endl;
+			sasfile << cost << " " << var0 << " " << preco << " " << var1 << endl;
 		}
 		for (int j = 0; j < numD; j++){
 			bool p = false;
@@ -3068,7 +3066,7 @@ void Model::calcMinimalImpliedX() {
 				}
 			}
 			if (p) {
-				sasfile << cost << " " << var0 << " " << var1 << " " << preco << endl;
+				sasfile << cost << " " << var0 << " " << preco << " " << var1 << endl;
 			}
 		}
 		sasfile << this->actionCosts[i] << endl;
