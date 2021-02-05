@@ -81,6 +81,19 @@ public:
 	int* lastIndex;
 	string* varNames;
 
+	// state-bits with strips translation
+	int numStateBitsTrans;
+	string* factStrsTrans;
+
+	// variable definitions for strips translation
+	int numVarsTrans;
+	int headIndex;
+	int firstTaskIndex;
+	int firstVarIndex;
+	int* firstIndexTrans;
+	int* lastIndexTrans;
+	string* varNamesTrans;
+	
 	// additional strict mutexes
 	int numStrictMutexes;
 	int** strictMutexes;
@@ -103,6 +116,22 @@ public:
 	int** precLists;
 	int** addLists;
 	int** delLists;
+
+	// action definitions translation
+	int numActionsTrans;
+	int firstMethodIndex;
+	bool* invalidTransActions;
+	int numInvalidTransActions;
+
+	int* actionCostsTrans;
+	string* actionNamesTrans;
+	int** precListsTrans;
+	int** addListsTrans;
+	int** delListsTrans;
+
+	int* numPrecsTrans;
+	int* numAddsTrans;
+	int* numDelsTrans;
 
 	// dummy for CE
 	int** conditionalAddLists;
@@ -136,6 +165,10 @@ public:
 	int* gList;
 	int gSize;
 
+	// s0 strips translation
+	int* s0ListTrans;
+	int s0SizeTrans;
+
 	// task definitions
 	int numTasks;
 	bool* isPrimitive;
@@ -159,6 +192,10 @@ public:
 	int* numFirstTasks;
 	int** methodsLastTasks;
 	int* numLastTasks;
+	
+	// For TOHTN
+	int** subTasksInOrder;
+	int* taskToKill;
 
 	int** taskToMethods;
 	int* numMethodsForTask;
@@ -239,6 +276,9 @@ public:
 
 	void writeToPDDL(string dName, string pName);
 	void writeToFastDown(string sasName);
+	
+	// translation to strips
+	void translateToStrips();
 };
 }
 #endif /* MODEL_H_ */

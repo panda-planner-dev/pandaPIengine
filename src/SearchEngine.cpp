@@ -57,6 +57,10 @@ int main(int argc, char *argv[]) {
 	Model* htn = new Model();
 	htn->read(s);
 	if (argc == 2) return 0;
+
+	cerr << "Translating to Strips" << endl;
+	htn->translateToStrips();
+
 	cerr << "Printing HTN model to file \"" << sasfile << "\" ... " << endl;
 	htn->writeToFastDown(sasfile);
 	return 0;

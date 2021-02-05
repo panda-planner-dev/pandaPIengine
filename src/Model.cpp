@@ -27,6 +27,7 @@ using namespace std;
 namespace progression {
 
 Model::Model() {
+	firstMethodIndex = 0;
 	numStateBits = 0;
 	numTasks = 0;
 	numPrecLessActions = 0;
@@ -37,7 +38,31 @@ Model::Model() {
 	numActions = 0;
 	numVars = 0;
 	s0Size = 0;
+	numVarsTrans = 0;
+	headIndex = 0;
+	firstTaskIndex = 0;
+	firstVarIndex = 0;
+	numStateBitsTrans = 0;
+	s0SizeTrans = 0;
+	numActionsTrans = 0;
+	numInvalidTransActions = 0;
+	taskToKill = 0;
+	subTasksInOrder = nullptr;
+	invalidTransActions = nullptr;
+	actionCostsTrans = nullptr;
+	precListsTrans = nullptr;
+	addListsTrans = nullptr;
+	delListsTrans = nullptr;
+	numPrecsTrans = nullptr;
+	numAddsTrans = nullptr;
+	numDelsTrans = nullptr;
+	s0ListTrans = nullptr;
+	factStrsTrans = nullptr;
+	firstIndexTrans = nullptr;
+	lastIndexTrans = nullptr;
+	varNamesTrans = nullptr;
 	factStrs = nullptr;
+	actionNamesTrans = nullptr;
 	firstIndex = nullptr;
 	lastIndex = nullptr;
 	varNames = nullptr;
@@ -99,11 +124,34 @@ Model::Model() {
 }
 
 Model::~Model() {
+	for (int i = 0; i < numMethods; i++){
+		delete[] subTasksInOrder[i];
+	}
+	delete[] taskToKill;
+	delete[] subTasksInOrder;
+	delete[] invalidTransActions;
+	delete[] actionNamesTrans;
+	delete[] s0ListTrans;
 	delete[] factStrs;
 	delete[] firstIndex;
 	delete[] lastIndex;
 	delete[] varNames;
 	delete[] actionCosts;
+	delete[] lastIndexTrans;
+	delete[] varNamesTrans;
+	delete[] factStrsTrans;
+	delete[] actionCostsTrans;
+	delete[] precListsTrans;
+	delete[] addListsTrans;
+	delete[] delListsTrans;
+	for (int i = 0; i < numActionsTrans; i++) {
+		delete[] precListsTrans[i];
+		delete[] addListsTrans[i];
+		delete[] delListsTrans[i];
+	}
+	delete[] numPrecsTrans;
+	delete[] numAddsTrans;
+	delete[] numDelsTrans;
 	for (int i = 0; i < numActions; i++) {
 		delete[] precLists[i];
 		delete[] addLists[i];
@@ -2906,6 +2954,229 @@ void Model::calcMinimalImpliedX() {
         pfile.close();
     }
 
+void Model::translateToStrips() {
+	// number of translated variables
+	numVarsTrans = numVars + 1 + PROGRESSIONBOUND;
+
+	// indizes for variables
+	firstVarIndex = 0;
+	headIndex = numVars;
+	firstTaskIndex = numVars + 1;
+
+	// indizes for names
+	firstIndexTrans = new int[numVarsTrans];
+	lastIndexTrans = new int[numVarsTrans];
+	
+
+
+	for (int i = 0; i < numVars; i++){
+		firstIndexTrans[firstVarIndex+ i] = firstIndex[i];
+		lastIndexTrans[firstVarIndex+i] = lastIndex[i];
+	}
+
+	firstIndexTrans[headIndex] = lastIndexTrans[headIndex - 1] + 1;
+	lastIndexTrans[headIndex] = firstIndexTrans[headIndex] + PROGRESSIONBOUND;
+
+	for (int i = 0; i < PROGRESSIONBOUND + 1; i++){
+		firstIndexTrans[firstTaskIndex + i] = lastIndexTrans[firstTaskIndex + i - 1] + 1;
+		lastIndexTrans[firstTaskIndex + i] = firstIndexTrans[firstTaskIndex + i] + numTasks + 1;
+
+	}
+	
+
+	varNamesTrans = new string[numVarsTrans];
+	varNamesTrans[headIndex] = "varHead";
+	for (int i = firstTaskIndex; i < numVarsTrans ; i++){
+		varNamesTrans[i] = "varTasksHead" + to_string(i);
+	}
+	for (int i = 0; i < numVars; i++){
+		varNamesTrans[firstVarIndex + i] = varNames[i];
+	}
+	
+	numStateBitsTrans = lastIndexTrans[numVarsTrans - 1] + 1;
+	
+	factStrsTrans = new string[numStateBitsTrans];
+	for (int i = 0; i < numStateBits; i++){
+		factStrsTrans[firstIndexTrans[firstVarIndex] + i] = factStrs[i];
+	}
+	factStrsTrans[firstIndexTrans[headIndex]] = "+point[head,finish]";
+	for (int i = 0; i < PROGRESSIONBOUND; i++){
+		factStrsTrans[i + firstIndexTrans[headIndex] + 1] = string("+point[head,point")+ to_string(i) + ']';
+	}
+	for (int i = firstTaskIndex; i < numVarsTrans; i++){
+		factStrsTrans[firstIndexTrans[i]] = string("+task[point") + to_string(i-firstTaskIndex) + string(",noTask]")	;
+		for (int j = 0; j < lastIndexTrans[i] - firstIndexTrans[i]; j++){
+			factStrsTrans[firstIndexTrans[i]+j + 1] = string("+task[point") + to_string(i - firstTaskIndex) + string(",task") + to_string(j) + ']';
+		}
+	}
+	// Initial state
+	s0SizeTrans = numVarsTrans-headIndex;
+	s0ListTrans = new int[s0SizeTrans];
+	s0ListTrans[0] = firstIndexTrans[headIndex] + 1;
+	s0ListTrans[1] = firstIndexTrans[firstTaskIndex] + initialTask + 1;
+	for (int i = 1; i < s0SizeTrans - 1; i++){
+		s0ListTrans[i + 1] = firstIndexTrans[firstTaskIndex + i];
+	}
+	
+	// transformed actions and methods
+	numActionsTrans = numActions * PROGRESSIONBOUND + numMethods * PROGRESSIONBOUND;
+	firstMethodIndex = numActions * PROGRESSIONBOUND;
+	actionCostsTrans = new int[numActionsTrans];
+	invalidTransActions = new bool[numActionsTrans];
+	for (int i = 0; i < numActionsTrans; i++) {
+		invalidTransActions[i] = false;
+	}
+	for (int i = 0; i < numActions; i++) {
+		for (int j = 0; j < PROGRESSIONBOUND; j++){
+			actionCostsTrans[i * PROGRESSIONBOUND + j] = actionCosts[i];
+		}
+	}
+	for (int i = firstMethodIndex; i < numActionsTrans; i++) {
+		actionCostsTrans[i] = 0;
+	}
+	
+	// transformed actions
+	numPrecsTrans = new int[numActionsTrans];
+	numAddsTrans = new int[numActionsTrans];
+	numDelsTrans = new int[numActionsTrans];
+	for (int i = 0; i < numActions; i++) {
+		for (int j = 0; j < PROGRESSIONBOUND; j++){
+			numPrecsTrans[i * PROGRESSIONBOUND + j] = numPrecs[i] + 2;
+			numAddsTrans[i * PROGRESSIONBOUND + j] = numAdds[i] + 2;
+			numDelsTrans[i * PROGRESSIONBOUND + j] = numDels[i] + 2;
+		}
+	}
+
+	// transformed methods
+	for (int i = firstMethodIndex; i < numActionsTrans; i++) {
+		numPrecsTrans[i] = 2;
+	}
+	for (int i = 0; i < numMethods; i++) {
+		for (int j = 0; j < PROGRESSIONBOUND; j++){
+			if ( numSubTasks[i] + j > PROGRESSIONBOUND){
+				invalidTransActions[firstMethodIndex + i * PROGRESSIONBOUND + j] = true;
+			}
+			if ( numSubTasks[i] == 0){
+				numAddsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j] = 2;
+				numDelsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j] = 2;
+			}
+			if ( numSubTasks[i] == 1){
+				numAddsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j] = 1;
+				numDelsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j] = 1;
+			}
+			if ( numSubTasks[i] > 1){
+				numAddsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j] = numSubTasks[i] + 1;
+				numDelsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j] = numSubTasks[i] + 1;
+			}
+		}
+	}
+	
+	// invalid Methods
+	for (int i = 0; i < numActionsTrans; i++) {
+		if (invalidTransActions[i]){
+			numInvalidTransActions++;
+		}
+	}
+	
+	//precs, dels, adds
+	precListsTrans = new int*[numActionsTrans];
+	for (int i = 0; i < numActionsTrans; i++) {
+		precListsTrans[i] = new int[numPrecsTrans[i]];
+	}
+	addListsTrans = new int*[numActionsTrans];
+	for (int i = 0; i < numActionsTrans; i++) {
+		addListsTrans[i] = new int[numAddsTrans[i]];
+	}
+	delListsTrans = new int*[numActionsTrans];
+	for (int i = 0; i < numActionsTrans; i++) {
+		delListsTrans[i] = new int[numDelsTrans[i]];
+	}
+	
+	//precs, dels, adds for actions
+	for (int i = 0; i < numActions; i++) {
+		for (int j = 0; j < PROGRESSIONBOUND; j++){
+			for (int k = 0; k < numPrecs[i]; k++){
+				precListsTrans[i * PROGRESSIONBOUND + j][k] = precLists[i][k];
+			}
+			precListsTrans[i * PROGRESSIONBOUND + j][numPrecsTrans[i * PROGRESSIONBOUND + j] - 1] = firstIndexTrans[headIndex] + 1 + j;
+			precListsTrans[i * PROGRESSIONBOUND + j][numPrecsTrans[i * PROGRESSIONBOUND + j] - 2] = firstIndexTrans[firstTaskIndex + j] + 1 + i;
+			for (int k = 0; k < numAdds[i]; k++){
+				addListsTrans[i * PROGRESSIONBOUND + j][k] = addLists[i][k];
+			}
+			addListsTrans[i * PROGRESSIONBOUND + j][numAddsTrans[i * PROGRESSIONBOUND + j] - 1] = firstIndexTrans[headIndex] + j;
+			addListsTrans[i * PROGRESSIONBOUND + j][numAddsTrans[i * PROGRESSIONBOUND + j] - 2] = firstIndexTrans[firstTaskIndex + j];
+			for (int k = 0; k < numDels[i]; k++){
+				delListsTrans[i * PROGRESSIONBOUND + j][k] = delLists[i][k];
+			}
+			delListsTrans[i * PROGRESSIONBOUND + j][numDelsTrans[i * PROGRESSIONBOUND + j] - 1] = firstIndexTrans[headIndex] + 1 + j;
+			delListsTrans[i * PROGRESSIONBOUND + j][numDelsTrans[i* PROGRESSIONBOUND + j] - 2] = firstIndexTrans[firstTaskIndex + j] + 1 + i;
+		}
+	}
+	taskToKill = new int[numMethods];
+	for (int i = 0; i < numTasks; i++){
+		for (int j =0; j < numMethodsForTask[i]; j++){
+			taskToKill[taskToMethods[i][j]] = i;
+		}
+	}
+	subTasksInOrder = new int*[numMethods];
+	for (int i = 0; i < numMethods; i++){
+		subTasksInOrder[i] = new int[numSubTasks[i]];
+		if (numSubTasks[i] == 0){
+			continue;
+		}
+		if (numSubTasks[i] == 1){
+			subTasksInOrder[i][0] = subTasks[i][0];
+			continue;
+		}
+		for (int j = 0; j < numSubTasks[i]; j++){
+			subTasksInOrder[i][j] = subTasks[i][numSubTasks[i] - j - 1];
+		}
+	}
+	//precs, dels, adds for methods
+	for (int i = 0; i < numMethods; i++) {
+		for (int j = 0; j < PROGRESSIONBOUND; j++){
+			if (invalidTransActions[firstMethodIndex + i * PROGRESSIONBOUND + j]){
+				continue;
+			}
+			precListsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j][0] = firstIndexTrans[headIndex] + 1 + j;
+			precListsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j][1] = firstIndexTrans[firstTaskIndex + j] + taskToKill[i] + 1;
+			if (numSubTasks[i] == 0){
+				addListsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j][1] = firstIndexTrans[firstTaskIndex + j];
+				addListsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j][0] = firstIndexTrans[headIndex] + j;
+				delListsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j][0] = firstIndexTrans[headIndex] + 1 + j;
+				delListsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j][1] = firstIndexTrans[firstTaskIndex + j] + taskToKill[i] + 1;
+				continue;
+			}
+			if (numSubTasks[i] == 1){
+				addListsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j][0] = firstIndexTrans[firstTaskIndex + j] + 1 + subTasks[i][0];
+				delListsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j][0] = firstIndexTrans[firstTaskIndex + j] + taskToKill[i] + 1;
+				continue;
+			}
+			for (int k = 0; k < numSubTasks[i]; k++){
+				addListsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j][k] = firstIndexTrans[firstTaskIndex + j + k] + 1 + subTasksInOrder[i][k];
+			}
+			for (int k = 1; k < numSubTasks[i]; k++){
+				delListsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j][k - 1] = firstIndexTrans[firstTaskIndex + j + k];
+			}
+			addListsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j][numAddsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j] - 1] = firstIndexTrans[headIndex] + j + numSubTasks[i];
+			delListsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j][numDelsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j] - 1] = firstIndexTrans[headIndex] + 1 + j;
+			delListsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j][numDelsTrans[firstMethodIndex + i * PROGRESSIONBOUND + j] - 2] = firstIndexTrans[firstTaskIndex + j] + taskToKill[i] + 1;
+		}
+	}
+	// names
+	actionNamesTrans = new string[numActionsTrans];
+	for (int i = 0; i < numActions; i++) {
+		for (int j = 0; j < PROGRESSIONBOUND; j++){
+			actionNamesTrans[i * PROGRESSIONBOUND + j] = taskNames[i].substr(0, taskNames[i].length()-1) + ',' + string("head") + to_string(j) + ',' + string("task") + to_string(i) + ']';
+		}
+	}
+	for (int i = 0; i < numMethods; i++) {
+		for (int j = 0; j < PROGRESSIONBOUND; j++){
+			actionNamesTrans[firstMethodIndex + i * PROGRESSIONBOUND + j] = methodNames[i] + ',' + string("head") + to_string(j) + ',' + string("task") + to_string(i + numActions);
+		}
+	}
+}
+
     void Model::writeToFastDown(string sasName) {
         ofstream sasfile;
         sasfile.open (sasName);
@@ -2920,37 +3191,54 @@ void Model::calcMinimalImpliedX() {
         sasfile << "end_metric" << endl;
         sasfile <<  endl;
 
-	int** convertMutexVars = new int*[this->numStateBits];
-	for (int i = 0; i < this->numStateBits; i++) {
+	int** convertMutexVars = new int*[this->numStateBitsTrans];
+	for (int i = 0; i < this->numStateBitsTrans; i++) {
 		convertMutexVars[i] = new int[2];
 	}
 	
         // variable section
-        sasfile <<  this->numVars << endl;
-        for (int i = 0; i < this->numVars; i++){
-        	int first_index = this->firstIndex[i];
-        	int last_index = this->lastIndex[i];
+        sasfile <<  this->numVarsTrans << endl;
+        for (int i = 0; i < this->numVarsTrans; i++){
+        	int first_index = this->firstIndexTrans[i];
+        	int last_index = this->lastIndexTrans[i];
         	sasfile << "begin_variable" << endl;
-		sasfile << this->varNames[i] << endl;
+		sasfile << this->varNamesTrans[i] << endl;
 		sasfile << -1 << endl;
 		sasfile << last_index - first_index + 1 << endl;
 		for (int j = 0; j < last_index - first_index + 1; j++){
-			string ns = this->factStrs[first_index + j];
+			string ns = this->factStrsTrans[first_index + j];
 			convertMutexVars[first_index + j][0] = i;
 			convertMutexVars[first_index + j][1] = j;
-			ns.replace(ns.find("+"), 1, "");
-			ns.replace(ns.find("["), 1, "(");
-			ns.replace(ns.find("]"), 1, ")");
-			ns.insert(ns.find(",") + 1, " ");
+			while (ns.find("+") < ns.size()){
+				ns.replace(ns.find("+"), 1, "");
+			}
+			while (ns.find("[") < ns.size()){
+				ns.replace(ns.find("["), 1, "(");
+			}
+			while (ns.find("]") < ns.size()){
+				ns.replace(ns.find("]"), 1, ")");
+			}
+			if (ns.find(",") < ns.size()) {
+				ns.insert(ns.find(",") + 1, " ");
+			}
 			sasfile << "Atom " << ns << endl;
 		}
 
         	sasfile << "end_variable" << endl;
         }
-
         sasfile <<  endl;
         // mutex section
-        sasfile <<  this->numMutexes << endl;
+        sasfile <<  this->numMutexes + this->numStrictMutexes << endl;
+        for (int i = 0; i < this->numStrictMutexes; i++){
+        	int size = this->strictMutexesSize[i];
+        	sasfile << "begin_mutex_group" << endl;
+		sasfile << size << endl;
+	        for (int j = 0; j < size; j++){
+			sasfile << convertMutexVars[this->strictMutexes[i][j]][0] << " ";
+			sasfile << convertMutexVars[this->strictMutexes[i][j]][1] << endl;
+		}
+        	sasfile << "end_mutex_group" << endl;
+        }
         for (int i = 0; i < this->numMutexes; i++){
         	int size = this->mutexesSize[i];
         	sasfile << "begin_mutex_group" << endl;
@@ -2967,35 +3255,47 @@ void Model::calcMinimalImpliedX() {
         for (int i = 0; i < this->s0Size; i++) {
         	sasfile << convertMutexVars[this->s0List[i]][1] << endl;
         }
+        for (int i = 0; i < this->s0SizeTrans; i++) {
+        	sasfile << convertMutexVars[this->s0ListTrans[i]][1] << endl;
+        }
         sasfile << "end_state" << endl;
         sasfile <<  endl;
         // goal state
         sasfile << "begin_goal" << endl;
-        int g = this->gSize;
-	sasfile << g << endl;
-        
-        for (int i = 0; i < g; i++) {
-		sasfile << convertMutexVars[this->gList[i]][0] << " ";
-		sasfile << convertMutexVars[this->gList[i]][1] << endl;
-        }
+	sasfile << 1 << endl;
+	sasfile << headIndex << " " << 0 << endl;
         sasfile << "end_goal" << endl;
         sasfile <<  endl;
         
         // operator section
-        int a = this->numActions;
-        sasfile << a << endl;
+        int a = this->numActionsTrans;
+        sasfile << a - this->numInvalidTransActions << endl;
         for (int i = 0; i < a; i++) {
+        	if (invalidTransActions[i]){
+        		continue;
+        	}
 		sasfile << "begin_operator" << endl;
-		string tn = this->taskNames[i];
+		// name
+		string tn = this->actionNamesTrans[i];
+		
 		int j = tn.find("[");
+		while (j < tn.length()) {
+			tn.replace(j, 1, "(");
+			j = tn.find("[");
+		}
+		j = tn.find("]");
+		while (j < tn.length()) {
+			tn.replace(j, 1, ")");
+			j = tn.find("]");
+		}
+		j = tn.find(",");
 		while (j < tn.length()) {
 			tn.replace(j, 1, " ");
 			j = tn.find(",");
 		}
-		j = tn.find("]");
-		tn.replace(j, 1, " ");
 		sasfile << tn << endl;
-		int numP = this->numPrecs[i];
+		// action
+		int numP = this->numPrecsTrans[i];
 		int** precs = new int*[numP];
 		int n = numP;
 		int eff = 0;
@@ -3003,24 +3303,24 @@ void Model::calcMinimalImpliedX() {
 			precs[j] = new int[3];
 		}
 		for (int j = 0; j < numP; j++) {
-			precs[j][0] = convertMutexVars[this->precLists[i][j]][0];
-			precs[j][1] = convertMutexVars[this->precLists[i][j]][1];
+			precs[j][0] = convertMutexVars[this->precListsTrans[i][j]][0];
+			precs[j][1] = convertMutexVars[this->precListsTrans[i][j]][1];
 			precs[j][2] = 0;
 		}
-		int numD = this->numDels[i];
+		int numD = this->numDelsTrans[i];
 		for (int j = 0; j < numP; j++) {
 			for (int k = 0; k < numD; k++) {
-				if (precs[j][0] == convertMutexVars[delLists[i][k]][0]){
+				if (precs[j][0] == convertMutexVars[delListsTrans[i][k]][0]){
 					precs[j][2] += 1;
 					n--;
 					eff++;
 				}
 			}
 		}
-		int numA = this->numAdds[i];
+		int numA = this->numAddsTrans[i];
 		for (int j = 0; j < numP; j++) {
 			for (int k = 0; k < numA; k++) {
-				if (precs[j][0] == convertMutexVars[addLists[i][k]][0]){
+				if (precs[j][0] == convertMutexVars[addListsTrans[i][k]][0]){
 					precs[j][2] += 2;
 					if (precs[j][2] == 2){
 						n--;
@@ -3029,7 +3329,6 @@ void Model::calcMinimalImpliedX() {
 				}
 			}
 		}
-		
 		sasfile << n << endl;
 		for (int j = 0; j < numP; j++) {
 			if (precs[j][2] == 0){
@@ -3037,12 +3336,15 @@ void Model::calcMinimalImpliedX() {
 				sasfile << precs[j][1] << endl;
 			}
 		}
-
-		sasfile << eff << endl;
+		int noPrecAdds = numA - numP;
+		if (noPrecAdds < 0){
+			noPrecAdds = 0;
+		}
+		sasfile << eff + noPrecAdds << endl;
 		for (int j = 0; j < numA; j++) {
 			int cost = 0;
-			int var0 = convertMutexVars[addLists[i][j]][0];
-			int var1 = convertMutexVars[addLists[i][j]][1];
+			int var0 = convertMutexVars[addListsTrans[i][j]][0];
+			int var1 = convertMutexVars[addListsTrans[i][j]][1];
 			int preco = -1;
 			for (int k = 0; k < numP; k++){
 				if (precs[k][0] == var0){
@@ -3051,10 +3353,11 @@ void Model::calcMinimalImpliedX() {
 			}
 			sasfile << cost << " " << var0 << " " << preco << " " << var1 << endl;
 		}
+		
 		for (int j = 0; j < numD; j++){
 			bool p = false;
 			int cost = 0;
-			int var0 = convertMutexVars[addLists[i][j]][0];
+			int var0 = convertMutexVars[addListsTrans[i][j]][0];
 			int var1 = -1;
 			int preco = -1;
 			for (int k = 0; k < numP; k++){
@@ -3069,7 +3372,8 @@ void Model::calcMinimalImpliedX() {
 				sasfile << cost << " " << var0 << " " << preco << " " << var1 << endl;
 			}
 		}
-		sasfile << this->actionCosts[i] << endl;
+		
+		sasfile << this->actionCostsTrans[i] << endl;
 		sasfile << "end_operator" << endl;
 	}
         // axiom section
