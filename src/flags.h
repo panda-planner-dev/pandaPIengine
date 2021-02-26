@@ -10,7 +10,7 @@
 
 
 // florian
-#define PROGRESSIONBOUND 9
+#define PROGRESSIONBOUND 4
 
 // constants
 #define UNREACHABLE INT_MAX

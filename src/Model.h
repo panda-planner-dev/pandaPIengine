@@ -75,24 +75,60 @@ public:
 	int numStateBits;
 	string* factStrs;
 
+	// sasPlus related
+	bool* sasPlusBits;
+	int* sasPlusOffset;
+	int* bitsToSP;
+	bool* bitAlone;
+	
+	int numStateBitsSP;
+
+	string* factStrsSP;
+	int* firstIndexSP;
+	int* lastIndexSP;
+
+	int** strictMutexesSP;
+	
+	int** mutexesSP;
+
+	int** precListsSP;
+	int** addListsSP;
+
+	int* numPrecsSP;
+	int* numAddsSP;
+
+	int* s0ListSP;
+	int* gListSP;
+
 	// variable definitions
 	int numVars;
 	int* firstIndex;
 	int* lastIndex;
 	string* varNames;
 
-	// state-bits with strips translation
-	int numStateBitsTrans;
-	string* factStrsTrans;
 
 	// variable definitions for strips translation
 	int numVarsTrans;
 	int headIndex;
 	int firstTaskIndex;
 	int firstVarIndex;
+	int firstConstraintIndex;
 	int* firstIndexTrans;
 	int* lastIndexTrans;
 	string* varNamesTrans;
+	
+	// for making sure every method has a last task
+	int numEmptyTasks;
+	int firstEmptyTaskIndex;
+	string* emptyTaskNames;
+	int* numEmptyTaskPrecs;
+	int* numEmptyTaskAdds;
+	int** emptyTaskPrecs;
+	int** emptyTaskAdds;
+
+	// state-bits with strips translation
+	int numStateBitsTrans;
+	string* factStrsTrans;
 	
 	// additional strict mutexes
 	int numStrictMutexes;
@@ -119,7 +155,9 @@ public:
 
 	// action definitions translation
 	int numActionsTrans;
+	int numMethodsTrans;
 	int firstMethodIndex;
+	int* methodIndexes;
 	bool* invalidTransActions;
 	int numInvalidTransActions;
 
@@ -132,7 +170,12 @@ public:
 	int* numPrecsTrans;
 	int* numAddsTrans;
 	int* numDelsTrans;
-
+	
+	int* numConditionalEffectsTrans;
+	int** numEffectConditionsTrans;
+	int*** effectConditionsTrans;
+	int** effectsTrans;
+	
 	// dummy for CE
 	int** conditionalAddLists;
 	int** conditionalDelLists;
@@ -200,6 +243,7 @@ public:
 	int** taskToMethods;
 	int* numMethodsForTask;
 
+	
 	//For each method, two sorted arrays of ints are stored.
 	// - the first one contains the task ids in ascending order
 	// - the second one how often a task is contained in the subtasks
@@ -275,10 +319,19 @@ public:
 	int** reachable = nullptr;
 
 	void writeToPDDL(string dName, string pName);
-	void writeToFastDown(string sasName);
+	
+	void writeToFastDown(string sasName, int problemType, int pgb);
 	
 	// translation to strips
-	void translateToStrips();
+	void sasPlus();
+	void tohtnToStrips(int pgb);
+	void htnToCond(int pgb);
+	void htnToStrips(int pgb);
+	int bin(int n, int k);
+	int power(int n, int p);
+	int minProgressionBound();
+	int maxProgressionBound();
+	void combination(int* array, int n, int k, int i);
 };
 }
 #endif /* MODEL_H_ */
