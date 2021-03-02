@@ -186,7 +186,8 @@ int main(int argc, char *argv[]) {
     */
     cerr << "Printing HTN model to file \"" << sasfile << "\" ... " << endl;
     htn->writeToFastDown(sasfile, problemType, pgb);
-    string command = solver + ' ' + sasfile + string(" --search 'astar(ff())'");
+    string command = solver + ' ' + sasfile + string(" --evaluator 'hcea=cea()' --search 'lazy_greedy([hcea], preferred=[hcea])'");
+    cerr << command << endl;
     error_code = system(command.c_str());
     if (error_code == 0){
       break;

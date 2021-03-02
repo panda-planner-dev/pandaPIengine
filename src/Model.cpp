@@ -4171,7 +4171,10 @@ void Model::calcMinimalImpliedX() {
       }
     }
     sasfile << "begin_goal" << endl;
-    sasfile << ng << endl;
+    sasfile << ng + gSize << endl;
+    for (int i = 0; i < gSize; i++){
+      sasfile << convertMutexVars[gList[i]][0] << " " << convertMutexVars[gList[i]][1] << endl;
+    }
     for (int i = 0; i < ng; i++){
       sasfile << gs[i] << " " << 0 << endl;
     }
