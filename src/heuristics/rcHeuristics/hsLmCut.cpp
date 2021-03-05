@@ -18,7 +18,7 @@ hsLmCut::hsLmCut(Model* sas) {
 	for (int i = 0; i < m->numStateBits; i++) {
 		hValInit[i] = UNREACHABLE;
 	}
-	heap = new IntPairHeap(m->numStateBits * 2);
+	heap = new IntPairHeap<int>(m->numStateBits * 2);
 	unsatPrecs = new int[m->numActions];
 	hVal = new int[m->numStateBits];
 

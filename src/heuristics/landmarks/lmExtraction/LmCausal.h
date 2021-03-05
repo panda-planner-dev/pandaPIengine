@@ -79,8 +79,8 @@ namespace progression {
 
         bool isMNode(int i);
 
-        IntPairHeap *heap; // used for the main loop
-        IntPairHeap *setOperationHeap; // used to sort nodes
+        IntPairHeap<int> *heap; // used for the main loop
+        IntPairHeap<int> *setOperationHeap; // used to sort nodes
         noDelIntSet *unionSet; // data structure used to calculate the set union
 
         // helper structures used in the set operations

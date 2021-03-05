@@ -96,8 +96,8 @@ namespace progression {
         delete[] N;
         delete[] Ninv;
 
-        this->heap = new IntPairHeap(numNodes / 4);
-        this->setOperationHeap = new IntPairHeap(25);
+        this->heap = new IntPairHeap<int>(numNodes / 4);
+        this->setOperationHeap = new IntPairHeap<int>(25);
         this->unionSet = new noDelIntSet();
         this->unionSet->init(numNodes);
 

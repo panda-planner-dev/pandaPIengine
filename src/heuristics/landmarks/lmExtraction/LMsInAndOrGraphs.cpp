@@ -90,7 +90,7 @@ LMsInAndOrGraphs::LMsInAndOrGraphs(Model* htn) {
 
 	fullSet = new bool[numNodes];
 	LMs = new set<int>[numNodes];
-	this->heap = new IntPairHeap(numNodes / 4);
+	this->heap = new IntPairHeap<int>(numNodes / 4);
 
 	temp = new set<int>;
 	temp2 = new set<int>;

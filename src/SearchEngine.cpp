@@ -14,10 +14,7 @@
 #include <unordered_set>
 #include <landmarks/lmExtraction/LmCausal.h>
 #include <landmarks/lmExtraction/LMsInAndOrGraphs.h>
-
-#if SEARCHTYPE == HEURISTICSEARCH
 #include "./search/PriorityQueueSearch.h"
-#endif
 
 #include "Model.h"
 #ifdef RCHEURISTIC
@@ -73,14 +70,68 @@ int main(int argc, char *argv[]) {
 	//htn->writeToPDDL(dOut,pOut);
 	//assert(htn->isHtnModel);
 	searchNode* tnI = htn->prepareTNi(htn);
-
 #ifdef MAINTAINREACHABILITY
-	htn->calcSCCs();
-	htn->calcSCCGraph();
+    htn->calcSCCs();
+    htn->calcSCCGraph();
 
-	// add reachability information to initial task network
-	htn->updateReachability(tnI);
+    // add reachability information to initial task network
+    htn->updateReachability(tnI);
 #endif
+/*
+	cout << "YouPlan!" << endl;
+	while(true) {
+	    int j = 0;
+        for(int i = 0; i < tnI->numAbstract; i++){
+            cout << j++ << " " << htn->taskNames[tnI->unconstraintAbstract[i]->task] << endl;
+        }
+        for(int i = 0; i < tnI->numPrimitive; i++){
+            cout << j++ << " " << htn->taskNames[tnI->unconstraintPrimitive[i]->task] << endl;
+        }
+        int step;
+	    cout << "What to do?" << endl;
+	    if (j == 1)
+	        step = 0;
+	    else
+            cin >> step;
+        if(step == -2) break;
+        if(step == -1) exit(0);
+        if(step < tnI->numAbstract) {
+            int t = tnI->unconstraintAbstract[step]->task;
+            int i = 0;
+            for(; i < htn->numMethodsForTask[t]; i++) {
+                int m = htn->taskToMethods[t][i];
+                cout << i << " " << htn->methodNames[m] << endl;
+            }
+            cout << "Which method to use?" << endl;
+            int step2;
+            if (i == 1)
+                step2 = 0;
+            else
+                cin >> step2;
+            int m = htn->taskToMethods[t][step2];
+            tnI = htn->decompose(tnI, step, m);
+        } else {
+            step -= tnI->numAbstract;
+            int a = tnI->unconstraintPrimitive[step]->task;
+            cout << "prec:" << endl;
+            for(int i = 0; i < htn->numPrecs[a]; i++) {
+                int f = htn->precLists[a][i];
+                cout << "- " << f << " " << htn->factStrs[f] << endl;
+            }
+            cout << "add:" << endl;
+            for(int i = 0; i < htn->numAdds[a]; i++) {
+                int f = htn->addLists[a][i];
+                cout << "- " << f << " " << htn->factStrs[f] << endl;
+            }
+            cout << "del:" << endl;
+            for(int i = 0; i < htn->numDels[a]; i++) {
+                int f = htn->delLists[a][i];
+                cout << "- " << f << " " << htn->factStrs[f] << endl;
+            }
+            tnI = htn->apply(tnI, step);
+        }
+	}
+*/
 /*
     long initO, initN;
     long genO, genN;
@@ -189,16 +240,16 @@ int main(int argc, char *argv[]) {
 /*
  * Create Search
  */
-#if SEARCHTYPE == HEURISTICSEARCH
+//#if SEARCHTYPE == HEURISTICSEARCH
 	PriorityQueueSearch search;
-#endif
+//#endif
 
 /*
  * Create Heuristic
  */
 #if HEURISTIC == ZERO
-	cout << "Heuristic: 0 for every node" << endl;
-	search.hF = new hhZero(htn);
+	//cout << "Heuristic: 0 for every node" << endl;
+	//search.hF = new hhZero(htn);
 #endif
 #ifdef RCHEURISTIC
     cout << "Heuristic: RC encoding" << endl;
@@ -243,7 +294,7 @@ int main(int argc, char *argv[]) {
 #endif
 #ifdef DOFREE
 #if HEURISTIC == DOFREEILP
-    search.hF = new hhDOfree(htn, tnI, IloNumVar::Int, IloNumVar::Bool, ILPTDG, ILPPG, ILPANDORLMS, ILPLMCLMS, ILPNC, cAddExternalLmsNo);
+    search.hF = new hhDOfree(htn, tnI, IloNumVar::Int, IloNumVar::Bool, ILPSETTING, ILPTDG, ILPPG, ILPANDORLMS, ILPLMCLMS, ILPNC, cAddExternalLmsNo);
 #elif HEURISTIC == DOFREELP
     search.hF = new hhDOfree(htn, tnI, IloNumVar::Float, IloNumVar::Float, ILPTDG, ILPPG, ILPANDORLMS, ILPLMCLMS, ILPNC, cAddExternalLmsNo);
 #endif

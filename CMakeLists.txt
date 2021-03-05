@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.13)
 set(CMAKE_CXX_STANDARD 11)
-##set(CPLEX_SOURCE_DIR /home/dh/programme/ibm-cplex)
+##set(CPLEX_SOURCE_DIR /home/dh/Programme/ibm-cplex)
 ##set(CPLEX_SOURCE_DIR /home/gregor/Workspace/cplex)
+set(CPLEX_SOURCE_DIR /home/dh/Programme/CPLEX_Studio1210)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 ### if no build type is set, it is "Release"

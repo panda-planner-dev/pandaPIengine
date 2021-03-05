@@ -379,7 +379,7 @@ void PriorityQueueSearch::search(Model* htn, searchNode* tnI, int timeLimit) {
 		delete n;
 	}
 	delete tnSol;
-	delete hF;
+	//delete hF;
 #endif
 }
 

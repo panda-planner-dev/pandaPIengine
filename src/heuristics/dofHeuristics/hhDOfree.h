@@ -29,6 +29,9 @@
 
 namespace progression {
 
+    enum csSetting {
+        cSatisficing, cOptimal
+    };
     enum csTdg {
         cTdgFull, cTdgAllowUC, cTdgNone
     };
@@ -58,6 +61,7 @@ namespace progression {
         // heuristic configuration
         const IloNumVar::Type cIntType;
         const IloNumVar::Type cBoolType;
+        const csSetting cSetting;
         const csTdg cTdg;
         const csPg cPg;
         const csAndOrLms cAndOrLms;
@@ -103,7 +107,7 @@ namespace progression {
         int **Ivars = nullptr;
 
     public:
-        hhDOfree(Model *htn, searchNode *n, IloNumVar::Type IntType, IloNumVar::Type BoolType, csTdg tdgConstrs, csPg pgConstrs, csAndOrLms aoLMConstrs, csLmcLms lmcLMConstrs, csNetChange ncConstrs, csAddExternalLms addLMConstrs);
+        hhDOfree(Model *htn, searchNode *n, IloNumVar::Type IntType, IloNumVar::Type BoolType, csSetting IlpSetting, csTdg tdgConstrs, csPg pgConstrs, csAndOrLms aoLMConstrs, csLmcLms lmcLMConstrs, csNetChange ncConstrs, csAddExternalLms addLMConstrs);
 
         virtual ~hhDOfree();
 

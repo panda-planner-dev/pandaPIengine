@@ -52,7 +52,7 @@ private:
 	const bool storeCuts = true;
 
 	// hMax stuff
-	IntPairHeap* heap;
+	IntPairHeap<int>* heap;
 	int* hValInit;
 
 	int* unsatPrecs;

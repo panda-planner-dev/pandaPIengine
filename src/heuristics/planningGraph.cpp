@@ -18,7 +18,7 @@ planningGraph::planningGraph(Model* sas) {
 	for (int i = 0; i < m->numStateBits; i++) {
 		hValPropInit[i] = UNREACHABLE;
 	}
-	queue = new IntPairHeap(m->numStateBits * 2);
+	queue = new IntPairHeap<int>(m->numStateBits * 2);
 	numSatPrecs = new int[m->numActions];
 	hValOp = new int[m->numActions];
 	hValProp = new int[m->numStateBits];

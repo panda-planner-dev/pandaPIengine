@@ -8,6 +8,8 @@
 #ifndef FLAGS_H_
 #define FLAGS_H_
 
+typedef int tHVal;
+#define tHValUNR INT_MAX
 
 // constants
 #define UNREACHABLE INT_MAX
@@ -52,13 +54,13 @@
 // *****************
 
 // time limit in seconds
-#define TIMELIMIT 600
+#define TIMELIMIT 1800
 
 //#define SEARCHALG PROGRESSIONORG
 //#define SEARCHALG ICAPS18
 #define SEARCHALG JAIR19 // choose from [algorithm]
 
-#define EARLYGOALTEST
+//#define EARLYGOALTEST
 
 // select a state representation
 #define STATEREP SRCOPY // choose from [state-representation]
@@ -72,7 +74,7 @@
 
 // options for heuristic search
 #define ASTAR
-#define GASTARWEIGHT 2
+#define GASTARWEIGHT 1
 
 #define PRGEFFECTLESS // always progress effectless actions
 
@@ -82,8 +84,11 @@
 //#define RCHEURISTIC2
 
 // configure DOF
-//#define HEURISTIC DOFREEILP
-#define HEURISTIC DOFREELP
+#define HEURISTIC DOFREEILP
+//#define HEURISTIC DOFREELP
+
+//#define ILPSETTING cSatisficing
+#define ILPSETTING cOptimal
 
 // use TDG constraints
 // #define ILPTDG cTdgFull
@@ -92,7 +97,7 @@
 // use planning graph constraints
 #define ILPPG cPgFull
 // #define ILPPG cPgTimeRelaxed
-// #define ILPPG cPgNone
+//#define ILPPG cPgNone
 
 // use AND/OR landmark constraints
 //#define ILPANDORLMS cAndOrLmsNone
@@ -111,10 +116,11 @@
 
 //#define CORRECTTASKCOUNT
 
+/*
 #ifdef CORRECTTASKCOUNT
 #define CALCMINIMALIMPLIEDCOSTS
 #endif
-
+*/
 //#define HEURISTIC RCFF
 //#define RCHEURISTIC
 
@@ -123,13 +129,11 @@
 //#define TREATSCCS // prevent disconnected components
 #define INITSCCS
 
-//#define DOFTASKREACHABILITY // store the hierarchical task reachability in the ILP to make  it easier to solve
+#define DOFTASKREACHABILITY // store the hierarchical task reachability in the ILP to make  it easier to solve
 #define DOFREE
 #define CHECKAFTER 50 // nodes after which the timelimit is checked
 #define MAINTAINREACHABILITY
 #define ALLTASKS // it is needed for all tasks
-
-// bis
 
 //#define CHECKAFTER 5000 // nodes after which the timelimit is checked
 //#define MAINTAINREACHABILITY
@@ -141,9 +145,5 @@
 #ifndef CHECKAFTER
 #define CHECKAFTER 5000 // nodes after which the timelimit is checked
 #endif
-
-
-//#define TRACESOLUTION
-
 
 #endif /* FLAGS_H_ */

@@ -9,20 +9,53 @@
 #include <cassert>
 #include <cstring>
 
+#ifdef false
 namespace progression {
 
     hsAddFF::hsAddFF(Model *sas) {
+        m = sas;
+        set<int> s;
+        for (int i = 0; i < m->numActions; i++) {
+            s.clear();
+            for (int j = 0; j < m->numPrecs[i]; j++) {
+                s.insert(m->precLists[i][j]);
+                assert(m->precLists[i][j] < m->numStateBits);
+            }
+            assert(s.size() == m->numPrecs[i]);
+
+            s.clear();
+            for (int j = 0; j < m->numAdds[i]; j++) {
+                s.insert(m->addLists[i][j]);
+                assert(m->addLists[i][j] < m->numStateBits);
+            }
+            assert(s.size() == m->numAdds[i]);
+        }
+
+        s.clear();
+        for (int j = 0; j < m->s0Size; j++) {
+            s.insert(m->s0List[j]);
+            assert(m->s0List[j] < m->numStateBits);
+        }
+        assert(s.size() == m->s0Size);
+
+        s.clear();
+        for (int j = 0; j < m->gSize; j++) {
+            s.insert(m->gList[j]);
+            assert(m->gList[j] < m->numStateBits);
+        }
+        assert(s.size() == m->gSize);
+
+
         heuristic = sasFF;
         assert(!sas->isHtnModel);
-        m = sas;
-        hValPropInit = new hType[m->numStateBits];
+        hValPropInit = new tHVal[m->numStateBits];
         for (int i = 0; i < m->numStateBits; i++) {
-            hValPropInit[i] = hUnreachable;
+            hValPropInit[i] = tHValUNR;
         }
-        queue = new IntPairHeap<hType>(m->numStateBits * 2);
+        queue = new IntPairHeap(m->numStateBits * 2);
         numSatPrecs = new int[m->numActions];
-        hValOp = new hType[m->numActions];
-        hValProp = new hType[m->numStateBits];
+        hValOp = new tHVal[m->numActions];
+        hValProp = new tHVal[m->numStateBits];
         reachedBy = new int[m->numStateBits];
         markedFs.init(m->numStateBits);
         markedOps.init(m->numActions);
@@ -34,30 +67,6 @@ namespace progression {
                 break;
             }
         }
-        assert(assertPrecAddDelSets());
-    }
-
-    bool hsAddFF::assertPrecAddDelSets() {
-        for (int i = 0; i < m->numActions; i++) {
-            set<int> testset;
-            for (int j = 0; j < m->numPrecs[i]; j++) {
-                testset.insert(m->precLists[i][j]);
-            }
-            assert(m->numPrecs[i] == testset.size());
-            testset.clear();
-
-            for (int j = 0; j < m->numAdds[i]; j++) {
-                testset.insert(m->addLists[i][j]);
-            }
-            assert(m->numAdds[i] == testset.size());
-            testset.clear();
-
-            for (int j = 0; j < m->numDels[i]; j++) {
-                testset.insert(m->delLists[i][j]);
-            }
-            assert(m->numDels[i] == testset.size());
-        }
-        return true;
     }
 
     hsAddFF::~hsAddFF() {
@@ -69,13 +78,16 @@ namespace progression {
         delete queue;
     }
 
-    hType hsAddFF::getFF(noDelIntSet &g) {
+    int hsAddFF::getFF(noDelIntSet &g, int hVal) {
         // FF extraction
         markedFs.clear();
         markedOps.clear();
         needToMark.clear();
         for (int f = g.getFirst(); f >= 0; f = g.getNext()) {
-            assert(hValProp[f] != hUnreachable);
+            if (hValProp[f] == tHValUNR) {
+                cout << "f=" << f << " " << m->factStrs[f] << endl;
+            }
+            assert(hValProp[f] != tHValUNR);
             needToMark.push(f);
             while (!needToMark.isEmpty()) {
                 int someF = needToMark.pop();
@@ -96,8 +108,9 @@ namespace progression {
         if (allActionsCostOne) {
             return markedOps.getSize();
         } else {
-            hType hVal = 0;
+            hVal = 0;
             for (int op = markedOps.getFirst(); op >= 0; op = markedOps.getNext()) {
+                //cout << m->taskNames[op] << endl;
                 hVal += m->actionCosts[op];
             }
             return hVal;
@@ -107,13 +120,13 @@ namespace progression {
     int hsAddFF::getHeuristicValue(bucketSet &s, noDelIntSet &g) {
         if (g.getSize() == 0)
             return 0;
-        hType hVal = hUnreachable;
+        tHVal hVal = tHValUNR;
 
         memcpy(numSatPrecs, m->numPrecs, sizeof(int) * m->numActions);
+        memcpy(hValProp, hValPropInit, sizeof(tHVal) * m->numStateBits);
         for (int i = 0; i < m->numActions; i++) {
             hValOp[i] = m->actionCosts[i];
         }
-        memcpy(hValProp, hValPropInit, sizeof(hType) * m->numStateBits);
 
         int numGoals = g.getSize();
 
@@ -134,49 +147,56 @@ namespace progression {
             }
         }
         while (!queue->isEmpty()) {
-            hType pVal = queue->topKey();
+            tHVal pVal = queue->topKey();
+            tHVal prop = queue->topVal();
             assert(pVal >= 0);
-            int prop = queue->topVal();
             queue->pop();
             if (hValProp[prop] < pVal)
                 continue;
+            if (prop == 1391)
+                cout << "ahah " << hValProp[prop] << endl;
+
             if (g.get(prop)) {
+                cout << "g:" << prop << endl;
                 if (--numGoals == 0) {
+                    bool some = false;
+                    for (int f = g.getFirst(); f >= 0; f = g.getNext()) {
+                        if (hValProp[f] == tHValUNR) {
+                            some = true;
+                        }
+                    }
+                    if (some) {
+                        cout << "here!" << endl;
+                        cout << g.getSize() << endl;
+                        set<int> s;
+                        for (int f = g.getFirst(); f >= 0; f = g.getNext()) {
+                            assert(f < m->numStateBits);
+                            cout << " " << f;
+                            if (hValProp[f] == tHValUNR) {
+                                cout << "!";
+                            }
+                            s.insert(f);
+                        }
+                        assert(s.size() == g.getSize());
+                        cout << endl;
+                    }
+
                     if (heuristic == sasAdd) {
                         hVal = 0;
                         for (int f = g.getFirst(); f >= 0; f = g.getNext()) {
-                            assert(hValProp[f] != hUnreachable);
+                            assert(hValProp[f] != tHValUNR);
                             hVal += hValProp[f];
                         }
                         break;
                     } else { // FF extraction
-                        hVal = getFF(g);
+                        hVal = getFF(g, hVal);
                         break;
                     }
                 }
             }
             for (int iOp = 0; iOp < m->precToActionSize[prop]; iOp++) {
                 int op = m->precToAction[prop][iOp];
-                hType newVal;
-                if (this->heuristic == sasFF) {
-                    newVal = max(hValOp[op], m->actionCosts[op] + pVal);
-                }
-                else {
-                    newVal = hValOp[op] + pVal;
-                }
-
-                if ((newVal < hValOp[op]) || (newVal < pVal)) {
-                    if (!this->reportedOverflow) {
-                        cout << "WARNING: Integer overflow in hAdd/hFF calculation. Value has been cut." << endl;
-                        cout << "         You can choose a different data type for the Add/FF calculation (look for \"hType\" in heuristic class)" << endl;
-                        cout << "         This message will only be reported once!" << endl;
-                        this->reportedOverflow = true;
-                    }
-                    return INT_MAX - 2; // here, the external data type for heuristic values (i.e. int) must be used
-                }
-                hValOp[op] = newVal;
-
-                assert(hValOp[op] >= 0);
+                hValOp[op] += pVal;
                 if (--numSatPrecs[op] == 0) {
                     for (int iF = 0; iF < m->numAdds[op]; iF++) {
                         int f = m->addLists[op][iF];
@@ -184,21 +204,26 @@ namespace progression {
                             hValProp[f] = hValOp[op];
                             reachedBy[f] = op; // only used by FF
                             queue->add(hValProp[f], f);
+                            if (f == 1391) {
+                                cout << "ahah1 " << hValProp[f] << endl;
+                                cout << op << " " << m->taskNames[op] << endl;
+                                for(int i = 0; i < m->numPrecs[op]; i++) {
+                                    cout<<"- " << m->factStrs[m->precLists[op][i]] << endl;
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-        if (hVal == hUnreachable) {
+        cout << "----------------" << endl;
+        if (hVal == tHValUNR) {
             return UNREACHABLE;
         } else if (hVal >= INT_MAX) {
-            if (!this->reportedOverflow) {
-                cout << "WARNING: Integer overflow in hAdd/hFF calculation. Value has been cut." << endl;
-                cout << "         You can choose a different data type for the Add/FF calculation (look for \"hType\" in heuristic class)" << endl;
-                cout << "         This message will only be reported once!" << endl;
-                this->reportedOverflow = true;
+            if (this->firstOverflow) {
+                cout << "- WARNING: There has been an overflow of the heuristic value." << endl;
             }
-            return INT_MAX - 2;
+            return 10000000;
         } else {
             return (int) hVal;
         }
@@ -206,3 +231,4 @@ namespace progression {
 
 }
 /* namespace progression */
+#endif

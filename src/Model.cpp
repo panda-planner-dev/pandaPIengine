@@ -2357,6 +2357,7 @@ void Model::calcSCCs() {
 	numCyclicSccs = 0;
 	for (int i = 0; i < numTasks; i++) {
 		int j = taskToSCC[i];
+        assert(j >= 0);
 		sccSize[j]++;
 		if (sccSize[j] == 2)
 			numCyclicSccs++;
@@ -2373,6 +2374,7 @@ void Model::calcSCCs() {
 	}
 	for (int i = 0; i < numTasks; i++) {
 		int scc = taskToSCC[i];
+		assert(scc >= 0);
 		sccToTasks[scc][currentI[scc]] = i;
 		currentI[scc]++;
 	}

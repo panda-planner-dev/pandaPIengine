@@ -16,12 +16,6 @@
 #include "../../intDataStructures/IntStack.h"
 #include "../../Model.h"
 
-// inner Types
-//typedef long long hType;
-//#define hUnreachable  LONG_LONG_MAX
-typedef int hType;
-#define hUnreachable  INT_MAX
-
 using namespace std;
 
 namespace progression {
@@ -30,26 +24,37 @@ namespace progression {
         sasAdd, sasFF
     };
 
+    class ComparePair {
+    public:
+        bool operator()(pair<int, int> *n1, pair<int, int> *n2);
+    };
+
     class hsAddFF {
     public:
         hsAddFF(Model *sas);
 
         virtual ~hsAddFF();
 
-        int getHeuristicValue(bucketSet &s, noDelIntSet &g);
-        bool reportedOverflow = false;
+#if (STATEREP == SRCALC1) || (STATEREP == SRCOPY)
 
+        int getHeuristicValue(bucketSet &s, noDelIntSet &g);
+
+#elif (STATEREP == SRCALC2)
+        int getHeuristicValue(noDelIntSet& s, noDelIntSet& g);
+#elif(STATEREP == SRLIST)
+        int getHeuristicValue(noDelIntSet& s, noDelIntSet& g);
+#endif
         Model *m;
         myHeu heuristic = sasFF;
         int calls = 0;
     private:
         // todo: when parallelized, this must be per core
-        IntPairHeap<hType> *queue;
-        hType *hValPropInit;
+        IntPairHeap *queue;
+        tHVal *hValPropInit;
 
         int *numSatPrecs;
-        hType *hValOp;
-        hType *hValProp;
+        tHVal *hValOp;
+        tHVal *hValProp;
         int *reachedBy;
 
         noDelIntSet markedFs;
@@ -58,9 +63,9 @@ namespace progression {
 
         bool allActionsCostOne = false;
 
-        hType getFF(noDelIntSet &g);
+        int getFF(noDelIntSet &g, int hVal);
 
-        bool assertPrecAddDelSets();
+        bool firstOverflow = true;
     };
 
 } /* namespace progression */

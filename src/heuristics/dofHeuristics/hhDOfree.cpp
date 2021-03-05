@@ -8,11 +8,13 @@
 #include "hhDOfree.h"
 
 #ifdef DOFREE
-hhDOfree::hhDOfree(Model *htn, searchNode *n, IloNumVar::Type IntType, IloNumVar::Type BoolType, csTdg tdgConstrs,
-                   csPg pgConstrs, csAndOrLms aoLMConstrs, csLmcLms lmcLMConstrs, csNetChange ncConstrs,
-                   csAddExternalLms addLMConstrs) :
+
+hhDOfree::hhDOfree(Model *htn, searchNode *n, IloNumVar::Type IntType, IloNumVar::Type BoolType, csSetting IlpSetting,
+                   csTdg tdgConstrs, csPg pgConstrs, csAndOrLms aoLMConstrs, csLmcLms lmcLMConstrs,
+                   csNetChange ncConstrs, csAddExternalLms addLMConstrs) :
         cIntType(IntType),
         cBoolType(BoolType),
+        cSetting(IlpSetting),
         cTdg(tdgConstrs),
         cPg(pgConstrs),
         cAndOrLms(aoLMConstrs),
@@ -269,7 +271,7 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, IloNumVar::Type IntType, IloNumVar
                         break;
                     }
                 }
-                if(prec == eff)
+                if (prec == eff)
                     continue;
                 if (prec >= 0) {
                     tAP[eff].insert(a);
@@ -517,17 +519,21 @@ int hhDOfree::recreateModel(searchNode *n) {
     // create main optimization function
     IloNumExpr mainExp(lenv);
 
+    int costs = 1; // unit costs
     for (int i = pg->reachableTasksSet.getFirst();
          (i >= 0) && (i < htn->numActions); i = pg->reachableTasksSet.getNext()) {
-        //int costs = htn->actionCosts[i];
-        int costs = 1;
+        if (this->cSetting == cOptimal) { // if satisficing: use unit-costs, aka modification distance, else use action costs
+            costs = htn->actionCosts[i];
+        }
         mainExp = mainExp + (costs * v[iUA[i]]);
     }
 
-    for (int i = pg->reachableMethodsSet.getFirst(); i >= 0;
-         i = pg->reachableMethodsSet.getNext()) {
-        int costs = 1;
-        mainExp = mainExp + (costs * v[iM[i]]);
+    if (this->cSetting == cSatisficing) { // add other modifications, i.e., methods
+        costs = 1;
+        for (int i = pg->reachableMethodsSet.getFirst(); i >= 0;
+            i = pg->reachableMethodsSet.getNext()) {
+            mainExp = mainExp + (costs * v[iM[i]]);
+        }
     }
 
     model.add(IloMinimize(lenv, mainExp));
@@ -606,8 +612,7 @@ int hhDOfree::recreateModel(searchNode *n) {
     }
 
     // HTN stuff
-    std::vector<IloExpr> tup(htn->numTasks,
-                             IloExpr(lenv)); // every task has been produced by some method or been in tnI
+    std::vector<IloExpr> tup(htn->numTasks, IloExpr(lenv)); // every task has been produced by some method or been in tnI
 
     for (int m = pg->reachableMethodsSet.getFirst(); m >= 0;
          m = pg->reachableMethodsSet.getNext()) {
@@ -754,8 +759,7 @@ int hhDOfree::recreateModel(searchNode *n) {
                 int task = htn->sccToTasks[scc][iTask];
                 if (!pg->taskReachable(task))
                     continue;
-                model.add(
-                        v[iUA[task]] <= v[RlayerCurrent[iTask]] * 100); // todo: what is a sufficiently high number?
+                model.add(v[iUA[task]] <= v[RlayerCurrent[iTask]] * 100); // todo: what is a sufficiently high number?
             }
         }
     } // end of prevent disconnected cycles
@@ -798,7 +802,7 @@ int hhDOfree::recreateModel(searchNode *n) {
         }
     }
 
-    if((this->cAndOrLms == cAndOrLmsOnlyTnI) || (this->cAndOrLms == cAndOrLmsFull)) {
+    if ((this->cAndOrLms == cAndOrLmsOnlyTnI) || (this->cAndOrLms == cAndOrLmsFull)) {
         causalLMs->calcLMs(n, pg);
         landmark **andOrLMs = causalLMs->getLMs();
         for (int i = 0; i < causalLMs->getNumLMs(); i++) {
@@ -811,7 +815,7 @@ int hhDOfree::recreateModel(searchNode *n) {
                 }
             } else if (lm->type == METHOD) {
                 int mlm = lm->lm[0];
-                if((lm->connection == atom) &&(pg->methodReachable(mlm))) {
+                if ((lm->connection == atom) && (pg->methodReachable(mlm))) {
                     model.add(v[iM[mlm]] >= 1);
                 }
             } else {
@@ -1015,4 +1019,5 @@ int hhDOfree::recreateModel(searchNode *n) {
     lenv.end();
     return res;
 }
+
 #endif
