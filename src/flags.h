@@ -86,8 +86,8 @@ typedef int tHVal;
 //#define RCHEURISTIC2
 
 // configure DOF
-#define HEURISTIC DOFREEILP
-//#define HEURISTIC DOFREELP
+//#define HEURISTIC DOFREEILP
+#define HEURISTIC DOFREELP
 
 //#define ILPSETTING cSatisficing
 #define ILPSETTING cOptimal
@@ -97,18 +97,18 @@ typedef int tHVal;
 #define ILPTDG cTdgAllowUC
 
 // use planning graph constraints
-//#define ILPPG cPgFull
+#define ILPPG cPgFull
 // #define ILPPG cPgTimeRelaxed
-#define ILPPG cPgNone
+//#define ILPPG cPgNone
 
 // use AND/OR landmark constraints
-//#define ILPANDORLMS cAndOrLmsNone
+#define ILPANDORLMS cAndOrLmsNone
 //#define ILPANDORLMS cAndOrLmsOnlyTnI
-#define ILPANDORLMS cAndOrLmsFull
+//#define ILPANDORLMS cAndOrLmsFull
 
 // use LM-Cut landmark constraints
-#define ILPLMCLMS cLmcLmsNone
-//#define ILPLMCLMS cLmcLmsFull
+//#define ILPLMCLMS cLmcLmsNone
+#define ILPLMCLMS cLmcLmsFull
 
 // use net change constraints
 //#define ILPNC cNetChangeNone
@@ -165,11 +165,9 @@ typedef int tHVal;
 
 
 #define POVISI_EXACT
-
 #define POVISI_HASH
-#define POVISI_LAYERS
-#define POVISI_ORDERPAIRS
-
+//#define POVISI_LAYERS
+//#define POVISI_ORDERPAIRS
 
 
 

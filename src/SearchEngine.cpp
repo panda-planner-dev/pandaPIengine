@@ -293,9 +293,9 @@ int main(int argc, char *argv[]) {
 #ifdef DOFREE
 #if HEURISTIC == DOFREEILP
     // for collecting statistics
-    hhStatisticsCollector hF = hhStatisticsCollector(htn, tnI, 4);
+    //hhStatisticsCollector hF = hhStatisticsCollector(htn, tnI, 4);
 
-    //hhDOfree hF(htn, tnI, IloNumVar::Int, IloNumVar::Bool, ILPSETTING, ILPTDG, ILPPG, ILPANDORLMS, ILPLMCLMS, ILPNC, cAddExternalLmsNo);
+    hhDOfree hF(htn, tnI, IloNumVar::Int, IloNumVar::Bool, ILPSETTING, ILPTDG, ILPPG, ILPANDORLMS, ILPLMCLMS, ILPNC, cAddExternalLmsNo);
 #elif HEURISTIC == DOFREELP
     hhDOfree hF(htn, tnI, IloNumVar::Float, IloNumVar::Float, ILPSETTING, ILPTDG, ILPPG, ILPANDORLMS, ILPLMCLMS, ILPNC, cAddExternalLmsNo);
 #endif

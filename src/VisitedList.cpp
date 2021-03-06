@@ -259,8 +259,8 @@ bool VisitedList::insertVisi(searchNode *n) {
 #endif
 
 
-    vector<int> *traversal = topSort(n);
-    int hash2 = getHash(traversal);
+    //vector<int> *traversal = topSort(n);
+    //int hash2 = getHash(traversal);
 
 
 
