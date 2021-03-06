@@ -937,6 +937,11 @@ searchNode* Model::decompose(searchNode *n, int taskNo, int method) {
 		numOneModMethods++;
 	}
 #endif
+
+#ifdef SAVESEARCHSPACE
+	*stateSpaceFile << "edge " << n->searchNodeID << " " << result->searchNodeID << endl;
+#endif
+	
 	return result;
 }
 
@@ -1407,6 +1412,10 @@ searchNode* Model::apply(searchNode* n, int taskNo) {
 		result = n2;
 		numOneModMethods++;
 	}
+#endif
+
+#ifdef SAVESEARCHSPACE
+	*stateSpaceFile << "edge " << n->searchNodeID << " " << result->searchNodeID << endl;
 #endif
 	return result;
 }
@@ -1891,6 +1900,9 @@ void Model::readHierarchical(istream& domainFile) {
 	ordering = new int*[numMethods];
 	numOrderings = new int[numMethods];
 	methodNames = new string[numMethods];
+	isTotallyOrdered = true;
+	isUniquePaths = true;
+	isParallelSequences = true;
 	for (int i = 0; i < numMethods; i++) {
 		getline(domainFile, line);
 		if (domainFile.eof()){
@@ -1926,22 +1938,51 @@ void Model::readHierarchical(istream& domainFile) {
 
 		// transitive reduction (i.e. remove all unnecessary edges)
 		vector<vector<bool>> trans (numSubTasks[i]);
+		vector<vector<bool>> transOriginal (numSubTasks[i]);
 		for (int x = 0; x < numSubTasks[i]; x++)
-			for (int y = 0; y < numSubTasks[i]; y++) trans[x].push_back(false);
+			for (int y = 0; y < numSubTasks[i]; y++) trans[x].push_back(false),transOriginal[x].push_back(false);
 		
 		for (int o = 0; o < numOrderings[i]; o+=2)
-			trans[ordering[i][o]][ordering[i][o+1]] = true;
+			trans[ordering[i][o]][ordering[i][o+1]] = transOriginal[ordering[i][o]][ordering[i][o+1]] = true;
 
 		for (int k = 0; k < numSubTasks[i]; k++)
 			for (int x = 0; x < numSubTasks[i]; x++)
 				for (int y = 0; y < numSubTasks[i]; y++)
-					if (trans[x][k] && trans[k][y]) trans[x][y] = false;
+					if (transOriginal[x][k] && transOriginal[k][y]) trans[x][y] = false;
 
+
+		/////// the method is totally ordered iff every task has exactly one successor and one predecessor except for one task each
 		vector<int> ord;
-		for (int x = 0; x < numSubTasks[i]; x++)
+		int notOneSuccessor = 0;
+		bool notZeroOrOneSuccessor = false;
+		for (int x = 0; x < numSubTasks[i]; x++){
+			int numSucc = 0;
 			for (int y = 0; y < numSubTasks[i]; y++)
 				if (trans[x][y])
-					ord.push_back(x), ord.push_back(y);
+					numSucc++,ord.push_back(x), ord.push_back(y);
+			if (numSucc != 1) notOneSuccessor++;
+			if (numSucc > 1) notZeroOrOneSuccessor = true;
+		}
+		
+		int notOnePredecessor = 0;
+		bool notZeroOrOnePredecessor = false;
+		for (int y = 0; y < numSubTasks[i]; y++){
+			int numPrec = 0;
+			for (int x = 0; x < numSubTasks[i]; x++)
+				if (trans[x][y])
+					numPrec++;
+			if (numPrec != 1) notOnePredecessor++;
+			if (numPrec > 1) notZeroOrOnePredecessor = true;
+		}
+
+		if (notOneSuccessor > 1 || notOnePredecessor > 1) {
+			isTotallyOrdered = false;
+			if (notZeroOrOneSuccessor || decomposedTask[i] != initialTask){
+				isUniquePaths = false;
+				if (notZeroOrOnePredecessor || decomposedTask[i] != initialTask)
+					isParallelSequences = false;
+			}
+		}
 
 		ordering[i] = new int[ord.size()];
 		for (int x = 0; x < ord.size(); x++)
@@ -2000,6 +2041,7 @@ void Model::readHierarchical(istream& domainFile) {
 		}
 #endif
 	}
+
 
 	// Mapping from task to methods where it is a subtasks
 	stToMethodNum = new int[this->numTasks];
@@ -2258,6 +2300,9 @@ void Model::printSummary() {
 				<< endl;
 	}
 	cout << "- State-based goal contains " << gSize << " bits." << endl;
+	cout << "- Instance is totally-ordered: " << ((isTotallyOrdered)?"yes":"no") << endl;
+	cout << "- Instance has unique paths: " << ((isUniquePaths)?"yes":"no") << endl;
+	cout << "- Instance is parallel sequences: " << ((isParallelSequences)?"yes":"no") << endl;
 }
 
 void Model::printActions() {
@@ -2486,49 +2531,42 @@ void Model::calcSCCGraph() {
 	// top-down mapping
 	this->sccGnumSucc = new int[numSCCs];
 	for (int i = 0; i < numSCCs; i++) {
-		sccGnumSucc[i] = 0;
-		for (int j = 0; j < numSCCs; j++) {
-			if (sccg[i]->find(j) != sccg[i]->end()) {
-				sccGnumSucc[i]++;
-			}
-		}
+		sccGnumSucc[i] = sccg[i]->size();
 	}
 
 	sccG = new int*[numSCCs];
 	for (int i = 0; i < numSCCs; i++) {
 		sccG[i] = new int[sccGnumSucc[i]];
 		int k = 0;
-		for (int j = 0; j < numSCCs; j++) {
-			if (sccg[i]->find(j) != sccg[i]->end()) {
-				sccG[i][k] = j;
-				k++;
-			}
-		}
+		for (int j : *sccg[i]) sccG[i][k++] = j;
 		assert(k == sccGnumSucc[i]);
 	}
 
 	// bottom-up mapping
 	this->sccGnumPred = new int[numSCCs];
-	for (int i = 0; i < numSCCs; i++) {
+	for (int i = 0; i < numSCCs; i++)
 		sccGnumPred[i] = 0;
-		for (int j = 0; j < numSCCs; j++) {
-			if (sccg[j]->find(i) != sccg[j]->end()) {
-				sccGnumPred[i]++;
-			}
-		}
-	}
+
+	for (int i = 0; i < numSCCs; i++)
+		for (int j : *sccg[i])
+			sccGnumPred[j]++;
 
 	sccGinverse = new int*[numSCCs];
+	int* ks = new int[numSCCs];
 	for (int i = 0; i < numSCCs; i++) {
+		ks[i] = 0;
 		sccGinverse[i] = new int[sccGnumPred[i]];
-		int k = 0;
-		for (int j = 0; j < numSCCs; j++) {
-			if (sccg[j]->find(i) != sccg[j]->end()) {
-				sccGinverse[i][k] = j;
-				k++;
-			}
+	}
+
+	for (int i = 0; i < numSCCs; i++) {
+		for (int j : *sccg[i]) {
+				sccGinverse[j][ks[j]] = i;
+				ks[j]++;
 		}
-		assert(k == sccGnumPred[i]);
+	}
+	
+	for (int i = 0; i < numSCCs; i++) {
+		assert(ks[i] == sccGnumPred[i]);
 	}
 
 	// reachability

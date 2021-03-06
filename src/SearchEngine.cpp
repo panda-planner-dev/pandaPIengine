@@ -8,7 +8,7 @@
 
 #include "flags.h" // defines flags
 
-
+#include <queue>
 #include <iostream>
 #include <stdlib.h>
 #include <unordered_set>
@@ -35,6 +35,7 @@
 #include "heuristics/landmarks/lmExtraction/LmFdConnector.h"
 #include "heuristics/landmarks/hhLMCount.h"
 #include "heuristics/dofHeuristics/hhStatisticsCollector.h"
+#include "VisitedList.h"
 
 using namespace std;
 using namespace progression;
@@ -241,7 +242,7 @@ int main(int argc, char *argv[]) {
  * Create Search
  */
 //#if SEARCHTYPE == HEURISTICSEARCH
-	PriorityQueueSearch search;
+//	PriorityQueueSearch search;
 //#endif
 
 /*
@@ -294,9 +295,9 @@ int main(int argc, char *argv[]) {
 #endif
 #ifdef DOFREE
 #if HEURISTIC == DOFREEILP
-    search.hF = new hhDOfree(htn, tnI, IloNumVar::Int, IloNumVar::Bool, ILPSETTING, ILPTDG, ILPPG, ILPANDORLMS, ILPLMCLMS, ILPNC, cAddExternalLmsNo);
+    hhDOfree hF(htn, tnI, IloNumVar::Int, IloNumVar::Bool, ILPSETTING, ILPTDG, ILPPG, ILPANDORLMS, ILPLMCLMS, ILPNC, cAddExternalLmsNo);
 #elif HEURISTIC == DOFREELP
-    search.hF = new hhDOfree(htn, tnI, IloNumVar::Float, IloNumVar::Float, ILPTDG, ILPPG, ILPANDORLMS, ILPLMCLMS, ILPNC, cAddExternalLmsNo);
+    hhDOfree hF(htn, tnI, IloNumVar::Float, IloNumVar::Float, ILPSETTING, ILPTDG, ILPPG, ILPANDORLMS, ILPLMCLMS, ILPNC, cAddExternalLmsNo);
 #endif
 	// for collecting statistics
     //search.hF = new hhStatisticsCollector(htn, tnI, 3);
@@ -316,10 +317,13 @@ int main(int argc, char *argv[]) {
 /*
  * Start Search
  */
-	int timeL = TIMELIMIT;
-	cout << "Time limit: " << timeL << " seconds" << endl;
-	search.search(htn, tnI, timeL);
-	delete htn;
+    int timeL = TIMELIMIT;
+    cout << "Time limit: " << timeL << " seconds" << endl;
+    priority_queue<searchNode*, vector<searchNode*>, CmpNodePtrs> fringe;
+    VisitedList visi (htn);
+    PriorityQueueSearch search;
+    search.search(htn, tnI, timeL, hF, visi, fringe);
+    delete htn;
 #ifdef RCHEURISTIC
 	delete heuristicModel;
 #endif

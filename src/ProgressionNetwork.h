@@ -12,18 +12,29 @@
 #include <vector>
 #include <unordered_set>
 #include <functional>
+#include <map>
+#include <set>
 #include <iostream>
 #include <forward_list>
 #include "heuristics/landmarks/lmDataStructures/landmark.h"
 #include "heuristics/landmarks/lmDataStructures/lookUpTab.h"
+#include "flags.h"
 
 using namespace std;
 
 namespace progression {
 
+
+// forward declaration due to cyclic dependency
+struct Model;
+
+
 #ifdef TRACESOLUTION
 extern int currentSolutionStepInstanceNumber;
 #endif
+#ifdef SAVESEARCHSPACE
+extern int currentSearchNodeID;
+#endif 
 
 struct solutionStep {
 	int task;
@@ -91,6 +102,10 @@ struct searchNode {
 
 	int hRand;
 
+#ifdef SAVESEARCHSPACE
+	int searchNodeID;
+#endif 
+
 #ifdef TRACKTASKSINTN
 	int numContainedTasks = -1;
 	int* containedTasks = nullptr;
@@ -124,8 +139,20 @@ struct searchNode {
 	int reachedmLMs = 0; // number of method landmarks already *reached*
 #endif
 
+
+	void printNode(std::ostream & out);
+	void node2Dot(std::ostream & out);
+
+private:
+	void printDFS(planStep * s, map<planStep*,int> & psp, set<pair<planStep*,planStep*>> & orderpairs);
 };
 
+///////////////////// Functions for extracting results from search nodes
+pair<string,int> extractSolutionFromSearchNode(Model * htn, searchNode* tnSol);
+pair<string,int> printTraceOfSearchNode(Model* htn, searchNode* tnSol);
+
+
+//////////////////// comparator
 struct CmpNodePtrs {
 	bool operator()(const searchNode* a, const searchNode* b) const;
 };

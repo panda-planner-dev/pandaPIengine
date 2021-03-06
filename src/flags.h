@@ -75,6 +75,7 @@ typedef int tHVal;
 // options for heuristic search
 #define ASTAR
 #define GASTARWEIGHT 1
+#define ASTARAC
 
 #define PRGEFFECTLESS // always progress effectless actions
 
@@ -84,8 +85,8 @@ typedef int tHVal;
 //#define RCHEURISTIC2
 
 // configure DOF
-#define HEURISTIC DOFREEILP
-//#define HEURISTIC DOFREELP
+//#define HEURISTIC DOFREEILP
+#define HEURISTIC DOFREELP
 
 //#define ILPSETTING cSatisficing
 #define ILPSETTING cOptimal
@@ -95,9 +96,9 @@ typedef int tHVal;
 #define ILPTDG cTdgAllowUC
 
 // use planning graph constraints
-#define ILPPG cPgFull
+//#define ILPPG cPgFull
 // #define ILPPG cPgTimeRelaxed
-//#define ILPPG cPgNone
+#define ILPPG cPgNone
 
 // use AND/OR landmark constraints
 //#define ILPANDORLMS cAndOrLmsNone
@@ -105,8 +106,8 @@ typedef int tHVal;
 #define ILPANDORLMS cAndOrLmsFull
 
 // use LM-Cut landmark constraints
-//#define ILPLMCLMS cLmcLmsNone
-#define ILPLMCLMS cLmcLmsFull
+#define ILPLMCLMS cLmcLmsNone
+//#define ILPLMCLMS cLmcLmsFull
 
 // use net change constraints
 //#define ILPNC cNetChangeNone
@@ -144,6 +145,40 @@ typedef int tHVal;
 
 #ifndef CHECKAFTER
 #define CHECKAFTER 5000 // nodes after which the timelimit is checked
+#endif
+
+
+#define TRACESOLUTION
+//#define SAVESEARCHSPACE
+
+
+
+//#define VISITEDONLYSTATISTICS
+#define TOVISI_SEQ  1
+#define TOVISI_PRIM 2
+#define TOVISI_PRIM_EXACT 3
+#define TOVISI TOVISI_PRIM_EXACT
+
+//#define NOVISI
+
+
+
+
+#define POVISI_EXACT
+
+#define POVISI_HASH
+#define POVISI_LAYERS
+#define POVISI_ORDERPAIRS
+
+
+
+
+// if we write the state space to file, we need to disable pretty much all optimisations ...
+#ifdef SAVESEARCHSPACE
+#undef OPTIMIZEUNTILTIMELIMIT
+#undef PRGEFFECTLESS
+#undef ONEMODAC
+#define OPTIMIZEUNTILTIMELIMIT true
 #endif
 
 #endif /* FLAGS_H_ */

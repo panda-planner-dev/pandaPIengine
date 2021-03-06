@@ -25,6 +25,12 @@ using namespace std;
 
 namespace progression {
 
+#ifdef SAVESEARCHSPACE
+	extern ofstream* stateSpaceFile;
+#endif
+
+
+
 class Model {
 private:
 	bool first = true;
@@ -144,6 +150,11 @@ public:
 
 	// initial task
 	int initialTask;
+	
+	//
+	bool isTotallyOrdered;
+	bool isUniquePaths;
+	bool isParallelSequences;
 
 	// method definitions
 	int numMethods;
