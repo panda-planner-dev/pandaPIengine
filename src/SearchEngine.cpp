@@ -292,12 +292,13 @@ int main(int argc, char *argv[]) {
 #endif
 #ifdef DOFREE
 #if HEURISTIC == DOFREEILP
-    hhDOfree hF(htn, tnI, IloNumVar::Int, IloNumVar::Bool, ILPSETTING, ILPTDG, ILPPG, ILPANDORLMS, ILPLMCLMS, ILPNC, cAddExternalLmsNo);
+    // for collecting statistics
+    hhStatisticsCollector hF = hhStatisticsCollector(htn, tnI, 4);
+
+    //hhDOfree hF(htn, tnI, IloNumVar::Int, IloNumVar::Bool, ILPSETTING, ILPTDG, ILPPG, ILPANDORLMS, ILPLMCLMS, ILPNC, cAddExternalLmsNo);
 #elif HEURISTIC == DOFREELP
     hhDOfree hF(htn, tnI, IloNumVar::Float, IloNumVar::Float, ILPSETTING, ILPTDG, ILPPG, ILPANDORLMS, ILPLMCLMS, ILPNC, cAddExternalLmsNo);
 #endif
-	// for collecting statistics
-    //search.hF = new hhStatisticsCollector(htn, tnI, 3);
 #endif
 #if (HEURISTIC == LMCLOCAL)
 	search.hF = new hhLMCount(htn, tnI, 0);

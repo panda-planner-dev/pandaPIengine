@@ -27,7 +27,6 @@ typedef int tHVal;
 #define LMCLOCAL 7
 #define LMCANDOR 8
 #define LMCFD 9
-
 #define RCFILTER2 10
 #define RCFF2 11
 #define RCADD2 12
@@ -87,8 +86,8 @@ typedef int tHVal;
 //#define RCHEURISTIC2
 
 // configure DOF
-//#define HEURISTIC DOFREEILP
-#define HEURISTIC DOFREELP
+#define HEURISTIC DOFREEILP
+//#define HEURISTIC DOFREELP
 
 //#define ILPSETTING cSatisficing
 #define ILPSETTING cOptimal

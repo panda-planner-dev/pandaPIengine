@@ -23,7 +23,10 @@ hhStatisticsCollector::hhStatisticsCollector(Model *htn, searchNode *n, int dept
                                 csLmcLms eLMCLMs = static_cast<csLmcLms>(lmclms);
                                 csNetChange eNC = static_cast<csNetChange>(nc);
 
-                                if (ePG == cPgTimeRelaxed) // Skip PG time relaxation
+                                // Skip the ones not needed here
+                                if (ePG == cPgTimeRelaxed)
+                                    continue;
+                                if (eSetting == cSatisficing)
                                     continue;
 
                                 hhDOfree *h;
