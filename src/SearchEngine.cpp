@@ -66,10 +66,7 @@ int main(int argc, char *argv[]) {
 	Model* htn = new Model();
 	htn->filename = s;
 	htn->read(s);
-    //string dOut = "/media/dh/Volume/repositories/neue-repos/publications/2020-HTNWS-Landmarks/stuff/exampleproblems/transport/tranport01-unpruned-domain.hddl";
-    //string pOut = "/media/dh/Volume/repositories/neue-repos/publications/2020-HTNWS-Landmarks/stuff/exampleproblems/transport/tranport01-unpruned-problem.hddl";
-	//htn->writeToPDDL(dOut,pOut);
-	//assert(htn->isHtnModel);
+	assert(htn->isHtnModel);
 	searchNode* tnI = htn->prepareTNi(htn);
 #ifdef MAINTAINREACHABILITY
     htn->calcSCCs();
@@ -289,7 +286,7 @@ int main(int argc, char *argv[]) {
 	search.hF = new hhRC2(htn);
 	cout << "- Inner heuristic: LM-Cut" << endl;
 #elif HEURISTIC == RCFILTER2
-	search.hF = new hhRC(htn, new hsFilter(heuristicModel));
+	search.hF = new hhRC2(htn);
 	cout << "- Inner heuristic: Filter" << endl;
 #endif
 #endif

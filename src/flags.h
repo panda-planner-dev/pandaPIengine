@@ -49,6 +49,12 @@ typedef int tHVal;
 #define ICAPS18 1        // branches over primitive and one abstract task
 #define JAIR19 2         // processes abstract tasks first
 
+
+#define DOFRECREATE 1
+#define DOFUPDATE 2
+#define DOFUPDATEWITHREACHABILITY 3
+
+
 // *****************
 // * Configuration *
 // *****************
@@ -64,10 +70,6 @@ typedef int tHVal;
 
 // select a state representation
 #define STATEREP SRCOPY // choose from [state-representation]
-
-#define DOFRECREATE 1
-#define DOFUPDATE 2
-#define DOFUPDATEWITHREACHABILITY 3
 
 // type of search
 #define SEARCHTYPE HEURISTICSEARCH // choose from [search-type]
@@ -160,7 +162,6 @@ typedef int tHVal;
 #define TOVISI TOVISI_PRIM_EXACT
 
 //#define NOVISI
-
 
 
 
