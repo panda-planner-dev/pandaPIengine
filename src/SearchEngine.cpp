@@ -198,7 +198,7 @@ int main(int argc, char *argv[]) {
     }
     else {
       cerr << "error code: " << error_code << endl;
-      break;
+      return 0;
     }
   }
   string infile = "sas_plan";
