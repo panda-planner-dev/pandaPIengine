@@ -32,8 +32,8 @@
 using namespace std;
 using namespace progression;
 
-int main(int argc, char *argv[]) {
-	string s;
+int main(int argc, char *argv[]) {  
+  string s;
 	string sasfile;
 	string solver;
 	bool showUsage = false;
@@ -201,5 +201,8 @@ int main(int argc, char *argv[]) {
       break;
     }
   }
+  string infile = "sas_plan";
+  string outfile = "plan.hddl";
+  htn->planToHddl(infile, outfile);
   return 0;
 }

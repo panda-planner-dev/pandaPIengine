@@ -332,6 +332,9 @@ public:
 	int minProgressionBound();
 	int maxProgressionBound();
 	void combination(int* array, int n, int k, int i);
+	
+	// plan verification
+	void planToHddl(string infile, string outfile);
 };
 }
 #endif /* MODEL_H_ */

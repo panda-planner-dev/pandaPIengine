@@ -3493,14 +3493,14 @@ void Model::calcMinimalImpliedX() {
     actionNamesTrans = new string[numActionsTrans];
     for (int i = 0; i < numActions; i++) {
         for (int j = 0; j < pgb; j++){
-            actionNamesTrans[i * pgb + j] = taskNames[i].substr(0, taskNames[i].length()-1) + ',' + string("head") + to_string(j) + ',' + string("task") + to_string(i) + ']';
+            actionNamesTrans[i * pgb + j] = "primitive " + taskNames[i].substr(0, taskNames[i].length()-1) + ',' + string("head") + to_string(j) + ',' + string("task") + to_string(i) + ']';
         }
     }
     for (int i = 0; i < numMethods; i++) {
       for (int j = 0; j < pgb; j++){
         for (int k = 0; k < (methodIndexes[i + 1] - methodIndexes[i]); k++){
           int index = firstMethodIndex + methodIndexes[i] * pgb + j * (methodIndexes[i + 1] - methodIndexes[i]) + k;
-          actionNamesTrans[index] = methodNames[i] + ',' + string("head") + to_string(j) + string(",task") + to_string(i + numActions)+ string(",version") + to_string(k);
+          actionNamesTrans[index] = "method " +  methodNames[i] + ',' + string("head") + to_string(j) + string(",task") + to_string(i + numActions)+ string(",version") + to_string(k);
         }
       }
     }
@@ -3674,7 +3674,7 @@ void Model::calcMinimalImpliedX() {
             precListsTrans[index][numPrecs[i] + l] = firstIndexTrans[firstConstraintIndex + l * (pgb - 1) + j];
           }
         }
-        actionNamesTrans[index] = taskNames[i].substr(0, taskNames[i].length()-1) + ',' + string("head") + to_string(j) + ',' + string("task") + to_string(i) + ']';
+        actionNamesTrans[index] = "primitive " + taskNames[i].substr(0, taskNames[i].length()-1) + ',' + string("head") + to_string(j) + ',' + string("task") + to_string(i) + ']';
         addListsTrans[index][numAdds[i]] = firstIndexTrans[firstTaskIndex + j];
         for (int k = 0; k < pgb - 1; k++){
           addListsTrans[index][numAdds[i] + 1 + k] = firstIndexTrans[firstConstraintIndex + j * (pgb - 1) + k];
@@ -3707,7 +3707,7 @@ void Model::calcMinimalImpliedX() {
           }
           precListsTrans[index] = new int[numPrecsTrans[index]];
           addListsTrans[index] = new int[numAddsTrans[index]];
-          actionNamesTrans[index] = methodNames[i] + ',' + string("head") + to_string(j) + string(",task") + to_string(i + numActions) + string(",version") + to_string(k);
+          actionNamesTrans[index] = "method " + methodNames[i] + ',' + string("head") + to_string(j) + string(",task") + to_string(i + numActions) + string(",version") + to_string(k);
           if (numSubTasks[i] >= pgb){
             invalidTransActions[index] = true;
             continue;
@@ -4068,12 +4068,12 @@ void Model::calcMinimalImpliedX() {
     actionNamesTrans = new string[numActionsTrans];
     for (int i = 0; i < numActions; i++) {
         for (int j = 0; j < pgb; j++){
-            actionNamesTrans[i * pgb + j] = taskNames[i].substr(0, taskNames[i].length()-1) + ',' + string("head") + to_string(j) + ',' + string("task") + to_string(i) + ']';
+            actionNamesTrans[i * pgb + j] = "primitive " + taskNames[i].substr(0, taskNames[i].length()-1) + ',' + string("head") + to_string(j) + ',' + string("task") + to_string(i) + ']';
         }
     }
     for (int i = 0; i < numMethods; i++) {
         for (int j = 0; j < pgb; j++){
-            actionNamesTrans[firstMethodIndex + i * pgb + j] = methodNames[i] + ',' + string("head") + to_string(j) + ',' + string("task") + to_string(i + numActions);
+            actionNamesTrans[firstMethodIndex + i * pgb + j] = "method " + methodNames[i] + ',' + string("head") + to_string(j) + ',' + string("task") + to_string(i + numActions);
         }
     }
 }
@@ -4110,15 +4110,6 @@ void Model::calcMinimalImpliedX() {
         string ns = this->factStrsTrans[first_index + j];
         convertMutexVars[first_index + j][0] = i;
         convertMutexVars[first_index + j][1] = j;
-        while (ns.find("[") < ns.size()){
-          ns.replace(ns.find("["), 1, "(");
-        }
-        while (ns.find("]") < ns.size()){
-          ns.replace(ns.find("]"), 1, ")");
-        }
-        if (ns.find(",") < ns.size()) {
-          ns.insert(ns.find(",") + 1, " ");
-        }
         sasfile << "Atom " << ns << endl;
       }
   
@@ -4189,21 +4180,6 @@ void Model::calcMinimalImpliedX() {
       // name
       string tn = emptyTaskNames[i];
 
-      int j = tn.find("[");
-      while (j < tn.length()) {
-        tn.replace(j, 1, "(");
-        j = tn.find("[");
-      }
-      j = tn.find("]");
-      while (j < tn.length()) {
-        tn.replace(j, 1, ")");
-        j = tn.find("]");
-      }
-      j = tn.find(",");
-      while (j < tn.length()) {
-        tn.replace(j, 1, " ");
-        j = tn.find(",");
-      }
       sasfile << tn << endl;
       // action
       int numP = this->numEmptyTaskPrecs[i];
@@ -4260,21 +4236,6 @@ void Model::calcMinimalImpliedX() {
       // name
       string tn = this->actionNamesTrans[i];
 
-      int j = tn.find("[");
-      while (j < tn.length()) {
-        tn.replace(j, 1, "(");
-        j = tn.find("[");
-      }
-      j = tn.find("]");
-      while (j < tn.length()) {
-        tn.replace(j, 1, ")");
-        j = tn.find("]");
-      }
-      j = tn.find(",");
-      while (j < tn.length()) {
-        tn.replace(j, 1, " ");
-        j = tn.find(",");
-      }
       sasfile << tn << endl;
       // action
       int numP = this->numPrecsTrans[i];
@@ -4360,6 +4321,100 @@ void Model::calcMinimalImpliedX() {
   int Model::maxProgressionBound(){
     return 20;
   }
+  
+ 	void Model::planToHddl(string infile, string outfile) {
+    ofstream fout;
+    fout.open(outfile);
+ 	  istream* fin;
+    ifstream* fileInput = new ifstream(infile);
+    if (!fileInput->good()) {
+        std::cerr << "Unable to open input file " << infile << ": " << strerror (errno) << std::endl;
+        exit(1);
+    }
+
+    fin = fileInput;
+    
+    string line;
+    int linecount = 0;
+    while (fin->good()){
+      linecount++;
+      getline(*fin, line);
+    }
+
+    fileInput = new ifstream(infile);
+
+    fin = fileInput;
+    string* plan = new string[linecount];
+        
+    int methNum = 0;
+    int primNum = 0;
+
+    for (int i = 0; i < linecount; i++){
+      getline(*fin, plan[i]);
+      if (plan[i].size() > 9 && string("primitive").compare(plan[i].substr(1, 9)) == 0){
+        primNum++;
+      }
+      if (plan[i].size() > 6 && string("method").compare(plan[i].substr(1, 6)) == 0){
+        methNum++;
+      }
+
+    }
+    cerr << "primitive: " << primNum << endl;
+    cerr << "method: " << methNum << endl;
+    
+    string* primitives = new string[primNum];
+    string* methods = new string[methNum];
+    int* methIndex = new int[methNum];
+    fout << "==>" << endl;
+    primNum = 0;
+    for (int i = 0; i < linecount; i++){
+      if (plan[i].size() > 9 && string("primitive").compare(plan[i].substr(1, 9)) == 0){
+        primitives[primNum] = plan[i].substr(11, plan[i].find("head") - 12) + ']';
+        fout << primNum << " " << primitives[primNum] << endl;
+        primNum++;
+      }
+    }
+    methNum = 0;
+    fout << "root " << primNum << endl;
+    for (int i = 0; i < linecount; i++){
+      if (plan[i].size() > 6 && string("method").compare(plan[i].substr(1, 6)) == 0){
+        methods[methNum] = plan[i].substr(8, plan[i].find("head") - 9);
+        methNum++;
+      }
+    }
+    for (int i = 0; i < methNum; i++){
+      for (int j = 0; j < numMethods; j++){
+        if (methods[i].compare(methodNames[j]) == 0){
+          methIndex[i] = j;
+        }
+      }
+    }
+    for (int i = 0; i < methNum; i++){
+      fout << i + primNum << " " << taskNames[decomposedTask[methIndex[i]]] << " -> ";
+      fout << methods[i] << " ";
+      for (int j = numSubTasks[methIndex[i]] - 1; j >= 0; j--){
+        int index = -1;
+        for (int k = 0; k < primNum; k++){
+          if (taskNames[subTasksInOrder[methIndex[i]][j]].compare(primitives[k]) == 0){
+            index = k;
+            break;
+          }
+        }
+        for (int k = i + 1; k < methNum; k++){
+          if (subTasksInOrder[methIndex[i]][j] == decomposedTask[methIndex[k]]){
+            index = k + primNum;
+            break;
+          }
+        }
+        fout << index << " ";
+      }
+      fout << endl;
+    }
+    
+    fout << "<==" << endl;
+    fout.close();
+ 	}
+
 }
 
 /* namespace progression */
