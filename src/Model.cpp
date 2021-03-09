@@ -4319,13 +4319,24 @@ void Model::calcMinimalImpliedX() {
     return pgb;
   }
   int Model::maxProgressionBound(){
-    return 20;
+    return 100;
   }
   
- 	void Model::planToHddl(string infile, string outfile) {
-    ofstream fout;
-    fout.open(outfile);
- 	  istream* fin;
+ void Model::planToHddl(string infile, string outfile) {
+	ostream * _fout = &cout;
+    ofstream * of = nullptr;
+	if (outfile != "stdout"){
+		of = new ofstream(outfile);
+		if (!of->is_open()){
+			cout << "I can't open " << outfile << "!" << endl;
+			exit(1);
+		}
+		_fout = of;
+	}
+    
+	ostream & fout = *_fout;
+
+	istream* fin;
     ifstream* fileInput = new ifstream(infile);
     if (!fileInput->good()) {
         std::cerr << "Unable to open input file " << infile << ": " << strerror (errno) << std::endl;
@@ -4412,7 +4423,7 @@ void Model::calcMinimalImpliedX() {
     }
     
     fout << "<==" << endl;
-    fout.close();
+    if (of != nullptr) of->close();
  	}
 
 }
