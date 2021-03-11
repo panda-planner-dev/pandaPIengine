@@ -204,5 +204,12 @@ int main(int argc, char *argv[]) {
   string infile = "sas_plan";
   string outfile = "plan.hddl";
   htn->planToHddl(infile, outfile);
+  string command = "./pandaPIparser/pandaPIparser -c " + outfile + " c-" + outfile;
+  cerr << command << endl;
+  error_code = system(command.c_str());
+  command = "./pandaPIparser/pandaPIparser -v ./models/to/d_00031.hddl ./models/to/p_00031.hddl c-" + outfile;
+  cerr << command << endl;
+  error_code = system(command.c_str());
+  
   return 0;
 }

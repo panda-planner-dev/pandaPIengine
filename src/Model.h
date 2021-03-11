@@ -113,6 +113,7 @@ public:
 	int firstTaskIndex;
 	int firstVarIndex;
 	int firstConstraintIndex;
+	int firstStackIndex;
 	int* firstIndexTrans;
 	int* lastIndexTrans;
 	string* varNamesTrans;
@@ -327,6 +328,7 @@ public:
 	void tohtnToStrips(int pgb);
 	void htnToCond(int pgb);
 	void htnToStrips(int pgb);
+	void betterhtnToStrips(int pgb);
 	int bin(int n, int k);
 	int power(int n, int p);
 	int minProgressionBound();
