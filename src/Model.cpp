@@ -3023,10 +3023,10 @@ void Model::calcMinimalImpliedX() {
     // sasPlus related
     cerr << "creating sas+ vars" << endl;
 
-    sasPlusBits = new bool[numVars]();
-    sasPlusOffset = new int[numVars]();
-    bitsToSP = new int[numStateBits]();
-    bitAlone = new bool[numStateBits]();
+    sasPlusBits = new bool[numVars];
+    sasPlusOffset = new int[numVars];
+    bitsToSP = new int[numStateBits];
+    bitAlone = new bool[numStateBits];
 
     firstIndexSP = new int[numVars];
     lastIndexSP = new int[numVars];
@@ -3107,7 +3107,6 @@ void Model::calcMinimalImpliedX() {
       for (int j = 0; j < numAdds[i]; j++){
         addListsSP[i][j] = bitsToSP[addLists[i][j]];
       }
-      numAddsSP[i] = numAdds[i];
       int k = numAdds[i];
       for (int j = 0; j < numDels[i]; j++){
         if (bitAlone[delLists[i][j]]){
