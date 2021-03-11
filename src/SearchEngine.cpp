@@ -41,7 +41,9 @@ int main(int argc, char *argv[]) {
   int maxpgb = -1;
   int pgbsteps = 1;
   int problemType = 0;
-	if (argc < 4) {
+  int downwardConf = 0;
+  string planfile = "stdout";
+  if (argc < 4) {
 	  showUsage = true;
 	} else {
 		s = argv[1];
@@ -99,6 +101,26 @@ int main(int argc, char *argv[]) {
         }
         catch (...) {
           cerr << "--pgbsteps: invalid option: " << argv[i + 1] << endl;
+          showUsage = true;
+          break;
+        }
+      }
+      else if (string("--downward").compare(argv[i]) == 0){
+        try {
+          downwardConf = stoi(argv[i+1], nullptr);
+        }
+        catch (...) {
+          cerr << "--downward: invalid option (must be a number): " << argv[i + 1] << endl;
+          showUsage = true;
+          break;
+        }
+      }
+      else if (string("--planfile").compare(argv[i]) == 0){
+        try {
+          new (&planfile) string(argv[i+1]);
+        }
+        catch (...) {
+          cerr << "--downward: invalid option (must be a number): " << argv[i + 1] << endl;
           showUsage = true;
           break;
         }
@@ -186,7 +208,12 @@ int main(int argc, char *argv[]) {
     */
     cerr << "Printing HTN model to file \"" << sasfile << "\" ... " << endl;
     htn->writeToFastDown(sasfile, problemType, pgb);
-    string command = solver + ' ' + sasfile + string(" --evaluator 'hcea=cea()' --search 'lazy_greedy([hcea], preferred=[hcea])'");
+    string command;
+	switch (downwardConf){
+		case 0: command = solver + string(" --evaluator 'hcea=cea()' --search 'lazy_greedy([hcea], preferred=[hcea])' < ") + sasfile; break;
+		case 1: command = solver + string(" --evaluator 'hff=ff()' --search 'iterated([ehc(hff, preferred=[hff]),lazy_greedy([hff], preferred=[hff])], continue_on_fail=true, continue_on_solve=false, max_time=1800)' < ") + sasfile; break;
+    case 2: command = solver + ' ' + sasfile + string(" --evaluator 'hcea=cea()' --search 'lazy_greedy([hcea], preferred=[hcea])'"); break;
+	}
     cerr << command << endl;
     error_code = system(command.c_str());
     if (error_code == 0){
@@ -202,7 +229,7 @@ int main(int argc, char *argv[]) {
     }
   }
   string infile = "sas_plan";
-  string outfile = "plan.hddl";
+  string outfile = planfile;
   htn->planToHddl(infile, outfile);
   string command = "./pandaPIparser/pandaPIparser -c " + outfile + " c-" + outfile;
   cerr << command << endl;
