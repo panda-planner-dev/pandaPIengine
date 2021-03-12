@@ -222,8 +222,8 @@ int main(int argc, char *argv[]) {
     htn->writeToFastDown(sasfile, problemType, pgb);
     string command;
 	switch (downwardConf){
-		case 0: command = solver + string(" --evaluator 'hcea=cea()' --search 'lazy_greedy([hcea], preferred=[hcea])' < ") + sasfile; break;
-		case 1: command = solver + string(" --evaluator 'hff=ff()' --search 'iterated([ehc(hff, preferred=[hff]),lazy_greedy([hff], preferred=[hff])], continue_on_fail=true, continue_on_solve=false, max_time=1800)' < ") + sasfile; break;
+		case 0: command = solver + string(" --evaluator 'hcea=cea()' --search 'lazy_greedy([hcea], preferred=[hcea])' --internal-plan-file ") + sasfile + string(".plan < ") + sasfile; break;
+		case 1: command = solver + string(" --evaluator 'hff=ff()' --search 'iterated([ehc(hff, preferred=[hff]),lazy_greedy([hff], preferred=[hff])], continue_on_fail=true, continue_on_solve=false, max_time=1800)' --internal-plan-file ") + sasfile + string(".plan < ") + sasfile; break;
     case 2: command = solver + ' ' + sasfile + string(" --evaluator 'hcea=cea()' --search 'lazy_greedy([hcea], preferred=[hcea])'"); break;
 	}
     cerr << command << endl;
@@ -240,7 +240,7 @@ int main(int argc, char *argv[]) {
       return 0;
     }
   }
-  string infile = "sas_plan";
+  string infile = sasfile + ".plan";
   string outfile = planfile;
   htn->planToHddl(infile, outfile);
   
