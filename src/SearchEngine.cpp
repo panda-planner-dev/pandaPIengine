@@ -7,7 +7,7 @@
 //============================================================================
 
 #include "flags.h" // defines flags
-
+#include <sys/stat.h>
 
 #include <iostream>
 #include <stdlib.h>
@@ -31,6 +31,12 @@
 
 using namespace std;
 using namespace progression;
+
+inline bool does_file_exist (const string& name) {
+  struct stat buffer;   
+  return (stat (name.c_str(), &buffer) == 0); 
+}
+
 
 int main(int argc, char *argv[]) {  
   string s;
@@ -241,6 +247,8 @@ int main(int argc, char *argv[]) {
     }
   }
   string infile = sasfile + ".plan";
+  if (! does_file_exist(infile))
+	  infile = infile + ".1";
   string outfile = planfile;
   htn->planToHddl(infile, outfile);
   
