@@ -3111,8 +3111,8 @@ void Model::calcMinimalImpliedX() {
     }
     factStrsSP = new string[numStateBitsSP];
     for (int i = 0; i < numVars; i++){
-      for (int j = 0; j < firstIndex[i] - lastIndex[i] + 1; j++){
-        bitsToSP[firstIndex[i] + j] = firstIndex[i] + j + sasPlusOffset[i];
+      for (int j = 0; j < lastIndex[i] - firstIndex[i] + 1; j++){
+		bitsToSP[firstIndex[i] + j] = firstIndex[i] + j + sasPlusOffset[i];
         factStrsSP[firstIndex[i] + j + sasPlusOffset[i]] = factStrs[firstIndex[i] + j];
       }
       if (sasPlusBits[i]){
