@@ -36,6 +36,7 @@ int main(int argc, char *argv[]) {
   string s;
 	string sasfile;
 	string solver;
+	string parserpath = "./pandaPIparser/pandaPIparser";
 	bool showUsage = false;
   int pgb = -1;
   int maxpgb = -1;
@@ -43,6 +44,8 @@ int main(int argc, char *argv[]) {
   int problemType = 0;
   int downwardConf = 0;
   string planfile = "stdout";
+  string domainfile;
+  string problemfile;
   if (argc < 4) {
 	  showUsage = true;
 	} else {
@@ -84,6 +87,15 @@ int main(int argc, char *argv[]) {
           showUsage = true;
           break;
         }
+      }
+      else if (string("--parserpath").compare(argv[i]) == 0){
+        parserpath = string(argv[i+1]);
+      }
+      else if (string("--domainfile").compare(argv[i]) == 0){
+        domainfile = string(argv[i+1]);
+      }
+      else if (string("--problemfile").compare(argv[i]) == 0){
+        problemfile = string(argv[i+1]);
       }
       else if (string("--maxpgb").compare(argv[i]) == 0){
         try {
@@ -238,6 +250,6 @@ int main(int argc, char *argv[]) {
   //command = "./pandaPIparser/pandaPIparser -v ./models/to/d_00031.hddl ./models/to/p_00031.hddl c-" + outfile;
   //cerr << command << endl;
   //error_code = system(command.c_str());
-  
+ 
   return 0;
 }
