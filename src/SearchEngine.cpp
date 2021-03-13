@@ -14,20 +14,8 @@
 #include <cassert>
 #include <unordered_set>
 
-#if SEARCHTYPE == HEURISTICSEARCH
-#include "./search/PriorityQueueSearch.h"
-#endif
 
 #include "Model.h"
-#if HEURISTIC == RCFF
-#include "heuristics/rcHeuristics/hsAddFF.h"
-#include "heuristics/rcHeuristics/hsLmCut.h"
-#include "heuristics/rcHeuristics/hsFilter.h"
-#endif
-#include "intDataStructures/IntPairHeap.h"
-#include "intDataStructures/bIntSet.h"
-
-#include "heuristics/rcHeuristics/RCModelFactory.h"
 
 using namespace std;
 using namespace progression;
@@ -187,7 +175,11 @@ int main(int argc, char *argv[]) {
   cerr << "Reading HTN model from file \"" << s << "\" ... " << endl;
   Model* htn = new Model();
   htn->read(s);
+	//htn->printStateBitsToFile(string("stateBits1.txt"));
+  //htn->printActionsToFile(string("actions1.txt"));
   htn->sasPlus();
+  //htn->printActionsToFile(string("actions2.txt"));
+	//htn->printStateBitsToFile(string("stateBits2.txt"));
   if (pgb < 1){
     pgb = htn->minProgressionBound();
   }

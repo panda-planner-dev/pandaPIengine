@@ -11,7 +11,6 @@
 
 // florian
 #define PROGRESSIONBOUND 4
-
 // constants
 #define UNREACHABLE INT_MAX
 #define NOACTION -1
