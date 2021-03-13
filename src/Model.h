@@ -335,6 +335,9 @@ public:
 	int maxProgressionBound();
 	void combination(int* array, int n, int k, int i);
 	
+	void printActionsToFile(string file);
+	void printStateBitsToFile(string file);
+
 	// plan verification
 	void planToHddl(string infile, string outfile);
 };

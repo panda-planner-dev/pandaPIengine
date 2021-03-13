@@ -2378,7 +2378,6 @@ void Model::printActions() {
     for (int i = 0; i < numActions; i++)
         printAction(i);
 }
-
 void Model::printAction(int aI) {
     cout << "action: " << taskNames[aI] << " :" << endl;
     cout << "   { ";
@@ -2400,6 +2399,46 @@ void Model::printAction(int aI) {
         cout << factStrs[delLists[aI][i]];
     }
     cout << " }" << endl << endl;
+}
+void Model::printActionsToFile(string file) {
+    ofstream outf;
+    outf.open(file);
+    for (int i = 0; i < numActions; i++){
+    outf << "action: " << taskNames[i] << " :" << endl;
+    outf << "   { ";
+    for (int j = 0; j < numPrecs[i]; j++) {
+        if (j > 0)
+            outf << " ";
+        outf << factStrs[precLists[i][j]];
+    }
+    outf << " }" << endl << "   { ";
+    for (int j = 0; j < numAdds[i]; j++) {
+        if (j > 0)
+            outf << " ";
+        outf << factStrs[addLists[i][j]];
+    }
+    outf << " }" << endl << "   { ";
+    for (int j = 0; j < numDels[i]; j++) {
+        if (j > 0)
+            outf << " ";
+        outf << factStrs[delLists[i][j]];
+    }
+    outf << " }" << endl << endl;
+    }
+    outf.close();
+}
+void Model::printStateBitsToFile(string file) {
+    ofstream outf;
+    outf.open(file);
+    outf << "VarNames: " << numVars << endl;
+    for (int i = 0; i < numVars; i++){
+      outf << i << " " << varNames[i] << " " << firstIndex[i] << " " << lastIndex[i] << endl;
+    }
+    outf << endl << "StateBits: " << numStateBits << endl;
+    for (int i = 0; i < numStateBits; i++){
+      outf << i << " " << factStrs[i] << endl;
+    }
+    outf.close();
 }
 
 void Model::printMethods() {
@@ -3083,8 +3122,17 @@ void Model::calcMinimalImpliedX() {
     firstIndexSP = new int[numVars];
     lastIndexSP = new int[numVars];
     
-    sasPlusOffset[0] = 0;
-    firstIndexSP[0] = 0;
+    for (int i = 0; i < numStateBits; i++){
+      bitsToSP[i] = 0;
+      bitAlone[i] = false;
+    }
+    for (int i = 0; i < numVars; i++){
+      sasPlusBits[i] = false;
+      sasPlusOffset[i] = 0;
+      firstIndexSP[i] = 0;
+      lastIndexSP[i] = 0;
+    }
+
     bool change = false;
     
     for (int i = 0; i < numVars; i++){
