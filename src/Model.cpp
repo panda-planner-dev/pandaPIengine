@@ -3609,7 +3609,6 @@ void Model::calcMinimalImpliedX() {
             actionNamesTrans[index] += "],subtasks[" + to_string(j);
             for (int l = 0; l < numSubTasks[i] - 1; l++){
               int off = subs[l];
-              cerr << off << endl;
               if (off >= j){
                 off++;
               }
