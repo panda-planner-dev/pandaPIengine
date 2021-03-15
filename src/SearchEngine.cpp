@@ -178,7 +178,7 @@ int main(int argc, char *argv[]) {
     pgb = htn->minProgressionBound();
   }
   if (maxpgb < pgb){
-    maxpgb = htn->maxProgressionBound();
+    maxpgb = pgb;
   }
   cerr << "starting search:" << endl;
   cerr << "starting Progressionbound = " << pgb << endl;

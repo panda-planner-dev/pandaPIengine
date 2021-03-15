@@ -119,6 +119,7 @@ public:
 	string* varNamesTrans;
 	
 	// for making sure every method has a last task
+	bool* hasNoLastTask;
 	int numEmptyTasks;
 	int firstEmptyTaskIndex;
 	string* emptyTaskNames;
