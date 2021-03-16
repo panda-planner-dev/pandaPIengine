@@ -163,8 +163,9 @@ public:
 	bool* invalidTransActions;
 	int numInvalidTransActions;
 
-	int* actionCostsTrans;
 	string* actionNamesTrans;
+
+	int* actionCostsTrans;
 	int** precListsTrans;
 	int** addListsTrans;
 	int** delListsTrans;

@@ -3658,12 +3658,13 @@ void Model::calcMinimalImpliedX() {
   void Model::htnToStrips(int pgb) {
     // number of translated variables
     int n = pgb * (pgb - 1);
-    numVarsTrans = numVars + pgb + n;
+    numVarsTrans = numVars + 2 * pgb + n;
 
     // indizes for variables
     firstVarIndex = 0;
     firstTaskIndex = numVars;
     firstConstraintIndex = numVars + pgb;
+    firstStackIndex = firstConstraintIndex + n;
 
     // indizes for names
     firstIndexTrans = new int[numVarsTrans];
@@ -3684,14 +3685,13 @@ void Model::calcMinimalImpliedX() {
       lastIndexTrans[firstConstraintIndex + i] = firstIndexTrans[firstConstraintIndex + i] + 1;
     }
 
-    varNamesTrans = new string[numVarsTrans];
-    for (int i = firstTaskIndex; i < firstConstraintIndex; i++){
-        varNamesTrans[i] = "varTasksHead" + to_string(i);
+    for (int i = 0; i < pgb; i++){
+      firstIndexTrans[firstStackIndex + i] = lastIndexTrans[firstStackIndex + i - 1] + 1;
+      lastIndexTrans[firstStackIndex + i] = firstIndexTrans[firstStackIndex + i] + 1;
     }
 
-    for (int i = 0; i < numVars; i++){
-      varNamesTrans[firstVarIndex + i] = varNames[i];
-    }
+    varNamesTrans = new string[numVarsTrans];
+    
 
     numStateBitsTrans = lastIndexTrans[numVarsTrans - 1] + 1;
 
@@ -3708,7 +3708,7 @@ void Model::calcMinimalImpliedX() {
     }
     int j = 0;
     int k = 0;
-    for (int i = firstConstraintIndex; i < numVarsTrans; i++){
+    for (int i = firstConstraintIndex; i < firstStackIndex; i++){
       j++;
       if (k == j) {
         j++;
@@ -3717,9 +3717,12 @@ void Model::calcMinimalImpliedX() {
         j = 0;
         k++;
       }
-      varNamesTrans[i] = "var_Constraint_" + to_string(k) + '_' + to_string(j);
       factStrsTrans[firstIndexTrans[i]] = string("+no_Constraint[")+ to_string(k) + ',' + to_string(j) + ']';
       factStrsTrans[firstIndexTrans[i] + 1] = string("+Constraint[") + to_string(k) + ',' + to_string(j) + ']';
+    }
+    for (int i = 0; i < pgb; i++){
+      factStrsTrans[firstIndexTrans[i + firstStackIndex]] = string("+free[head")+ to_string(i) + ']';
+      factStrsTrans[firstIndexTrans[i + firstStackIndex] + 1] = string("+occupied[head")+ to_string(i) + ']';
     }
     for (int i = 0; i < numVarsTrans; i++){
         varNamesTrans[i] = "var_" + to_string(i);
@@ -3733,6 +3736,8 @@ void Model::calcMinimalImpliedX() {
     for (int i = 1; i < s0SizeTrans; i++){
       s0ListTrans[i] = firstIndexTrans[firstTaskIndex + i];
     }
+    s0ListTrans[firstStackIndex - firstTaskIndex] = firstIndexTrans[firstStackIndex] + 1;
+
     // empty tasks
     numEmptyTasks = pgb;
     emptyTaskNames = new string[numEmptyTasks];
@@ -3742,9 +3747,10 @@ void Model::calcMinimalImpliedX() {
     emptyTaskAdds = new int*[numEmptyTasks];
     for (int i = 0; i < pgb; i++){
       numEmptyTaskPrecs[i] = pgb;
-      numEmptyTaskAdds[i] = pgb;
+      numEmptyTaskAdds[i] = pgb + 1;
       emptyTaskPrecs[i] = new int[pgb];
-      emptyTaskAdds[i] = new int[pgb];
+      emptyTaskAdds[i] = new int[pgb + 1];
+      emptyTaskAdds[i][pgb] = firstIndexTrans[firstStackIndex + i];
       for (int k = 0; k < pgb; k++){
         if (k < i){
           emptyTaskPrecs[i][k] = firstIndexTrans[firstConstraintIndex + k * (pgb - 1) + i - 1];
@@ -3810,7 +3816,7 @@ void Model::calcMinimalImpliedX() {
       for (int j = 0; j < pgb; j++){
         int index = i * pgb + j;
         numPrecsTrans[index] = numPrecs[i] + pgb;
-        numAddsTrans[index] = numAdds[i] + pgb;
+        numAddsTrans[index] = numAdds[i] + pgb + 1;
         precListsTrans[index] = new int[numPrecsTrans[index]];
         addListsTrans[index] = new int[numAddsTrans[index]];
         for (int l = 0; l < numPrecs[i]; l++){
@@ -3832,6 +3838,7 @@ void Model::calcMinimalImpliedX() {
         }
         actionNamesTrans[index] = "primitive(id[" + to_string(i) + "],head[" + to_string(j) + "]): " + taskNames[i];
         addListsTrans[index][numAdds[i]] = firstIndexTrans[firstTaskIndex + j];
+        addListsTrans[index][numAddsTrans[index] - 1] = firstIndexTrans[firstStackIndex + j];
         for (int k = 0; k < pgb - 1; k++){
           addListsTrans[index][numAdds[i] + 1 + k] = firstIndexTrans[firstConstraintIndex + j * (pgb - 1) + k];
         }
@@ -3840,34 +3847,38 @@ void Model::calcMinimalImpliedX() {
 
     taskToKill = new int[numMethods];
     for (int i = 0; i < numTasks; i++){
-      for (int j =0; j < numMethodsForTask[i]; j++){
+      for (int j = 0; j < numMethodsForTask[i]; j++){
         taskToKill[taskToMethods[i][j]] = i + 2;
       }
     }
-
     // transformed methods
     for (int i = 0; i < numMethods; i++) {
       int* subs = new int[numSubTasks[i]];
       for (int j = 0; j < pgb; j++){
         for (int k = 0; k < (methodIndexes[i + 1] - methodIndexes[i]); k++){
           int index = firstMethodIndex + methodIndexes[i] * pgb + j * (methodIndexes[i + 1] - methodIndexes[i]) + k;
-          numAddsTrans[index] = numSubTasks[i] * 2 + 1 + numOrderings[i] / 2;
-          numPrecsTrans[index] = numSubTasks[i] + pgb;
-          if (!hasNoLastTask[i]){
-            numAddsTrans[index] = numSubTasks[i] + numOrderings[i] / 2;
-            numPrecsTrans[index] = numSubTasks[i] - 1 + pgb;
-          }
           if (numSubTasks[i] == 1){
             numAddsTrans[index] = 1;
             numPrecsTrans[index] = pgb;
           }
-          if (numSubTasks[i] == 0){
-            numAddsTrans[index] = pgb;
+          else if (numSubTasks[i] == 0){
+            numAddsTrans[index] = pgb + 1;
             numPrecsTrans[index] = pgb;
+          }
+          else {
+            if (hasNoLastTask[i]){
+              combination(subs, pgb - 1, numSubTasks[i], k);
+              numAddsTrans[index] = numSubTasks[i] * 3 + 1 + numOrderings[i] / 2;
+              numPrecsTrans[index] = numSubTasks[i] + pgb + subs[numSubTasks[i] - 1];
+            }
+            else {
+              combination(subs, pgb - 1, numSubTasks[i] - 1, k);
+              numAddsTrans[index] = numSubTasks[i] * 2 - 1 + numOrderings[i] / 2;
+              numPrecsTrans[index] = numSubTasks[i] - 1 + pgb + subs[numSubTasks[i] - 2];
+            }
           }
           precListsTrans[index] = new int[numPrecsTrans[index]];
           addListsTrans[index] = new int[numAddsTrans[index]];
-          actionNamesTrans[index] = "method(id[" + to_string(i) + "],head[" + to_string(j);
           if (numSubTasks[i] >= pgb){
             invalidTransActions[index] = true;
             continue;
@@ -3885,34 +3896,31 @@ void Model::calcMinimalImpliedX() {
           }
           if (numSubTasks[i] == 0){
             addListsTrans[index][0] = firstIndexTrans[firstTaskIndex + j];
+            addListsTrans[index][pgb] = firstIndexTrans[firstStackIndex + j];
             for (int m = 0; m < pgb - 1; m++){
               addListsTrans[index][1 + m] = firstIndexTrans[firstConstraintIndex + j * (pgb - 1) + m];
             }
           }
           if (numSubTasks[i] == 1){
             addListsTrans[index][0] = firstIndexTrans[firstTaskIndex + j] + 2 + subTasksInOrder[i][0];
-            actionNamesTrans[index] += "],subtasks[" + to_string(j);
           }
           if (numSubTasks[i] > 1) {
             if (hasNoLastTask[i]){
-              combination(subs, pgb - 1, numSubTasks[i], k);
               addListsTrans[index][0] = firstIndexTrans[firstTaskIndex + j] + 1;
+              for (int m = 0; m < subs[numSubTasks[i] - 1]; m++){
+                precListsTrans[index][numSubTasks[i] + pgb + m] = firstIndexTrans[firstStackIndex + m] + 1;
+              }
               for (int m = 0; m < numSubTasks[i]; m++){
                 int off = 0;
                 if (subs[m] >= j){
                   off = 1;
                   subs[m]++;
                 }
-                if (m == 0){
-                  actionNamesTrans[index] += "],subtasks[";
-                }
-                else{
-                  actionNamesTrans[index] += ',';
-                }
-                actionNamesTrans[index] += to_string(subs[m]);
                 precListsTrans[index][m + pgb] = firstIndexTrans[firstTaskIndex + subs[m]];
+                precListsTrans[index][numSubTasks[i] + pgb + subs[m] - off] = firstIndexTrans[firstStackIndex + subs[m]];
                 addListsTrans[index][m + 1] = firstIndexTrans[firstTaskIndex + subs[m]] + 2 + subTasksInOrder[i][m];
                 addListsTrans[index][m + numSubTasks[i] + 1] = firstIndexTrans[firstConstraintIndex + (subs[m]) * (pgb - 1) + j - 1 + off] + 1;
+                addListsTrans[index][m + numSubTasks[i] * 2 + 1] = firstIndexTrans[firstStackIndex + (subs[m])] + 1;
               }
               for (int m = 0; m < numOrderings[i] / 2; m++){
                 int first = 0;
@@ -3921,22 +3929,24 @@ void Model::calcMinimalImpliedX() {
                 if (subs[constrained] >= subs[free]){
                   first = 1;
                 }
-                addListsTrans[index][m + numSubTasks[i] * 2 + 1] = lastIndexTrans[firstConstraintIndex + subs[free] * (pgb - 1) + subs[constrained] - first];
+                addListsTrans[index][m + numSubTasks[i] * 3 + 1] = lastIndexTrans[firstConstraintIndex + subs[free] * (pgb - 1) + subs[constrained] - first];
               }
             }
             else {
-              combination(subs, pgb - 1, numSubTasks[i] - 1, k);
               addListsTrans[index][0] = firstIndexTrans[firstTaskIndex + j] + subTasksInOrder[i][0] + 2;
-              actionNamesTrans[index] += "],subtasks[" + to_string(j);
+              for (int m = 0; m < subs[numSubTasks[i] - 2]; m++){
+                precListsTrans[index][numSubTasks[i] + pgb - 1 + m] = firstIndexTrans[firstStackIndex + m] + 1;
+              }
               for (int m = 0; m < numSubTasks[i] - 1; m++){
                 int off = 0;
                 if (subs[m] >= j){
                   off = 1;
                   subs[m]++;
                 }
-                actionNamesTrans[index] += ',' + to_string(subs[m]);
                 precListsTrans[index][m + pgb] = firstIndexTrans[firstTaskIndex + subs[m]];
+                precListsTrans[index][numSubTasks[i] + pgb - 2 + subs[m] - off] = firstIndexTrans[firstStackIndex + subs[m]];
                 addListsTrans[index][m + 1] = firstIndexTrans[firstTaskIndex + subs[m]] + 2 + subTasksInOrder[i][m + 1];
+                addListsTrans[index][m + numSubTasks[i]] = firstIndexTrans[firstStackIndex + subs[m]] + 1;
               }
               for (int m = 0; m < numOrderings[i] / 2; m++){
                 int first = 0;
@@ -3946,20 +3956,44 @@ void Model::calcMinimalImpliedX() {
                   if (j >= subs[free]){
                     first = 1;
                   }
-                  addListsTrans[index][m + numSubTasks[i]] = lastIndexTrans[firstConstraintIndex + subs[free] * (pgb - 1) + j - first];
+                  addListsTrans[index][m + numSubTasks[i] * 2 - 1] = lastIndexTrans[firstConstraintIndex + subs[free] * (pgb - 1) + j - first];
                 }
                 else {
                   if (subs[constrained] >= subs[free]){
                     first = 1;
                   }
-                  addListsTrans[index][m + numSubTasks[i]] = lastIndexTrans[firstConstraintIndex + subs[free] * (pgb - 1) + subs[constrained] - first];
+                  addListsTrans[index][m + numSubTasks[i] * 2 - 1] = lastIndexTrans[firstConstraintIndex + subs[free] * (pgb - 1) + subs[constrained] - first];
                 }
               }
             }
           }
-          actionNamesTrans[index] += "]): " + methodNames[i];
+          string name = "method(id[" + to_string(i) + "],head[" + to_string(j) + "],subtasks[";
+          if (hasNoLastTask[i]){
+            for (int l = 0; l < numSubTasks[i]; l++){
+              name += to_string(subs[l]);
+              if (l < numSubTasks[i] - 1){
+                name += ",";
+              }
+            }
+          }
+          else {
+            for (int l = 0; l < numSubTasks[i]; l++){
+              if (l == 0){
+                name += to_string(j);
+              }
+              else {
+                name += to_string(subs[l - 1]);
+              }
+              if (l < numSubTasks[i] - 1){
+                name += ",";
+              }
+            }
+          }
+          name += "]): " + methodNames[i];
+          actionNamesTrans[index] = name;
         }
       }
+      delete[] subs;
     }
 
     for (int i = 0; i < numActionsTrans; i++) {
