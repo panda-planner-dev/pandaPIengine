@@ -3264,7 +3264,7 @@ void Model::calcMinimalImpliedX() {
     for (int i = 0; i < s0Size; i++){
       int j = 0;
       while (true){
-        if (j > s0Size || firstIndex[j] > s0List[i]){
+        if (j >= s0Size || firstIndex[j] > s0List[i]){
           j--;
           break;
         }
