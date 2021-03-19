@@ -2906,12 +2906,20 @@ void Model::calcMinimalImpliedX() {
             int cDist = minImpliedDistanceM[n->id];
 
             minImpliedCostsM[n->id] = 0;
-            minImpliedDistanceM[n->id] = 1; // a distance of one is implied by the decomposition itself
+            minImpliedDistanceM[n->id] = numSubTasks[n->id]; // number of tasks added to the stack
+            int minAdditionalDistance = 0;
             for (int i = 0; i < this->numSubTasks[n->id]; i++) {
-                int st = this->subTasks[n->id][i];
+                int st = this->subTasksInOrder[n->id][i];
+                if (st == decomposedTask[n->id]){
+                  minAdditionalDistance = numSubTasks[n->id] - 1 - i;
+                }
                 minImpliedCostsM[n->id] += minImpliedCosts[st];
-                minImpliedDistanceM[n->id] += minImpliedDistance[st];
+                int add = minImpliedDistance[st] - numSubTasks[n->id] + i;
+                if (add > minAdditionalDistance){
+                  minAdditionalDistance = add;
+                }
             }
+            minImpliedDistanceM[n->id] += minAdditionalDistance;
             bool changed = ((minImpliedCostsM[n->id] != cCosts)
                     || (minImpliedDistanceM[n->id] != cDist));
             if (changed) {
@@ -3836,6 +3844,7 @@ void Model::calcMinimalImpliedX() {
       for (int j = 0; j < pgb; j++){
         for (int k = 0; k < (methodIndexes[i + 1] - methodIndexes[i]); k++){
           int index = firstMethodIndex + methodIndexes[i] * pgb + j * (methodIndexes[i + 1] - methodIndexes[i]) + k;
+          int inv = 0;
           if (numSubTasks[i] == 1){
             numAddsTrans[index] = 1;
             numPrecsTrans[index] = pgb;
@@ -3846,6 +3855,7 @@ void Model::calcMinimalImpliedX() {
           }
           else {
             if (hasNoLastTask[i]){
+              inv = 1;
               combination(subs, pgb - 1, numSubTasks[i], k);
               numAddsTrans[index] = numSubTasks[i] * 3 + 1 + numOrderings[i] / 2;
               numPrecsTrans[index] = numSubTasks[i] + 1 + pgb + subs[numSubTasks[i] - 1];
@@ -3858,7 +3868,7 @@ void Model::calcMinimalImpliedX() {
           }
           precListsTrans[index] = new int[numPrecsTrans[index]];
           addListsTrans[index] = new int[numAddsTrans[index]];
-          if (numSubTasks[i] >= pgb){
+          if (numSubTasks[i] + inv > pgb){
             invalidTransActions[index] = true;
             continue;
           }
@@ -4494,13 +4504,7 @@ void Model::calcMinimalImpliedX() {
 
   }
   int Model::minProgressionBound(){
-    int pgb = 1;
-    for (int i = 0; i < numMethods; i++){
-      if (numSubTasks[i] > pgb){
-        pgb = numSubTasks[i];
-      }
-    }
-    return pgb;
+    return minImpliedDistance[initialTask];
   }
   int Model::maxProgressionBound(){
     return 100;
