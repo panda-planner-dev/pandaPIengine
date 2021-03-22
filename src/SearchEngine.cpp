@@ -181,6 +181,7 @@ int main(int argc, char *argv[]) {
   //htn->printActionsToFile(string("actions2.txt"));
 	//htn->printStateBitsToFile(string("stateBits2.txt"));
   if (pgb < 1){
+    htn->calcMinimalImpliedX();
     pgb = htn->minProgressionBound();
   }
   if (maxpgb < pgb){
