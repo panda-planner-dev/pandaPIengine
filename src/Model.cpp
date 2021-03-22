@@ -3081,6 +3081,13 @@ void Model::calcMinimalImpliedX() {
           subTasksInOrder[i][0] = subTasks[i][0];
           continue;
       }
+      if (numOrderings[i] == 0){
+        for (int j = 0; j < numSubTasks[i]; j++){
+          subTasksInOrder[i][j] = subTasks[i][j];
+        }
+        hasNoLastTask[i] = true;
+        continue;
+      }
       int* subs = new int[numSubTasks[i]];
       for (int j = 0; j < numSubTasks[i]; j++){
         for (int k = 0; k < numSubTasks[i]; k++){
@@ -4069,7 +4076,6 @@ void Model::calcMinimalImpliedX() {
     firstIndexTrans = new int[numVarsTrans];
     lastIndexTrans = new int[numVarsTrans];
 
-    int offset = 0;
     for (int i = 0; i < numVars; i++){
       firstIndexTrans[firstVarIndex+ i] = firstIndex[i];
       lastIndexTrans[firstVarIndex+i] = lastIndex[i];
