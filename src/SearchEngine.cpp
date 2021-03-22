@@ -229,7 +229,7 @@ int main(int argc, char *argv[]) {
     if (error_code == 0){
       break;
     }
-    else if (error_code == 3072){
+    else if (error_code == 3072 || error_code == 2816){
       pgb += pgbsteps;
       cerr << "new progressionbound: " << pgb << endl;
     }
