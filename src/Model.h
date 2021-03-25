@@ -291,11 +291,11 @@ public:
 
 
 
-#ifdef CALCMINIMALIMPLIEDCOSTS
 	int* minImpliedCosts;
 	int* minImpliedDistance;
 	void calcMinimalImpliedX();
-#endif
+	int* minImpliedPGB;
+	void calcMinimalProgressionBound();
 
 	// permanent SCC information
 	bool calculatedSccs = false;
@@ -339,6 +339,9 @@ public:
 	
 	void printActionsToFile(string file);
 	void printStateBitsToFile(string file);
+	void reorderTasks();
+
+  void checkFastDownwardPlan(string domain, string plan);
 
 	// plan verification
 	void planToHddl(string infile, string outfile);

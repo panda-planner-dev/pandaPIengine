@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <cassert>
 #include <unordered_set>
+#include <sys/time.h>
 
 
 #include "Model.h"
@@ -168,29 +169,55 @@ int main(int argc, char *argv[]) {
 	}
 
 
+  timeval tp;
+  long startT;
+  long currentT;
+
   int error_code = -1;
   /*
    * Read model
    */
-  cerr << "Reading HTN model from file \"" << s << "\" ... " << endl;
   Model* htn = new Model();
+  
+#ifdef CHECKDOWNWARD
+  htn->checkFastDownwardPlan("out.sas", "p.sas");
+  
+  return 0;
+#endif  
+
+  cerr << "Reading HTN model from file \"" << s << "\" ... " << endl;
   htn->read(s);
-	//htn->printStateBitsToFile(string("stateBits1.txt"));
-  //htn->printActionsToFile(string("actions1.txt"));
+  
+  gettimeofday(&tp, NULL);
+  startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+  cout << "- reordering subtasks";
+  
+  htn->reorderTasks();
+  
+  gettimeofday(&tp, NULL);
+  currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+  cout << " (" << (currentT - startT) << " ms)" << endl;
+  gettimeofday(&tp, NULL);
+  startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+  cout << "- creating SAS+ vars";
+  
   htn->sasPlus();
-  //htn->printActionsToFile(string("actions2.txt"));
-	//htn->printStateBitsToFile(string("stateBits2.txt"));
+  
+  gettimeofday(&tp, NULL);
+  currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+  cout << " (" << (currentT - startT) << " ms)" << endl;
+
   if (pgb < 1){
-    htn->calcMinimalImpliedX();
+    htn->calcMinimalProgressionBound();
     pgb = htn->minProgressionBound();
   }
   if (maxpgb < pgb){
     maxpgb = htn->maxProgressionBound();
   }
-  cerr << "starting search:" << endl;
-  cerr << "starting Progressionbound = " << pgb << endl;
-  cerr << "maximum Progressionbound = " << maxpgb << endl;
-  cerr << "Progressionbound steps = " << pgbsteps << endl;
+  cerr << "- starting search:" << endl;
+  cerr << "- starting Progressionbound = " << pgb << endl;
+  cerr << "- maximum Progressionbound = " << maxpgb << endl;
+  cerr << "- Progressionbound steps = " << pgbsteps << endl;
   while (true) {
     
     if (pgb > maxpgb){
@@ -201,41 +228,58 @@ int main(int argc, char *argv[]) {
     /*
     * Translate model
     */
+    gettimeofday(&tp, NULL);
+    startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+
     if (problemType == 0){
-      cerr << "totally ordered htn to Strips" << endl;
+      cerr << "TOHTN to strips";
       htn->tohtnToStrips(pgb);
     }
     else if (problemType == 1){
-      cerr << "htn to Strips with conditional effects" << endl;
+      cerr << "HTN to strips with conditional effects";
       htn->htnToCond(pgb);
     }
     else{
-      cerr << "htn to strips" << endl;
+      cerr << "HTN to strips";
       htn->htnToStrips(pgb);
     }
     
+    gettimeofday(&tp, NULL);
+    currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+    cout << " (" << (currentT - startT) << " ms)" << endl;
+
     /*
     * Print to file
     */
-    cerr << "Printing HTN model to file \"" << sasfile << "\" ... " << endl;
+    gettimeofday(&tp, NULL);
+    startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+    cerr << "Printing HTN model to file \"" << sasfile << "\" ... ";
     htn->writeToFastDown(sasfile, problemType, pgb);
+    gettimeofday(&tp, NULL);
+    currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+    cout << " (" << (currentT - startT) << " ms)" << endl;
     string command;
 	switch (downwardConf){
 		case 0: command = solver + string(" --evaluator 'hcea=cea()' --search 'lazy_greedy([hcea], preferred=[hcea])' --internal-plan-file ") + sasfile + string(".plan < ") + sasfile; break;
 		case 1: command = solver + string(" --evaluator 'hff=ff()' --search 'iterated([ehc(hff, preferred=[hff]),lazy_greedy([hff], preferred=[hff])], continue_on_fail=true, continue_on_solve=false, max_time=1800)' --internal-plan-file ") + sasfile + string(".plan < ") + sasfile; break;
     case 2: command = solver + ' ' + sasfile + string(" --evaluator 'hcea=cea()' --search 'lazy_greedy([hcea], preferred=[hcea])'"); break;
 	}
+    gettimeofday(&tp, NULL);
+    startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
     cerr << command << endl;
     error_code = system(command.c_str());
+    gettimeofday(&tp, NULL);
+    currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+    cout << "Solving Time (" << (currentT - startT) << " ms)" << endl << endl;
     if (error_code == 0){
       break;
     }
     else if (error_code == 3072 || error_code == 2816){
       pgb += pgbsteps;
-      cerr << "new progressionbound: " << pgb << endl;
+      cerr << "- new progressionbound: " << pgb << endl;
     }
     else {
-      cerr << "error code: " << error_code << endl;
+      cerr << "- error code: " << error_code << endl;
       return 0;
     }
   }

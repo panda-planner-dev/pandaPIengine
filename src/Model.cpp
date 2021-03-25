@@ -2852,7 +2852,6 @@ searchNode* Model::prepareTNi(const Model* htn) {
     return tnI;
 }
 
-#ifdef CALCMINIMALIMPLIEDCOSTS
 
 struct tOrMnode {
     bool isMethod = false;
@@ -2967,7 +2966,101 @@ void Model::calcMinimalImpliedX() {
     }
     */
 }
-#endif
+
+void Model::calcMinimalProgressionBound() {
+
+    timeval tp;
+    gettimeofday(&tp, NULL);
+    long startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+
+    cout << "- Calculating minimal Progression Bound";
+
+    this->minImpliedPGB = new int[this->numTasks];
+    int* minImpliedPGBM = new int[this->numMethods];
+
+    for(int i = 0; i < this->numMethods; i++) {
+        minImpliedPGBM[i] = 0;
+    }
+
+    for(int i = 0; i < this->numTasks; i++){
+        if(i < this->numActions){
+            minImpliedPGB[i] = 1;
+        } else {
+            minImpliedPGB[i] = 0;
+        }
+    }
+
+    list<tOrMnode*> h;
+    for(int i = 0; i < numActions; i++) {
+        for(int j = 0; j < this->stToMethodNum[i]; j++) {
+            int m = stToMethod[i][j];
+            tOrMnode* nn = new tOrMnode();
+            nn->id = m;
+            nn->isMethod = true;
+            h.push_back(nn);
+        }
+    }
+
+    while(!h.empty()) {
+        tOrMnode* n = h.front();
+        h.pop_front();
+        if (n->isMethod) {
+            int cDist = minImpliedPGBM[n->id];
+
+            minImpliedPGBM[n->id] = numSubTasks[n->id]; // number of tasks added to the stack
+            int minAdditionalDistance = 0;
+            for (int i = 0; i < this->numSubTasks[n->id]; i++) {
+                int st = this->subTasksInOrder[n->id][i];
+                if (st == decomposedTask[n->id]){
+                  minAdditionalDistance = numSubTasks[n->id] - 1 - i;
+                }
+                int add = minImpliedPGB[st] - numSubTasks[n->id] + i;
+                if (add > minAdditionalDistance){
+                  minAdditionalDistance = add;
+                }
+            }
+            minImpliedPGBM[n->id] += minAdditionalDistance;
+            bool changed = ((minImpliedPGBM[n->id] != cDist));
+            if (changed) {
+                tOrMnode* nn = new tOrMnode();
+                nn->id = this->decomposedTask[n->id];
+                nn->isMethod = false;
+                h.push_back(nn);
+            }
+        } else { // is task
+            int cDist = minImpliedPGB[n->id];
+
+            minImpliedPGB[n->id] = INT_MAX;
+            for (int i = 0; i < this->numMethodsForTask[n->id]; i++) {
+                int m = this->taskToMethods[n->id][i];
+                minImpliedPGB[n->id] = min(minImpliedPGBM[m], minImpliedPGB[n->id]);
+            }
+
+            bool changed = ((minImpliedPGB[n->id] != cDist));
+            if (changed) {
+                for(int i = 0; i < this->stToMethodNum[n->id]; i++){
+                    int m = stToMethod[n->id][i];
+                    tOrMnode* nn = new tOrMnode();
+                    nn->id = m;
+                    nn->isMethod = true;
+                    h.push_back(nn);
+                }
+            }
+        }
+        delete n;
+    }
+    delete[] minImpliedPGBM;
+
+    gettimeofday(&tp, NULL);
+    long currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+
+    cout << " (" << (currentT - startT) << " ms)" << endl;
+    /*
+    for (int i = 0 ; i < this->numTasks; i++) {
+        cout << this->taskNames[i] << " c:" << minImpliedCosts[i] << " d:" << minImpliedDistance[i] << endl;
+    }
+    */
+}
 
   void Model::writeToPDDL(string dName, string pName) {
       ofstream dfile;
@@ -3066,11 +3159,189 @@ void Model::calcMinimalImpliedX() {
       pfile << ")" << endl;
       pfile.close();
   }
-  void Model::sasPlus(){
+
+  void Model::checkFastDownwardPlan(string domain, string plan){
+
+    std::istream * inputStream;
+
+    ifstream * fileInput  = new ifstream(domain);
+    if (!fileInput->good()) {
+        std::cerr << "Unable to open input file " << domain << ": " << strerror (errno) << std::endl;
+        exit(1);
+    }
+
+    inputStream = fileInput;
+
+    string line;
     
+    while (true){
+      getline(*inputStream, line);
+      int index = line.find("end_metric");
+      if (index < line.length()){
+        break;
+      }
+    }
+    getline(*inputStream, line);
+    getline(*inputStream, line);
+    
+    cerr << line << " variables" << endl;
+    
+    numVars = stoi(line);
+    s0List = new int[numVars];
+    while (true){
+      getline(*inputStream, line);
+      int index = line.find("begin_state");
+      if (index < line.length()){
+        break;
+      }
+    }
+    cerr << "initializing variables" << endl;
+    for (int i = 0; i < numVars; i++){
+      getline(*inputStream, line);
+      s0List[i] = stoi(line);
+      
+      cerr << "variable: " << i << " value: " << s0List[i] << endl;
+      
+    }
+    cerr << endl;
+                         
+    while (true){
+      getline(*inputStream, line);
+      int index = line.find("begin_goal");
+      if (index < line.length()){
+        break;
+      }
+    }
+    getline(*inputStream, line);
+    gSize = stoi(line);
+    gList = new int[numVars];
+    for (int i = 0; i < numVars; i++){
+      gList[i] = -1;
+    }
+    for (int i = 0; i < gSize; i++){
+      getline(*inputStream, line);
+      int index = line.find(' ');
+      int a = stoi(line.substr(0, index));
+      int b = stoi(line.substr(index + 1, line.length()));
+      gList[a] = b;
+      
+      cerr << "goal: " << a << " value: " << b << endl;
+      
+    }
+    getline(*inputStream, line);
+    getline(*inputStream, line);
+    getline(*inputStream, line);
+    
+    numActions = stoi(line);
+    cerr << endl;
+    cerr << "number of actions: " << numActions << endl;
+    precLists = new int*[numActions];
+    addLists = new int*[numActions];
+    
+    taskNames = new string[numActions];
+    for (int i = 0; i < numActions; i++){
+      precLists[i] = new int[numVars];
+      addLists[i] = new int[numVars];
+      for (int j = 0; j < numVars; j++){
+        precLists[i][j] = -1;
+        addLists[i][j] = -1;
+      }
+      while (true){
+        getline(*inputStream, line);
+        int index = line.find("begin_operator");
+        if (index < line.length()){
+          break;
+        }
+      }
+      getline(*inputStream, line);
+      taskNames[i] = line;
+      if (line.substr(0, 14).compare("method(id[126]") == 0){
+        cerr << "read method " << "method(id[126]" << endl;
+        cerr << "read method " << line.substr(0, 14) << endl;
+        cerr << "read method " << line << endl;
+        return;
+      }
+      getline(*inputStream, line);
+      int n = stoi(line);
+      for (int j = 0; j < n; j++){
+        getline(*inputStream, line);
+        int index = line.find(' ');
+        int a = stoi(line.substr(0, index));
+        int b = stoi(line.substr(index + 1, line.length()));
+        precLists[i][a] = b;
+      }
+      getline(*inputStream, line);
+      n = stoi(line);
+      for (int j = 0; j < n; j++){
+        getline(*inputStream, line);
+        int i1 = line.find(' ');
+        int i2 = line.find(' ', i1 + 1);
+        int i3 = line.find(' ', i2 + 1);
+        int a = stoi(line.substr(i1 + 1, i2 - i1));
+        int b = stoi(line.substr(i2 + 1, i3 - i2));
+        int c = stoi(line.substr(i3 + 1, line.length()));
+        precLists[i][a] = b;
+        addLists[i][a] = c;
+      }
+    }
+    fileInput->close();
+    cerr << endl;
+    
+    fileInput  = new ifstream(plan);
+    if (!fileInput->good()) {
+        std::cerr << "Unable to open input file " << domain << ": " << strerror (errno) << std::endl;
+        exit(1);
+    }
+
+    inputStream = fileInput;
+    getline(*inputStream, line);
+
+    int i = 0;
+    while (line.find("; cost") > 0){
+      cerr << "applying method " << i << ": " << line << endl;
+      int index = -1;
+      for (int j = 0; j < numActions; j++){
+        if (taskNames[j].compare(line.substr(1, line.length() - 2)) == 0){
+          index = j;
+          break;
+        }
+      }
+      if (index == -1){
+        cerr << "no method with this name found" << endl;
+        return;
+      }
+      cerr << "State" << endl;
+      for (int j = 0; j < numVars; j++){
+        bool correct = ((precLists[index][j] == -1) || (precLists[index][j] == s0List[j]));
+        if (!correct){
+          cerr << "cant apply method because current state is: " << s0List[j] << " but should be: " << precLists[index][j] << endl;
+          return;
+        }
+        if (precLists[index][j] != -1){
+          cerr << j << ": " << s0List[j] << " == " << precLists[index][j] << "   ";
+        }
+        if (addLists[index][j] != -1){
+          cerr << j << ": " << s0List[j] << " -> " << addLists[index][j];
+          s0List[j] = addLists[index][j];
+        }
+        if (precLists[index][j] != -1 || addLists[index][j] != -1){
+          cerr << endl;
+        }
+      }
+      getline(*inputStream, line);
+      i++;
+    }
+    cerr << "finished applying methods!" << endl;
+    cerr << "checking goal" << endl;
+    for (int i = 0; i < numVars; i++){
+      cerr << i << " " << s0List[i] << " " << gList[i] << endl;
+    }
+  }
+  
+  
+  void Model::reorderTasks(){
     subTasksInOrder = new int*[numMethods];
     hasNoLastTask = new bool[numMethods];
-    cerr << "reordering things" << endl;
     for (int i = 0; i < numMethods; i++){
       subTasksInOrder[i] = new int[numSubTasks[i]];
       hasNoLastTask[i] = false;
@@ -3158,10 +3429,9 @@ void Model::calcMinimalImpliedX() {
       }
       delete[] subs;
     }
+  }
 
-    // sasPlus related
-    cerr << "creating sas+ vars" << endl;
-
+  void Model::sasPlus(){
     sasPlusBits = new bool[numVars];
     sasPlusOffset = new int[numVars];
     bitsToSP = new int[numStateBits];
@@ -3608,7 +3878,7 @@ void Model::calcMinimalImpliedX() {
       }
       delete[] subs;
     }
-
+    numInvalidTransActions = 0;
     for (int i = 0; i < numActionsTrans; i++) {
       if (invalidTransActions[i]){
         numInvalidTransActions++;
@@ -3767,7 +4037,7 @@ void Model::calcMinimalImpliedX() {
     methodIndexes[0] = 0;
     for (int i = 1; i < numMethods + 1; i++){     
       int off = 1;
-      if (hasNoLastTask[i]){
+      if (hasNoLastTask[i - 1]){
         off = 0;
       }
       int m = bin(pgb - 1, numSubTasks[i - 1] - off);
@@ -4000,6 +4270,7 @@ void Model::calcMinimalImpliedX() {
       delete[] subs;
     }
 
+    numInvalidTransActions = 0;
     for (int i = 0; i < numActionsTrans; i++) {
       if (invalidTransActions[i]){
         numInvalidTransActions++;
@@ -4180,6 +4451,7 @@ void Model::calcMinimalImpliedX() {
     }
 
     // invalid Methods
+    numInvalidTransActions = 0;
     for (int i = 0; i < numActionsTrans; i++) {
         if (invalidTransActions[i]){
             numInvalidTransActions++;
@@ -4510,7 +4782,7 @@ void Model::calcMinimalImpliedX() {
 
   }
   int Model::minProgressionBound(){
-    return minImpliedDistance[initialTask];
+    return minImpliedPGB[initialTask];
   }
   int Model::maxProgressionBound(){
     return 100;
