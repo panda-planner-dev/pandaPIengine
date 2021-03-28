@@ -202,7 +202,7 @@ int main(int argc, char *argv[]) {
   cout << " (" << (currentT - startT) << " ms)" << endl;
 
   if (pgb < 1){
-    htn->calcMinimalProgressionBound();
+    htn->calcMinimalProgressionBound((problemType == 0));
     pgb = htn->minProgressionBound();
   }
   if (maxpgb < pgb){

@@ -91,6 +91,7 @@ Model::Model() {
     numPrecsTrans = nullptr;
     numAddsTrans = nullptr;
     numDelsTrans = nullptr;
+    firstNumTOPrimTasks = nullptr;
     s0ListTrans = nullptr;
     factStrsTrans = nullptr;
     firstIndexTrans = nullptr;
@@ -173,6 +174,7 @@ Model::~Model() {
       delete[] emptyTaskPrecs;
       delete[] emptyTaskAdds;
     }
+    delete[] firstNumTOPrimTasks;
     delete[] numEmptyTaskPrecs;
     delete[] emptyTaskNames;
     delete[] numEmptyTaskAdds;
@@ -1702,8 +1704,8 @@ void Model::generateMethodRepresentation() {
     methodSubtaskSuccNum = new int*[numMethods];
 
     for (int i = 0; i < numMethods; i++) {
-        bool firsts[numSubTasks[i]];
-        bool lasts[numSubTasks[i]];
+        bool * firsts = new bool[numSubTasks[i]];
+        bool * lasts = new bool[numSubTasks[i]];
         methodSubtaskSuccNum[i] = new int[numSubTasks[i]];
         for (int j = 0; j < numSubTasks[i]; j++) {
             methodSubtaskSuccNum[i][j] = 0;
@@ -1747,6 +1749,8 @@ void Model::generateMethodRepresentation() {
         }
         assert(curFI == numFirstTasks[i]);
         assert(curLI == numLastTasks[i]);
+        delete[] firsts;
+        delete[] lasts;
     }
 }
 
@@ -1910,7 +1914,7 @@ void Model::readClassical(istream& domainFile) {
         }
     }
 
-    set<int> precToActionTemp[numStateBits];
+    set<int> * precToActionTemp = new set<int>[numStateBits];
     for (int i = 0; i < numActions; i++) {
         for (int j = 0; j < numPrecs[i]; j++) {
             int f = precLists[i][j];
@@ -1928,6 +1932,7 @@ void Model::readClassical(istream& domainFile) {
             precToAction[i][cur++] = ac;
         }
     }
+    delete[] precToActionTemp;
     // s0
     getline(domainFile, line);
     getline(domainFile, line);
@@ -2127,7 +2132,7 @@ void Model::readHierarchical(istream& domainFile) {
     }
 
     stToMethod = new int*[this->numTasks];
-    int k[this->numTasks];
+    int * k = new int[this->numTasks];
     for (int i = 0; i < this->numTasks; i++) {
         stToMethod[i] = new int[stToMethodNum[i]];
         k[i] = 0;
@@ -2143,7 +2148,7 @@ void Model::readHierarchical(istream& domainFile) {
             }
         }
     }
-
+    delete[] k;
 #ifndef NDEBUG
     /*
      * check mapping
@@ -2250,7 +2255,6 @@ void Model::generateVectorRepresentation() {
 #endif
 
 void Model::read(string f) {
-    const char *cstr = f.c_str();
 
     std::istream * inputStream;
     if (f == "stdin"){
@@ -2518,7 +2522,7 @@ void Model::calcSCCs() {
 
     // generate inverse mapping
     sccToTasks = new int*[numSCCs];
-    int currentI[numSCCs];
+    int * currentI = new int[numSCCs];
     for (int i = 0; i < numSCCs; i++)
         currentI[i] = 0;
     for (int i = 0; i < numSCCs; i++) {
@@ -2529,7 +2533,7 @@ void Model::calcSCCs() {
         sccToTasks[scc][currentI[scc]] = i;
         currentI[scc]++;
     }
-
+    delete[] currentI;
     // search for sccs with size 1 that contain self-loops
     set<int> selfLoopSccs;
     for(int i = 0; i < numSCCs;i++){
@@ -2696,7 +2700,7 @@ void Model::calcSCCGraph() {
     }
     this->reachable = new int*[numTasks];
 
-    int ready[numSCCs];
+    int * ready = new int[numSCCs];
     vector<int> stack;
 
     for (int i = 0; i < numSCCs; i++) {
@@ -2796,6 +2800,7 @@ void Model::calcSCCGraph() {
     for (int i = 0; i < numTasks; i++)
     assert(numReachable[i] >= 0);
 #endif
+  delete[] ready;
 #endif
 }
 
@@ -2967,7 +2972,7 @@ void Model::calcMinimalImpliedX() {
     */
 }
 
-void Model::calcMinimalProgressionBound() {
+void Model::calcMinimalProgressionBound(bool to) {
 
     timeval tp;
     gettimeofday(&tp, NULL);
@@ -3006,18 +3011,28 @@ void Model::calcMinimalProgressionBound() {
         h.pop_front();
         if (n->isMethod) {
             int cDist = minImpliedPGBM[n->id];
+            int off = 0;
+            if (to){
+              off = firstNumTOPrimTasks[n->id];
+            }
 
-            minImpliedPGBM[n->id] = numSubTasks[n->id]; // number of tasks added to the stack
+            minImpliedPGBM[n->id] = numSubTasks[n->id] - off; // number of tasks added to the stack
+            if (minImpliedPGBM[n->id] < 1){
+              minImpliedPGBM[n->id] = 1;
+            }
             int minAdditionalDistance = 0;
-            for (int i = 0; i < this->numSubTasks[n->id]; i++) {
-                int st = this->subTasksInOrder[n->id][i];
-                if (st == decomposedTask[n->id]){
-                  minAdditionalDistance = numSubTasks[n->id] - 1 - i;
+            for (int i = 0; i < this->numSubTasks[n->id] - off; i++) {
+              int st = this->subTasksInOrder[n->id][i];
+              if (st == decomposedTask[n->id]){
+                int k = numSubTasks[n->id] - 1 - i - off;
+                if (minAdditionalDistance < k){
+                  minAdditionalDistance = numSubTasks[n->id] - 1 - i - off;
                 }
-                int add = minImpliedPGB[st] - numSubTasks[n->id] + i;
-                if (add > minAdditionalDistance){
-                  minAdditionalDistance = add;
-                }
+              }
+              int add = minImpliedPGB[st] - numSubTasks[n->id] + i + off;
+              if (add > minAdditionalDistance){
+                minAdditionalDistance = add;
+              }
             }
             minImpliedPGBM[n->id] += minAdditionalDistance;
             bool changed = ((minImpliedPGBM[n->id] != cDist));
@@ -3340,17 +3355,22 @@ void Model::calcMinimalProgressionBound() {
   
   
   void Model::reorderTasks(){
+    firstNumTOPrimTasks = new int[numMethods];
     subTasksInOrder = new int*[numMethods];
     hasNoLastTask = new bool[numMethods];
     for (int i = 0; i < numMethods; i++){
+      firstNumTOPrimTasks[i] = 0;
       subTasksInOrder[i] = new int[numSubTasks[i]];
       hasNoLastTask[i] = false;
       if (numSubTasks[i] == 0){
-          continue;
+        continue;
       }
       if (numSubTasks[i] == 1){
-          subTasksInOrder[i][0] = subTasks[i][0];
-          continue;
+        if (isPrimitive[subTasks[i][0]]){
+          firstNumTOPrimTasks[i] = 1;
+        }
+        subTasksInOrder[i][0] = subTasks[i][0];
+        continue;
       }
       if (numOrderings[i] == 0){
         for (int j = 0; j < numSubTasks[i]; j++){
@@ -3398,6 +3418,15 @@ void Model::calcMinimalProgressionBound() {
       }
       for (int j = 0; j < numOrderings[i]; j++){
         ordering[i][j] = numSubTasks[i] - 1 - subs[ordering[i][j]];
+      }
+      // evaluating number of primitive tasks in front
+      for (int j = 0; j < numSubTasks[i]; j++){
+        if (isPrimitive[subTasks[i][j]]){
+          firstNumTOPrimTasks[i]++;
+        }
+        else {
+          break;
+        }
       }
       
       // checking if every method has a last task
@@ -3909,15 +3938,18 @@ void Model::calcMinimalProgressionBound() {
               if (off >= j){
                 off++;
               }
-              actionNamesTrans[index] += ',' + to_string(off);
+              if (l < numSubTasks[i] - 1){
+                actionNamesTrans[index] += ",";
+              }
+              actionNamesTrans[index] += to_string(off);
             }
+            actionNamesTrans[index] += "]): ";
+            actionNamesTrans[index] += methodNames[i];
           }
-          actionNamesTrans[index] += "]): ";
-          actionNamesTrans[index] += methodNames[i];
         }
       }
     }
-   }
+  }
    
   void Model::htnToStrips(int pgb) {
     // number of translated variables
@@ -4117,6 +4149,9 @@ void Model::calcMinimalProgressionBound() {
     }
     // transformed methods
     for (int i = 0; i < numMethods; i++) {
+      cerr << "index " << i << endl;
+      cerr << "number of subtasks " << numSubTasks[i] << endl;
+      cerr << "number of possiblilities " << (methodIndexes[i + 1] - methodIndexes[i]) << endl;
       int* subs = new int[numSubTasks[i]];
       for (int j = 0; j < pgb; j++){
         for (int k = 0; k < (methodIndexes[i + 1] - methodIndexes[i]); k++){
@@ -4278,10 +4313,6 @@ void Model::calcMinimalProgressionBound() {
     }
   }
   void Model::combination(int* array, int n, int k, int i){
-    int num = bin(n, k);
-    if (i >= num){
-      return;
-    }
     for (int j = 0; j < k; j++){
       array[j] = j;
     }
@@ -4306,7 +4337,7 @@ void Model::calcMinimalProgressionBound() {
   
   int Model::bin(int n, int k){
    int b = 1;
-   if (n < 0 || n > 20 || k < 0 || k > n){
+   if (n < 0 || k < 0 || k > n){
      return -1;
    }
    if (k == 0 || k == n){
@@ -4367,25 +4398,25 @@ void Model::calcMinimalProgressionBound() {
 
     varNamesTrans[headIndex] = "varHead";
     for (int i = firstTaskIndex; i < numVarsTrans ; i++){
-        varNamesTrans[i] = "varTasksHead" + to_string(i);
+      varNamesTrans[i] = "varTasksHead" + to_string(i);
     }
     for (int i = 0; i < numVars; i++){
-        varNamesTrans[firstVarIndex + i] = varNames[i];
+      varNamesTrans[firstVarIndex + i] = varNames[i];
     }
 
 
     for (int i = 0; i < numStateBits; i++){
-        factStrsTrans[firstIndexTrans[firstVarIndex] + i] = factStrs[i];
+      factStrsTrans[firstIndexTrans[firstVarIndex] + i] = factStrs[i];
     }
     factStrsTrans[firstIndexTrans[headIndex]] = "+point[head,finish]";
     for (int i = 0; i < pgb; i++){
-        factStrsTrans[i + firstIndexTrans[headIndex] + 1] = string("+point[head,point")+ to_string(i) + ']';
+      factStrsTrans[i + firstIndexTrans[headIndex] + 1] = string("+point[head,point")+ to_string(i) + ']';
     }
     for (int i = firstTaskIndex; i < numVarsTrans; i++){
-        factStrsTrans[firstIndexTrans[i]] = string("+task[point") + to_string(i-firstTaskIndex) + string(",noTask]")    ;
-        for (int j = 0; j < lastIndexTrans[i] - firstIndexTrans[i]- 1; j++){
-            factStrsTrans[firstIndexTrans[i]+j + 1] = string("+task[point") + to_string(i - firstTaskIndex) + string(",task") + to_string(j) + ']';
-        }
+      factStrsTrans[firstIndexTrans[i]] = string("+task[point") + to_string(i-firstTaskIndex) + string(",noTask]")    ;
+      for (int j = 0; j < lastIndexTrans[i] - firstIndexTrans[i]- 1; j++){
+        factStrsTrans[firstIndexTrans[i]+j + 1] = string("+task[point") + to_string(i - firstTaskIndex) + string(",task") + to_string(j) + ']';
+      }
     }
 
     // Initial state
@@ -4394,7 +4425,7 @@ void Model::calcMinimalProgressionBound() {
     s0ListTrans[0] = firstIndexTrans[headIndex] + 1;
     s0ListTrans[1] = firstIndexTrans[firstTaskIndex] + initialTask + 1;
     for (int i = 1; i < s0SizeTrans - 1; i++){
-        s0ListTrans[i + 1] = firstIndexTrans[firstTaskIndex + i];
+      s0ListTrans[i + 1] = firstIndexTrans[firstTaskIndex + i];
     }
 
     // transformed actions and methods
@@ -4403,100 +4434,83 @@ void Model::calcMinimalProgressionBound() {
     actionCostsTrans = new int[numActionsTrans];
     invalidTransActions = new bool[numActionsTrans];
     for (int i = 0; i < numActionsTrans; i++) {
-        invalidTransActions[i] = false;
+      invalidTransActions[i] = false;
     }
     for (int i = 0; i < numActions; i++) {
-        for (int j = 0; j < pgb; j++){
-            actionCostsTrans[i * pgb + j] = actionCosts[i];
-        }
+      for (int j = 0; j < pgb; j++){
+        actionCostsTrans[i * pgb + j] = actionCosts[i];
+      }
     }
     for (int i = firstMethodIndex; i < numActionsTrans; i++) {
-        actionCostsTrans[i] = 0;
+      actionCostsTrans[i] = 0;
     }
 
     // transformed actions
     numPrecsTrans = new int[numActionsTrans];
     numAddsTrans = new int[numActionsTrans];
-    numDelsTrans = new int[numActionsTrans];
     for (int i = 0; i < numActions; i++) {
-        for (int j = 0; j < pgb; j++){
-            numPrecsTrans[i * pgb + j] = numPrecs[i] + 2;
-            numAddsTrans[i * pgb + j] = numAdds[i] + 2;
-            numDelsTrans[i * pgb + j] = numDels[i] + 2;
-        }
+      for (int j = 0; j < pgb; j++){
+        numPrecsTrans[i * pgb + j] = numPrecs[i] + 2;
+        numAddsTrans[i * pgb + j] = numAdds[i] + 2;
+      }
     }
 
-    // transformed methods
-    for (int i = firstMethodIndex; i < numActionsTrans; i++) {
-        numPrecsTrans[i] = 2;
-    }
     for (int i = 0; i < numMethods; i++) {
-        for (int j = 0; j < pgb; j++){
-            if ( numSubTasks[i] + j > pgb){
-                invalidTransActions[firstMethodIndex + i * pgb + j] = true;
-            }
-            if ( numSubTasks[i] == 0){
-                numAddsTrans[firstMethodIndex + i * pgb + j] = 2;
-                numDelsTrans[firstMethodIndex + i * pgb + j] = 2;
-            }
-            if ( numSubTasks[i] == 1){
-                numAddsTrans[firstMethodIndex + i * pgb + j] = 1;
-                numDelsTrans[firstMethodIndex + i * pgb + j] = 1;
-            }
-            if ( numSubTasks[i] > 1){
-                numAddsTrans[firstMethodIndex + i * pgb + j] = numSubTasks[i] + 1;
-                numDelsTrans[firstMethodIndex + i * pgb + j] = numSubTasks[i] + 1;
-            }
+      for (int j = 0; j < pgb; j++){
+        if (numSubTasks[i] + j - firstNumTOPrimTasks[i] > pgb){
+          invalidTransActions[firstMethodIndex + i * pgb + j] = true;
         }
+        numPrecsTrans[firstMethodIndex + i * pgb + j] = 2;
+        if (numSubTasks[i] - firstNumTOPrimTasks[i] == 0){
+          numAddsTrans[firstMethodIndex + i * pgb + j] = 2;
+        }
+        else if (numSubTasks[i] - firstNumTOPrimTasks[i] == 1){
+          numAddsTrans[firstMethodIndex + i * pgb + j] = 1;
+        }
+        else {
+          numAddsTrans[firstMethodIndex + i * pgb + j] = numSubTasks[i] - firstNumTOPrimTasks[i] + 1;
+        }
+      }
     }
 
     // invalid Methods
     numInvalidTransActions = 0;
     for (int i = 0; i < numActionsTrans; i++) {
-        if (invalidTransActions[i]){
-            numInvalidTransActions++;
-        }
+      if (invalidTransActions[i]){
+        numInvalidTransActions++;
+      }
     }
 
     //precs, dels, adds
     precListsTrans = new int*[numActionsTrans];
     for (int i = 0; i < numActionsTrans; i++) {
-        precListsTrans[i] = new int[numPrecsTrans[i]];
+      precListsTrans[i] = new int[numPrecsTrans[i]];
     }
     addListsTrans = new int*[numActionsTrans];
     for (int i = 0; i < numActionsTrans; i++) {
-        addListsTrans[i] = new int[numAddsTrans[i]];
-    }
-    delListsTrans = new int*[numActionsTrans];
-    for (int i = 0; i < numActionsTrans; i++) {
-        delListsTrans[i] = new int[numDelsTrans[i]];
+      addListsTrans[i] = new int[numAddsTrans[i]];
     }
 
     //precs, dels, adds for actions
     for (int i = 0; i < numActions; i++) {
-        for (int j = 0; j < pgb; j++){
-            for (int k = 0; k < numPrecs[i]; k++){
-                precListsTrans[i * pgb + j][k] = precLists[i][k];
-            }
-            precListsTrans[i * pgb + j][numPrecsTrans[i * pgb + j] - 1] = firstIndexTrans[headIndex] + 1 + j;
-            precListsTrans[i * pgb + j][numPrecsTrans[i * pgb + j] - 2] = firstIndexTrans[firstTaskIndex + j] + 1 + i;
-            for (int k = 0; k < numAdds[i]; k++){
-                addListsTrans[i * pgb + j][k] = addLists[i][k];
-            }
-            addListsTrans[i * pgb + j][numAddsTrans[i * pgb + j] - 1] = firstIndexTrans[headIndex] + j;
-            addListsTrans[i * pgb + j][numAddsTrans[i * pgb + j] - 2] = firstIndexTrans[firstTaskIndex + j];
-            for (int k = 0; k < numDels[i]; k++){
-                delListsTrans[i * pgb + j][k] = delLists[i][k];
-            }
-            delListsTrans[i * pgb + j][numDelsTrans[i * pgb + j] - 1] = firstIndexTrans[headIndex] + 1 + j;
-            delListsTrans[i * pgb + j][numDelsTrans[i* pgb + j] - 2] = firstIndexTrans[firstTaskIndex + j] + 1 + i;
+      for (int j = 0; j < pgb; j++){
+        for (int k = 0; k < numPrecs[i]; k++){
+          precListsTrans[i * pgb + j][k] = precLists[i][k];
         }
+        precListsTrans[i * pgb + j][numPrecsTrans[i * pgb + j] - 1] = firstIndexTrans[headIndex] + 1 + j;
+        precListsTrans[i * pgb + j][numPrecsTrans[i * pgb + j] - 2] = firstIndexTrans[firstTaskIndex + j] + 1 + i;
+        for (int k = 0; k < numAdds[i]; k++){
+          addListsTrans[i * pgb + j][k] = addLists[i][k];
+        }
+        addListsTrans[i * pgb + j][numAddsTrans[i * pgb + j] - 1] = firstIndexTrans[headIndex] + j;
+        addListsTrans[i * pgb + j][numAddsTrans[i * pgb + j] - 2] = firstIndexTrans[firstTaskIndex + j];
+      }
     }
     taskToKill = new int[numMethods];
     for (int i = 0; i < numTasks; i++){
-        for (int j =0; j < numMethodsForTask[i]; j++){
-            taskToKill[taskToMethods[i][j]] = i + 1;
-        }
+      for (int j =0; j < numMethodsForTask[i]; j++){
+        taskToKill[taskToMethods[i][j]] = i + 1;
+      }
     }
     //precs, dels, adds for methods
     for (int i = 0; i < numMethods; i++) {
@@ -4506,27 +4520,19 @@ void Model::calcMinimalProgressionBound() {
             }
             precListsTrans[firstMethodIndex + i * pgb + j][0] = firstIndexTrans[headIndex] + 1 + j;
             precListsTrans[firstMethodIndex + i * pgb + j][1] = firstIndexTrans[firstTaskIndex + j] + taskToKill[i];
-            if (numSubTasks[i] == 0){
-                addListsTrans[firstMethodIndex + i * pgb + j][1] = firstIndexTrans[firstTaskIndex + j];
-                addListsTrans[firstMethodIndex + i * pgb + j][0] = firstIndexTrans[headIndex] + j;
-                delListsTrans[firstMethodIndex + i * pgb + j][0] = firstIndexTrans[headIndex] + 1 + j;
-                delListsTrans[firstMethodIndex + i * pgb + j][1] = firstIndexTrans[firstTaskIndex + j] + taskToKill[i];
-                continue;
+            if (numSubTasks[i] - firstNumTOPrimTasks[i] == 0){
+              addListsTrans[firstMethodIndex + i * pgb + j][1] = firstIndexTrans[firstTaskIndex + j];
+              addListsTrans[firstMethodIndex + i * pgb + j][0] = firstIndexTrans[headIndex] + j;
+              continue;
             }
-            if (numSubTasks[i] == 1){
-                addListsTrans[firstMethodIndex + i * pgb + j][0] = firstIndexTrans[firstTaskIndex + j] + 1 + subTasksInOrder[i][0];
-                delListsTrans[firstMethodIndex + i * pgb + j][0] = firstIndexTrans[firstTaskIndex + j] + taskToKill[i];
-                continue;
+            if (numSubTasks[i] - firstNumTOPrimTasks[i] == 1){
+              addListsTrans[firstMethodIndex + i * pgb + j][0] = firstIndexTrans[firstTaskIndex + j] + 1 + subTasksInOrder[i][0];
+              continue;
             }
-            for (int k = 0; k < numSubTasks[i]; k++){
-                addListsTrans[firstMethodIndex + i * pgb + j][k] = firstIndexTrans[firstTaskIndex + j + k] + 1 + subTasksInOrder[i][k];
+            for (int k = 0; k < numSubTasks[i] - firstNumTOPrimTasks[i]; k++){
+              addListsTrans[firstMethodIndex + i * pgb + j][k] = firstIndexTrans[firstTaskIndex + j + k] + 1 + subTasksInOrder[i][k];
             }
-            for (int k = 1; k < numSubTasks[i]; k++){
-                delListsTrans[firstMethodIndex + i * pgb + j][k - 1] = firstIndexTrans[firstTaskIndex + j + k];
-            }
-            addListsTrans[firstMethodIndex + i * pgb + j][numAddsTrans[firstMethodIndex + i * pgb + j] - 1] = firstIndexTrans[headIndex] + j + numSubTasks[i];
-            delListsTrans[firstMethodIndex + i * pgb + j][numDelsTrans[firstMethodIndex + i * pgb + j] - 1] = firstIndexTrans[headIndex] + 1 + j;
-            delListsTrans[firstMethodIndex + i * pgb + j][numDelsTrans[firstMethodIndex + i * pgb + j] - 2] = firstIndexTrans[firstTaskIndex + j] + taskToKill[i];
+            addListsTrans[firstMethodIndex + i * pgb + j][numAddsTrans[firstMethodIndex + i * pgb + j] - 1] = firstIndexTrans[headIndex] + j + numSubTasks[i] - firstNumTOPrimTasks[i];
         }
     }
     // names
@@ -4539,10 +4545,16 @@ void Model::calcMinimalProgressionBound() {
     for (int i = 0; i < numMethods; i++) {
         for (int j = 0; j < pgb; j++){
             actionNamesTrans[firstMethodIndex + i * pgb + j] = "method(id[" + to_string(i) + "],head[" + to_string(j);
-            if (numSubTasks[i] > 0){
+            if (numSubTasks[i] - firstNumTOPrimTasks[i] > 0){
               actionNamesTrans[firstMethodIndex + i * pgb + j] += "],subtasks[" + to_string(j);
-              for (int k = 1; k < numSubTasks[i]; k++){
+              for (int k = 1; k < numSubTasks[i] - firstNumTOPrimTasks[i]; k++){
                 actionNamesTrans[firstMethodIndex + i * pgb + j] += ',' + to_string(j + k);
+              }
+            }
+            if (firstNumTOPrimTasks[i] > 0){
+              actionNamesTrans[firstMethodIndex + i * pgb + j] += "],firstPrim[" + to_string(subTasksInOrder[i][numSubTasks[i] - 1]);
+              for (int k = 1; k < firstNumTOPrimTasks[i]; k++){
+                actionNamesTrans[firstMethodIndex + i * pgb + j] += ',' + to_string(subTasksInOrder[i][numSubTasks[i] - 1 - k]);
               }
             }
             actionNamesTrans[firstMethodIndex + i * pgb + j] += "]): " + methodNames[i];
@@ -4704,30 +4716,70 @@ void Model::calcMinimalProgressionBound() {
       if (invalidTransActions[i]){
           continue;
       }
-      sasfile << "begin_operator" << endl;
       // name
       string tn = this->actionNamesTrans[i];
 
+
+      bool primTasks = false;
+      size_t primTasksIndex = tn.find("firstPrim");
+      string primTaskString = "";
+      if (primTasksIndex < tn.length()){
+        primTasks = true;
+        primTaskString = tn.substr(primTasksIndex + 9, tn.find(": ") - 1 - primTasksIndex - 9);
+      }
+      int primP = 0;
+      int primA = 0;
+      int * primPList = new int[numStateBits];
+      int * primAList = new int[numStateBits];
+      if (primTasks){
+        int * pNum = new int[2];
+        int err = calculatePrecsAndAdds(pNum, primPList, primAList, primTaskString, convertMutexVars);
+        primP = pNum[0];
+        primA = pNum[1];
+        if (err < 0){
+          cerr << endl << "tasks for Method:" << endl << tn << endl << "not applicable in this order: " << primTaskString << endl;
+          cerr << "not printing method!" << endl;
+          return;
+        }
+      }
+
+      sasfile << "begin_operator" << endl;
       sasfile << tn << endl;
+      
       // action
-      int numP = this->numPrecsTrans[i];
+      int numP = this->numPrecsTrans[i] + primP;
       int** precs = new int*[numP];
       int n = numP;
       for (int j = 0; j < numP; j++){
         precs[j] = new int[3];
       }
-      for (int j = 0; j < numP; j++) {
+      for (int j = 0; j < numP - primP; j++) {
         precs[j][0] = convertMutexVars[this->precListsTrans[i][j]][0];
         precs[j][1] = convertMutexVars[this->precListsTrans[i][j]][1];
         precs[j][2] = 0;
       }
-      int numA = this->numAddsTrans[i];
+      for (int j = 0; j < primP; j++) {
+        precs[j + numP - primP][0] = convertMutexVars[primPList[j]][0];
+        precs[j + numP - primP][1] = convertMutexVars[primPList[j]][1];
+        precs[j + numP - primP][2] = 0;
+      }
+      int numA = this->numAddsTrans[i] + primA;
       for (int j = 0; j < numP; j++) {
         for (int k = 0; k < numA; k++) {
-          if (precs[j][0] == convertMutexVars[addListsTrans[i][k]][0]){
-            precs[j][2] += 2;
-            if (precs[j][2] == 2){
-              n--;
+          if (k < numA - primA){
+            if (precs[j][0] == convertMutexVars[addListsTrans[i][k]][0]){
+              precs[j][2] += 2;
+              if (precs[j][2] == 2){
+                n--;
+              }
+            }
+          }
+          else {
+            if (precs[j][0] == convertMutexVars[primAList[k - numA + primA]][0]){
+              precs[j][2] += 2;
+              if (precs[j][2] == 2){
+                n--;
+              }
             }
           }
         }
@@ -4744,10 +4796,22 @@ void Model::calcMinimalProgressionBound() {
         condEff = numConditionalEffectsTrans[i];
       }
       sasfile << numA + condEff << endl;
-      for (int j = 0; j < numA; j++) {
+      for (int j = 0; j < numA - primA; j++) {
         int cost = 0;
         int var0 = convertMutexVars[addListsTrans[i][j]][0];
         int var1 = convertMutexVars[addListsTrans[i][j]][1];
+        int preco = -1;
+        for (int k = 0; k < numP; k++){
+          if (precs[k][0] == var0){
+            preco = precs[k][1];
+          }
+        }
+        sasfile << cost << " " << var0 << " " << preco << " " << var1 << endl;
+      }
+      for (int j = 0; j < primA; j++) {
+        int cost = 0;
+        int var0 = convertMutexVars[primAList[j]][0];
+        int var1 = convertMutexVars[primAList[j]][1];
         int preco = -1;
         for (int k = 0; k < numP; k++){
           if (precs[k][0] == var0){
@@ -4782,10 +4846,88 @@ void Model::calcMinimalProgressionBound() {
 
   }
   int Model::minProgressionBound(){
-    return minImpliedPGB[initialTask];
+    int i = minImpliedPGB[initialTask];
+    if (i < 1){
+      return 1;
+    }
+    return i;
   }
   int Model::maxProgressionBound(){
     return 100;
+  }
+  
+  int Model::calculatePrecsAndAdds(int* s, int* p, int* a, string tasks, int** conv){
+    int index = tasks.find(",");
+    if (index > tasks.length()){
+      int task = stoi(tasks.substr(1, tasks.length() - 2));
+      s[0] = numPrecs[task];
+      s[1] = numAdds[task];
+      for (int i = 0; i < s[0]; i++){
+        p[i] = precLists[task][i];
+      }
+      for (int i = 0; i < s[1]; i++){
+        a[i] = addLists[task][i];
+      }
+      return 0;
+    }
+    int nT = 1;
+    while (index < tasks.length()){
+      nT++;
+      index = tasks.find(",", index + 1);
+    }
+    int * task = new int[nT];
+    index = tasks.find(",");
+    task[0] = stoi(tasks.substr(1, index - 1));
+    for (int i = 1; i < nT - 1; i++){
+      index++;
+      int j = tasks.find(",", index);
+      task[i] = stoi(tasks.substr(index, j - index));
+      index = j;
+    }
+    task[nT - 1] = stoi(tasks.substr(index + 1, tasks.length() - index - 2));
+    int** varChange = new int*[numVars];
+    for (int i = 0; i < numVars; i++){
+      varChange[i] = new int[2 * nT];
+      for (int j = 0; j < 2 * nT; j++){
+        varChange[i][j] = -1;
+      }
+    }
+    for (int i = 0; i < nT; i++){
+      for (int j = 0; j < numPrecs[task[i]]; j++){
+        varChange[conv[precLists[task[i]][j]][0]][2 * i] = precLists[task[i]][j];
+      }
+      for (int j = 0; j < numAdds[task[i]]; j++){
+        varChange[conv[addLists[task[i]][j]][0]][2 * i + 1] = addLists[task[i]][j];
+      }
+    }
+    s[0] = 0;
+    s[1] = 0;
+    for (int i = 0; i < numVars; i++){
+      int start = -1;
+      int end = -1;
+      for (int j = 0; j < nT; j++){
+        if (end == -1){
+          if (start == -1){
+            start = varChange[i][2 * j];
+          }
+        }
+        else if (end != varChange[i][2 * j]){
+          return -1;
+        }
+        if (varChange[i][2 * j + 1] != -1){
+          end = varChange[i][2 * j + 1];
+        }
+      }
+      if (start != -1){
+        p[s[0]] = start;
+        s[0]++;
+      }
+      if (end != -1){
+        a[s[1]] = end;
+        s[1]++;
+      }
+    }
+    return 0;
   }
   
   void Model::planToHddl(string infile, string outfile) {
@@ -4823,29 +4965,36 @@ void Model::calcMinimalProgressionBound() {
     fin = fileInput;
     string* plan = new string[linecount];
         
-    int methNum = 0;
-    int primNum = 0;
+    int methNumMax = 0;
+    int primNumMax = 0;
 
     for (int i = 0; i < linecount; i++){
       getline(*fin, plan[i]);
       if (plan[i].size() > 9 && string("primitive").compare(plan[i].substr(1, 9)) == 0){
-        primNum++;
+        primNumMax++;
       }
       if (plan[i].size() > 6 && string("method").compare(plan[i].substr(1, 6)) == 0){
-        methNum++;
+        methNumMax++;
+        int index = plan[i].find("firstPrim");
+        if (index < plan[i].length()){
+          primNumMax += firstNumTOPrimTasks[stoi(plan[i].substr(plan[i].find("id") + 3, plan[i].find("]", plan[i].find("id"), 1) - plan[i].find("id") - 3))];
+        }
       }
     }
 
     fileInput->close();
-    string* primitives = new string[primNum];
-    string* methods = new string[methNum];
-    int* methIndex = new int[methNum];
-    int* primIndex = new int[primNum];
-    int** subHeads = new int*[methNum];
+    string* primitives = new string[primNumMax];
+    string* methods = new string[methNumMax];
+    int* methIndex = new int[methNumMax];
+    int* primIndex = new int[primNumMax];
+    int** subHeads = new int*[methNumMax];
+    bool* hasPrimIndezes = new bool[methNumMax];
+    int** firstPrimIndezes = new int*[methNumMax];
     int* order = new int[linecount];
     int* heads = new int[linecount];
     fout << "==>" << endl;
-    primNum = 0;
+    int primNum = 0;
+    int methNum = 0;
     for (int i = 0; i < linecount; i++){
       if (plan[i].size() > 9 && string("primitive").compare(plan[i].substr(1, 9)) == 0){
         primitives[primNum] = plan[i].substr(plan[i].find(": ") + 2, plan[i].length() - plan[i].find(": ") - 3);
@@ -4855,47 +5004,75 @@ void Model::calcMinimalProgressionBound() {
         fout << primNum << " " << primitives[primNum] << endl;
         primNum++;
       }
-    }
-    methNum = 0;
-    fout << "root " << primNum << endl;
-    for (int i = 0; i < linecount; i++){
-      if (plan[i].size() > 6 && string("method").compare(plan[i].substr(1, 6)) == 0){
+      else if (plan[i].size() > 6 && string("method").compare(plan[i].substr(1, 6)) == 0){
         methods[methNum] = plan[i].substr(plan[i].find(": ") + 2, plan[i].length() - plan[i].find(": ") - 3);
         methIndex[methNum] = stoi(plan[i].substr(plan[i].find("id") + 3, plan[i].find("]", plan[i].find("id"), 1) - plan[i].find("id") - 3));
-        order[i] = methNum + primNum;
+        order[i] = methNum + primNumMax;
         heads[i] = stoi(plan[i].substr(plan[i].find("head") + 5, plan[i].find("]", plan[i].find("head"), 1) - plan[i].find("head") - 5));
         subHeads[methNum] = new int[numSubTasks[methIndex[methNum]]];
-        if (numSubTasks[methIndex[methNum]] > 0){
-          string s = plan[i].substr(plan[i].find("subtasks") + 9, plan[i].find("]", plan[i].find("subtasks"), 1) - plan[i].find("subtasks") - 9);
+        int index = plan[i].find("firstPrim");
+        hasPrimIndezes[methNum] = false;
+        if (index < plan[i].length()){
+          hasPrimIndezes[methNum] = true;
+          firstPrimIndezes[methNum] = new int[firstNumTOPrimTasks[methIndex[methNum]]];
+          string s = plan[i].substr(index + 10, plan[i].find("]", index, 1) - index - 10);
+          for (int j = 0; j < firstNumTOPrimTasks[methIndex[methNum]]; j++){
+            int f = s.find(",");
+            if (f < s.length()){
+              firstPrimIndezes[methNum][j] = stoi(s.substr(0, f));
+              s = s.substr(f + 1, s.length());
+            }
+            else {
+              firstPrimIndezes[methNum][j] = stoi(s);
+            }
+            primitives[primNum] = taskNames[firstPrimIndezes[methNum][j]];
+            primIndex[primNum] = firstPrimIndezes[methNum][j];
+            fout << primNum << " " << primitives[primNum] << endl;
+            firstPrimIndezes[methNum][j] = primNum;
+            primNum++;
+          }
+        }
+        index = plan[i].find("subtasks");
+        if (index < plan[i].length()){
+          string s = plan[i].substr(index + 9, plan[i].find("]", index, 1) - index - 9);
           for (int j = 0; j < numSubTasks[methIndex[methNum]]; j++){
             int f = s.find(",");
             if (f < s.length()){
               subHeads[methNum][j] = stoi(s.substr(0, f));
               s = s.substr(f + 1, s.length());
             }
-            else{
+            else {
               subHeads[methNum][j] = stoi(s);
             }
           }
         }
         methNum++;
+
       }
     }
-    for (int i = 0; i < methNum; i++){
+    fout << "root " << primNumMax << endl;
+    for (int i = 0; i < methNumMax; i++){
       int m = methIndex[i];
       int o = 0;
       for (int j = 0; j < linecount; j++){
-        if (order[j] == i + primNum){
+        if (order[j] == i + primNumMax){
           o = j;
           break;
         }
       }
       fout << order[o] << " " << taskNames[decomposedTask[m]] << " -> ";
       fout << methods[i] << " ";
-      for (int j = numSubTasks[m] - 1; j >= 0; j--){
+      int fntopt = 0;
+      if (hasPrimIndezes[i]){
+        fntopt = firstNumTOPrimTasks[methIndex[i]];
+        for (int j = 0; j < fntopt; j++){
+          fout << firstPrimIndezes[i][j] << " ";
+        }
+      }
+      for (int j = numSubTasks[m] - 1 - fntopt; j >= 0; j--){
         int index = -1;
-        for (int k = o + 1; k < linecount; k++){
-          if (order[k] < primNum){
+        for (int k = o + 1; k < linecount - 1; k++){
+          if (order[k] < primNumMax){
             if (primIndex[order[k]] == subTasksInOrder[m][j]){
               if (heads[k] != subHeads[i][j]){
                 continue;
@@ -4905,7 +5082,7 @@ void Model::calcMinimalProgressionBound() {
             }
           }
           else {
-            if (subTasksInOrder[m][j] == decomposedTask[methIndex[order[k]-primNum]]){
+            if (subTasksInOrder[m][j] == decomposedTask[methIndex[order[k]-primNumMax]]){
               if (heads[k] != subHeads[i][j]){
                 continue;
               }
