@@ -87,7 +87,7 @@ struct searchNode {
 	planStep** unconstraintAbstract;
 	planStep** unconstraintPrimitive;
 
-	int heuristicValue;
+	int* heuristicValue;
 	bool goalReachable = true;
 	int modificationDepth;
 	int mixedModificationDepth;
