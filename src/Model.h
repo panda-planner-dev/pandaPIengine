@@ -242,6 +242,7 @@ public:
 	// For TOHTN
 	int** subTasksInOrder;
 	int* taskToKill;
+	int* firstNumTOPrimTasks;
 
 	int** taskToMethods;
 	int* numMethodsForTask;
@@ -295,7 +296,7 @@ public:
 	int* minImpliedDistance;
 	void calcMinimalImpliedX();
 	int* minImpliedPGB;
-	void calcMinimalProgressionBound();
+	void calcMinimalProgressionBound(bool to);
 
 	// permanent SCC information
 	bool calculatedSccs = false;
@@ -340,6 +341,8 @@ public:
 	void printActionsToFile(string file);
 	void printStateBitsToFile(string file);
 	void reorderTasks();
+
+  int calculatePrecsAndAdds(int* s, int* p, int* a, string tasks, int** conv);
 
   void checkFastDownwardPlan(string domain, string plan);
 
