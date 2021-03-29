@@ -1,4 +1,4 @@
-file(GLOB search_SRC "*.h" "*.cpp")
+file(GLOB search_SRC "*.h" "*.cpp" "fringes/*.h" "fringes/*.cpp")
 
 add_library(search ${search_SRC})
 target_compile_options(search PUBLIC ${compiler_flags})

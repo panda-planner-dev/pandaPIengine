@@ -17,6 +17,7 @@
 #include <cassert>
 #include <iomanip>
 #include <sys/time.h>
+#include <Heuristic.h>
 
 namespace progression {
 
@@ -26,8 +27,8 @@ public:
 	PriorityQueueSearch();
 	virtual ~PriorityQueueSearch();
 
-template<class Heuristic, class VisitedList, class Fringe>
-	void search(Model* htn, searchNode *tnI, int timeLimit, Heuristic & hF, VisitedList & visitedList, Fringe & fringe){
+template<class VisitedList, class Fringe>
+	void search(Model* htn, searchNode *tnI, int timeLimit, Heuristic** hF, int hLength, VisitedList & visitedList, Fringe & fringe){
 		timeval tp;
 		gettimeofday(&tp, NULL);
 		long startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
@@ -67,17 +68,16 @@ template<class Heuristic, class VisitedList, class Fringe>
 		// add initial search node to queue
 		if (visitedList.insertVisi(tnI))
 			fringe.push(tnI);
-		assert(!fringe.empty());
+		assert(!fringe.isEmpty());
 	
 		int numSearchNodes = 1;
 	
-		while (!fringe.empty()) {
-			searchNode *n = fringe.top();
+		while (!fringe.isEmpty()) {
+			searchNode *n = fringe.pop();
 #ifdef SAVESEARCHSPACE 
 			*stateSpaceFile << "expanded " << n->searchNodeID << endl;
 #endif
 			assert(n != nullptr);
-			fringe.pop();
 #ifndef EARLYGOALTEST
 			if (htn->isGoal(n)) {
 #ifdef SAVESEARCHSPACE 
@@ -116,7 +116,9 @@ template<class Heuristic, class VisitedList, class Fringe>
 	
 
 					// compute the heuristic
-					hF.setHeuristicValue(n2, n, n->unconstraintPrimitive[i]->task);
+					for(int i = 0; i < hLength; i++) {
+                        hF[i]->setHeuristicValue(n2, n, n->unconstraintPrimitive[i]->task);
+                    }
 	
 #ifdef SAVESEARCHSPACE
 					*stateSpaceFile << "heuristic " << n2->searchNodeID << " " << n2->heuristicValue << endl;
@@ -191,7 +193,9 @@ template<class Heuristic, class VisitedList, class Fringe>
 					}
 	
 					// compute the heuristic
-					hF.setHeuristicValue(n2, n, decomposedStep, method);
+					for(int i = 0; i < hLength; i++) {
+                        hF[i]->setHeuristicValue(n2, n, decomposedStep, method);
+                    }
 					
 #ifdef SAVESEARCHSPACE
 					*stateSpaceFile << "heuristic " << n2->searchNodeID << " " << n2->heuristicValue << endl;
@@ -317,9 +321,8 @@ template<class Heuristic, class VisitedList, class Fringe>
 	
 #ifndef NDEBUG
 		cout << "Deleting elements in fringe..." << endl;
-		while (!fringe.empty()) {
-			searchNode *n = fringe.top();
-			fringe.pop();
+		while (!fringe.isEmpty()) {
+			searchNode *n = fringe.pop();
 			delete n;
 		}
 		delete tnSol;

@@ -14,6 +14,7 @@
 #include <unordered_set>
 #include <landmarks/lmExtraction/LmCausal.h>
 #include <landmarks/lmExtraction/LMsInAndOrGraphs.h>
+#include <fringes/OneQueueWAStarFringe.h>
 #include "./search/PriorityQueueSearch.h"
 
 #include "Model.h"
@@ -283,7 +284,7 @@ int main(int argc, char *argv[]) {
     search.hF = new hhRC2(htn);
 	cout << "- Inner heuristic: Add" << endl;
 #elif HEURISTIC == RCLMC2
-    hhRC2 hF(htn);
+    hhRC2* hF = new hhRC2(htn);
 	cout << "- Inner heuristic: LM-Cut" << endl;
 #elif HEURISTIC == RCFILTER2
 	search.hF = new hhRC2(htn);
@@ -317,10 +318,17 @@ int main(int argc, char *argv[]) {
  */
     int timeL = TIMELIMIT;
     cout << "Time limit: " << timeL << " seconds" << endl;
-    priority_queue<searchNode*, vector<searchNode*>, CmpNodePtrs> fringe;
+
+    OneQueueWAStarFringe fringe(gValNone, 1);
+
     VisitedList visi (htn);
     PriorityQueueSearch search;
-    search.search(htn, tnI, timeL, hF, visi, fringe);
+
+    int hLength = 1;
+    Heuristic** heuristics = new Heuristic*[hLength];
+    heuristics[0] = hF;
+
+    search.search(htn, tnI, timeL, heuristics, hLength, visi, fringe);
     delete htn;
 #ifdef RCHEURISTIC
 	delete heuristicModel;

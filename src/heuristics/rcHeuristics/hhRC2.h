@@ -7,6 +7,7 @@
 
 #include <set>
 #include <forward_list>
+#include <Heuristic.h>
 #include "../../Model.h"
 #include "../../intDataStructures/bucketSet.h"
 #include "../../intDataStructures/bIntSet.h"
@@ -18,7 +19,7 @@
 
 enum innerHeuristic {FILTER, ADD, FF, LMCUT};
 
-class hhRC2 {
+class hhRC2 : public Heuristic {
 private:
     noDelIntSet gset;
     noDelIntSet intSet;
@@ -43,8 +44,8 @@ public:
     const Model* htn;
     RCModelFactory* factory;
     virtual ~hhRC2();
-    void setHeuristicValue(searchNode *n, searchNode *parent, int action);
-    void setHeuristicValue(searchNode *n, searchNode *parent, int absTask, int method);
+    void setHeuristicValue(searchNode *n, searchNode *parent, int action) override;
+    void setHeuristicValue(searchNode *n, searchNode *parent, int absTask, int method) override;
 
     const bool storeCuts = true;
     IntUtil iu;

@@ -2,7 +2,7 @@
 // Created by dh on 10.03.20.
 //
 #include "hhRC2.h"
-hhRC2::hhRC2(Model *htnModel) {
+hhRC2::hhRC2(Model *htnModel) : Heuristic(htnModel) {
 
     Model* heuristicModel;
     factory = new RCModelFactory(htnModel);
