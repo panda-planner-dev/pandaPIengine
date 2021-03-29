@@ -266,7 +266,7 @@ int main(int argc, char *argv[]) {
 	search.hF->sasH->heuristic = sasAdd;
 	cout << "- Inner heuristic: Add" << endl;
 #elif HEURISTIC == RCLMC
-	search.hF = new hhRC(htn, new hsLmCut(heuristicModel));
+    hhRC hF(htn, new hsLmCut(heuristicModel));
 	cout << "- Inner heuristic: LM-Cut" << endl;
 #elif HEURISTIC == RCFILTER
 	search.hF = new hhRC(htn, new hsFilter(heuristicModel));
@@ -277,13 +277,13 @@ int main(int argc, char *argv[]) {
     cout << "Heuristic: RC encoding" << endl;
 
 #if HEURISTIC == RCFF2
-    search.hF = new hhRC2(htn);
+    hhRC2 hF(htn);
 	cout << "- Inner heuristic: FF" << endl;
 #elif HEURISTIC == RCADD2
     search.hF = new hhRC2(htn);
 	cout << "- Inner heuristic: Add" << endl;
 #elif HEURISTIC == RCLMC2
-	search.hF = new hhRC2(htn);
+    hhRC2 hF(htn);
 	cout << "- Inner heuristic: LM-Cut" << endl;
 #elif HEURISTIC == RCFILTER2
 	search.hF = new hhRC2(htn);

@@ -65,7 +65,7 @@ typedef int tHVal;
 //#define SEARCHALG ICAPS18
 #define SEARCHALG JAIR19 // choose from [algorithm]
 
-//#define EARLYGOALTEST
+// #define EARLYGOALTEST
 
 // select a state representation
 #define STATEREP SRCOPY // choose from [state-representation]
@@ -82,24 +82,27 @@ typedef int tHVal;
 
 #define ONEMODAC
 //#define ONEMODMETH
-//#define HEURISTIC RCLMC2
-//#define RCHEURISTIC2
 
+#define HEURISTIC RCLMC2
+#define RCHEURISTIC2
+
+/*
 // configure DOF
 //#define HEURISTIC DOFREEILP
 #define HEURISTIC DOFREELP
+//#define HEURISTIC RCFF2
 
-//#define ILPSETTING cSatisficing
-#define ILPSETTING cOptimal
+#define ILPSETTING cSatisficing
+//#define ILPSETTING cOptimal
 
 // use TDG constraints
 // #define ILPTDG cTdgFull
 #define ILPTDG cTdgAllowUC
 
 // use planning graph constraints
-#define ILPPG cPgFull
+//#define ILPPG cPgFull
 // #define ILPPG cPgTimeRelaxed
-//#define ILPPG cPgNone
+#define ILPPG cPgNone
 
 // use AND/OR landmark constraints
 #define ILPANDORLMS cAndOrLmsNone
@@ -116,15 +119,14 @@ typedef int tHVal;
 
 #define RCLMC2STORELMS
 
-//#define CORRECTTASKCOUNT
+*/
 
-/*
+#define CORRECTTASKCOUNT
+
 #ifdef CORRECTTASKCOUNT
 #define CALCMINIMALIMPLIEDCOSTS
 #endif
-*/
-//#define HEURISTIC RCFF
-//#define RCHEURISTIC
+
 
 #define TRACKTASKSINTN
 
@@ -132,14 +134,14 @@ typedef int tHVal;
 #define INITSCCS
 
 #define DOFTASKREACHABILITY // store the hierarchical task reachability in the ILP to make  it easier to solve
-#define DOFREE
-#define CHECKAFTER 50 // nodes after which the timelimit is checked
-#define MAINTAINREACHABILITY
-#define ALLTASKS // it is needed for all tasks
-
-//#define CHECKAFTER 5000 // nodes after which the timelimit is checked
+//#define DOFREE
+//#define CHECKAFTER 50 // nodes after which the timelimit is checked
 //#define MAINTAINREACHABILITY
-//#define ONLYACTIONS // it is only needed for actions
+//#define ALLTASKS // it is needed for all tasks
+
+#define CHECKAFTER 5000 // nodes after which the timelimit is checked
+#define MAINTAINREACHABILITY
+#define ONLYACTIONS // it is only needed for actions
 #ifndef OPTIMIZEUNTILTIMELIMIT
 #define OPTIMIZEUNTILTIMELIMIT false
 #endif
@@ -166,8 +168,8 @@ typedef int tHVal;
 
 #define POVISI_EXACT
 #define POVISI_HASH
-//#define POVISI_LAYERS
-//#define POVISI_ORDERPAIRS
+#define POVISI_LAYERS
+#define POVISI_ORDERPAIRS
 
 
 

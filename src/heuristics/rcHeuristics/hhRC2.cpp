@@ -1,7 +1,6 @@
 //
 // Created by dh on 10.03.20.
 //
-
 #include "hhRC2.h"
 hhRC2::hhRC2(Model *htnModel) {
 
@@ -146,7 +145,8 @@ int hhRC2::setHeuristicValue(searchNode *n) {
             if (n->containedTaskCount[i] > 1) {
                 int task = n->containedTasks[i];
                 int count = n->containedTaskCount[i];
-                hval += (htn->minImpliedDistance[task] * (count - 1));
+                //hval += (htn->minImpliedDistance[task] * (count - 1));
+                hval += (htn->minImpliedCosts[task] * (count - 1));
             }
         }
     }

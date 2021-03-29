@@ -518,7 +518,6 @@ int hhDOfree::recreateModel(searchNode *n) {
 
     // create main optimization function
     IloNumExpr mainExp(lenv);
-
     int costs = 1; // unit costs
     for (int i = pg->reachableTasksSet.getFirst();
          (i >= 0) && (i < htn->numActions); i = pg->reachableTasksSet.getNext()) {
@@ -980,6 +979,7 @@ int hhDOfree::recreateModel(searchNode *n) {
 
     int res = -1;
     if (cplex.solve()) {
+        // todo: use ceil for LP
         res = round(cplex.getObjValue());
         //IloCplex::CplexStatus status = cplex.getCplexStatus();
         //cout << endl << endl << "Status: " << status << endl;
