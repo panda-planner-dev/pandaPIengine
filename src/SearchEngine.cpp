@@ -325,11 +325,6 @@ int main(int argc, char *argv[]) {
     int timeL = TIMELIMIT;
     cout << "Time limit: " << timeL << " seconds" << endl;
 
-    OneQueueWAStarFringe fringe(gValNone, 1);
-
-    VisitedList visi(htn);
-    PriorityQueueSearch search;
-
     int hLength = 6;
     Heuristic **heuristics = new Heuristic *[hLength];
     heuristics[0] = new hhRC2<hsLmCut>(htn, 0, false);
@@ -350,7 +345,15 @@ int main(int argc, char *argv[]) {
     heuristics[5] = new hhDOfree(htn, tnI, 5, IloNumVar::Float, IloNumVar::Float, cSatisficing, cTdgAllowUC, cPgNone,
                                  cAndOrLmsNone, cLmcLmsFull, cNetChangeFull, cAddExternalLmsNo);
 
-    search.search(htn, tnI, timeL, heuristics, hLength, visi, fringe);
+    int aStarWeight = 1;
+    aStar aStarType = gValNone;
+    bool suboptimalSearch = false;
+
+    VisitedList visi(htn);
+    PriorityQueueSearch search;
+    OneQueueWAStarFringe fringe(aStarType, aStarWeight, hLength);
+
+    search.search(htn, tnI, timeL, suboptimalSearch, heuristics, hLength, visi, fringe);
     delete htn;
 #ifdef RCHEURISTIC
     delete heuristicModel;

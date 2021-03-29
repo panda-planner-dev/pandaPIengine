@@ -66,7 +66,6 @@ bool searchNode::operator<(searchNode other) const {
 }
 
 searchNode::searchNode() {
-	hRand = rand();
 	modificationDepth = -1;
 	mixedModificationDepth = -1;
 	unconstraintPrimitive = nullptr;
@@ -230,17 +229,6 @@ pair<string,int> printTraceOfSearchNode(Model* htn, searchNode* tnSol){
 	}
 
 	return make_pair(sol,sLength);
-}
-
-
-////////////////////////////////
-// CmpNodePtrs
-////////////////////////////////
-
-bool CmpNodePtrs::operator()(const searchNode* a, const searchNode* b) const {
-	if (a->heuristicValue == b->heuristicValue)
-		return a->hRand > b->hRand;
-	return a->heuristicValue > b->heuristicValue;
 }
 
 }

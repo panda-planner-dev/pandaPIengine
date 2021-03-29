@@ -28,7 +28,7 @@ public:
 	virtual ~PriorityQueueSearch();
 
 template<class VisitedList, class Fringe>
-	void search(Model* htn, searchNode *tnI, int timeLimit, Heuristic** hF, int hLength, VisitedList & visitedList, Fringe & fringe){
+	void search(Model* htn, searchNode *tnI, int timeLimit, bool suboptimalSearch, Heuristic** hF, int hLength, VisitedList & visitedList, Fringe & fringe){
 		timeval tp;
 		gettimeofday(&tp, NULL);
 		long startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
@@ -50,20 +50,8 @@ template<class VisitedList, class Fringe>
 		} else {
 			cout << "- Search is stopped after first solution is found." << endl;
 		}
-	
-#ifdef ASTAR
-		if (GASTARWEIGHT != 1)
-			cout << "- Greedy A* Search with weight " << GASTARWEIGHT << endl;
-		else
-			cout << "- A* Search" << endl;
-#ifdef ASTARAC
-		cout << "- Distance G is \"action costs\" instead of \"modification depth\"" << endl;
-#else
-		cout << "- Distance G is \"modification depth\"" << endl;
-#endif
-#else
-		cout << "- Greedy Search" << endl;
-#endif
+
+		fringe.printTypeInfo();	
 		
 		// add initial search node to queue
 		if (visitedList.insertVisi(tnI))
@@ -74,15 +62,15 @@ template<class VisitedList, class Fringe>
 	
 		while (!fringe.isEmpty()) {
 			searchNode *n = fringe.pop();
-#ifdef SAVESEARCHSPACE 
-			*stateSpaceFile << "expanded " << n->searchNodeID << endl;
-#endif
 			assert(n != nullptr);
-#ifndef EARLYGOALTEST
-			if (htn->isGoal(n)) {
-#ifdef SAVESEARCHSPACE 
-				*stateSpaceFile << "goal " << n->searchNodeID << endl;
-#endif
+
+			// check whether we have seen this search node
+			if (!suboptimalSearch && !visitedList.insertVisi(n)){
+				delete n;
+				continue;	
+			}
+			
+			if (suboptimalSearch && htn->isGoal(n)) {
 				// A non-early goal test makes only sense in an optimal planning setting.
 				// -> continuing search makes not really sense here
 				gettimeofday(&tp, NULL);
@@ -92,7 +80,6 @@ template<class VisitedList, class Fringe>
 				if(!continueSearch)
 					break;
 			}
-#endif
 	
 			if (n->numAbstract == 0) {
 				for (int i = 0; i < n->numPrimitive; i++) {
@@ -101,15 +88,12 @@ template<class VisitedList, class Fringe>
 					searchNode *n2 = htn->apply(n, i);
 					numSearchNodes++;
 					if (!n2->goalReachable) { // progression has detected unsol
-#ifdef SAVESEARCHSPACE
-						*stateSpaceFile << "nogoal " << n2->searchNodeID << endl;
-#endif
 						delete n2;
 						continue;
 					}
 			
 					// check whether we have seen this one already	
-					if (!visitedList.insertVisi(n2)){
+					if (suboptimalSearch && !visitedList.insertVisi(n2)){
 						delete n2;
 						continue;	
 					}
@@ -120,56 +104,25 @@ template<class VisitedList, class Fringe>
                         hF[i]->setHeuristicValue(n2, n, n->unconstraintPrimitive[i]->task);
                     }
 	
-#ifdef SAVESEARCHSPACE
-					*stateSpaceFile << "heuristic " << n2->searchNodeID << " " << n2->heuristicValue << endl;
-#endif
-					
 					assert(n2->goalReachable || (!htn->isGoal(n2))); // otherwise the heuristic is not save
 	
-#ifndef SAVESEARCHSPACE
-					if (n2->goalReachable)
-#endif
-					{
-#ifdef SAVESEARCHSPACE 
-						n2->heuristicValue = 0;
-#endif
-	
-#ifdef ASTAR
-#ifdef ASTARAC
-						n2->heuristicValue +=
-							(n2->actionCosts / GASTARWEIGHT);
-#else
-						n2->heuristicValue +=
-							(n2->modificationDepth / GASTARWEIGHT);
-	//							(n2->mixedModificationDepth / GASTARWEIGHT);
-#endif
-#endif
-#ifdef EARLYGOALTEST
-						if (htn->isGoal(n2)) {
-#ifdef SAVESEARCHSPACE 
-							*stateSpaceFile << "goal " << n2->searchNodeID << endl;
-#endif
-							gettimeofday(&tp, NULL);
-							currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-							tnSol =	handleNewSolution(n2, tnSol, currentT - startT);
-							continueSearch = this->optimzeSol;
-							if(!continueSearch)
-								break;
-						} else
-#endif
-							fringe.push(n2);
-	
+					if (suboptimalSearch && htn->isGoal(n2)) {
+						gettimeofday(&tp, NULL);
+						currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+						tnSol =	handleNewSolution(n2, tnSol, currentT - startT);
+						continueSearch = this->optimzeSol;
+						if(!continueSearch)
+							break;
 					}
-#ifndef SAVESEARCHSPACE   
-					else {
-						if (visitedList.canDeleteProcessedNodes)
-						delete n2;
-					}
-#endif
+					
+					fringe.push(n2);
+	
 				}
 			}
+
 			if (!continueSearch)
 				break;
+			
 			if (n->numAbstract > 0) {
 				int decomposedStep = rand() % n->numAbstract;
 				int task = n->unconstraintAbstract[decomposedStep]->task;
@@ -179,15 +132,12 @@ template<class VisitedList, class Fringe>
 					searchNode *n2 = htn->decompose(n, decomposedStep, method);
 					numSearchNodes++;
 					if (!n2->goalReachable) { // decomposition has detected unsol
-#ifdef SAVESEARCHSPACE
-						*stateSpaceFile << "nogoal " << n2->searchNodeID << endl;
-#endif
 						delete n2;
 						continue; // with next method
 					}
 				
 					// check whether we have seen this one already	
-					if (!visitedList.insertVisi(n2)){
+					if (suboptimalSearch && !visitedList.insertVisi(n2)){
 						delete n2;
 						continue;	
 					}
@@ -197,52 +147,23 @@ template<class VisitedList, class Fringe>
                         hF[i]->setHeuristicValue(n2, n, decomposedStep, method);
                     }
 					
-#ifdef SAVESEARCHSPACE
-					*stateSpaceFile << "heuristic " << n2->searchNodeID << " " << n2->heuristicValue << endl;
-#endif
-					
 					assert(n2->goalReachable || (!htn->isGoal(n2))); // otherwise the heuristic is not save
-	
-#ifndef SAVESEARCHSPACE
-					if (n2->goalReachable)
-#endif
-					{
-#ifdef SAVESEARCHSPACE 
-						n2->heuristicValue = 0;
-#endif
-	
-#ifdef ASTAR
-#ifdef ASTARAC
-						n2->heuristicValue +=
-							(n2->actionCosts / GASTARWEIGHT);
-#else
-						n2->heuristicValue +=
-								(n2->modificationDepth / GASTARWEIGHT);
-	//							(n2->mixedModificationDepth / GASTARWEIGHT);
-#endif
-#endif
-#ifdef EARLYGOALTEST
-						if (htn->isGoal(n2)) {
-							gettimeofday(&tp, NULL);
-							currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-							tnSol =	handleNewSolution(n2, tnSol, currentT - startT);
-							continueSearch = this->optimzeSol;
-							if(!continueSearch)
-								break;
-	
-						} else
-#endif
-						fringe.push(n2);
-	
+
+					if (suboptimalSearch && htn->isGoal(n2)) {
+						gettimeofday(&tp, NULL);
+						currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+						tnSol =	handleNewSolution(n2, tnSol, currentT - startT);
+						continueSearch = this->optimzeSol;
+						if(!continueSearch)
+							break;
+
 					}
-#ifndef SAVESEARCHSPACE
-					else {
-						if (visitedList.canDeleteProcessedNodes)
-						delete n2;
-					}
-#endif
+					fringe.push(n2);
+	
 				}
 			}
+
+
 			int allnodes = numSearchNodes + htn->numOneModActions + htn->numOneModMethods + htn->numEffLessProg;
 	
 			if (allnodes - lastCheck >= checkAfter) {
