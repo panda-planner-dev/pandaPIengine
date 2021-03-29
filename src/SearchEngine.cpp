@@ -325,7 +325,7 @@ int main(int argc, char *argv[]) {
     int timeL = TIMELIMIT;
     cout << "Time limit: " << timeL << " seconds" << endl;
 
-    int hLength = 6;
+    int hLength = 7;
     Heuristic **heuristics = new Heuristic *[hLength];
     heuristics[0] = new hhRC2<hsLmCut>(htn, 0, false);
 
@@ -344,6 +344,8 @@ int main(int argc, char *argv[]) {
 
     heuristics[5] = new hhDOfree(htn, tnI, 5, IloNumVar::Float, IloNumVar::Float, cSatisficing, cTdgAllowUC, cPgNone,
                                  cAndOrLmsNone, cLmcLmsFull, cNetChangeFull, cAddExternalLmsNo);
+
+    heuristics[6] = new hhZero(htn, 6);
 
     int aStarWeight = 1;
     aStar aStarType = gValNone;

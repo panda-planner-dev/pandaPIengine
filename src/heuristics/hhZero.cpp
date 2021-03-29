@@ -9,7 +9,7 @@
 
 namespace progression {
 
-hhZero::hhZero(const Model* htn) {
+hhZero::hhZero(Model* htn, int index) : Heuristic(htn, index){
 	// TODO Auto-generated constructor stub
 
 }
