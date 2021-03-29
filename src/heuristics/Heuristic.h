@@ -8,8 +8,10 @@
 #include "../Model.h"
 
 class Heuristic {
+protected:
+    int index;
 public:
-    Heuristic(Model* htnModel);
+    Heuristic(Model* htnModel, int index);
 
     virtual void setHeuristicValue(searchNode *n, searchNode *parent, int action) = 0;
     virtual void setHeuristicValue(searchNode *n, searchNode *parent, int absTask, int method) = 0;

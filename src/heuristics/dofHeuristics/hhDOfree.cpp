@@ -7,9 +7,7 @@
 
 #include "hhDOfree.h"
 
-#ifdef DOFREE
-
-hhDOfree::hhDOfree(Model *htn, searchNode *n, IloNumVar::Type IntType, IloNumVar::Type BoolType, csSetting IlpSetting,
+hhDOfree::hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType, IloNumVar::Type BoolType, csSetting IlpSetting,
                    csTdg tdgConstrs, csPg pgConstrs, csAndOrLms aoLMConstrs, csLmcLms lmcLMConstrs,
                    csNetChange ncConstrs, csAddExternalLms addLMConstrs) :
         cIntType(IntType),
@@ -20,7 +18,8 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, IloNumVar::Type IntType, IloNumVar
         cAndOrLms(aoLMConstrs),
         cLmcLms(lmcLMConstrs),
         cNetChange(ncConstrs),
-        cAddExternalLms(addLMConstrs) {
+        cAddExternalLms(addLMConstrs),
+        Heuristic(htn, index){
 
     assert((cIntType == IloNumVar::Float) || (cIntType == IloNumVar::Int));
     assert((cBoolType == IloNumVar::Float) || (cBoolType == IloNumVar::Bool));
@@ -311,7 +310,7 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, IloNumVar::Type IntType, IloNumVar
         delete[] tSP;
     }
     if (this->cLmcLms == cLmcLmsFull) {
-        hRC = new hhRC2(htn);
+        hRC = new hhRC2<hsLmCut>(htn, 1, false); // todo: which index to use?
     }
     if ((this->cAndOrLms == cAndOrLmsFull) || (this->cAndOrLms == cAndOrLmsOnlyTnI)) {
         causalLMs = new LmCausal(htn);
@@ -387,8 +386,10 @@ hhDOfree::~hhDOfree() {
 void hhDOfree::setHeuristicValue(searchNode *n, searchNode *parent,
                                  int action) {
     int h = this->recreateModel(n);
-    n->goalReachable = (h != UNREACHABLE);
-    n->heuristicValue = h;
+    n->heuristicValue[index] = h;
+    if(n->goalReachable) {
+        n->goalReachable = (h != UNREACHABLE);
+    }
 }
 
 void hhDOfree::setHeuristicValue(searchNode *n, searchNode *parent, int absTask,
@@ -1019,5 +1020,3 @@ int hhDOfree::recreateModel(searchNode *n) {
     lenv.end();
     return res;
 }
-
-#endif

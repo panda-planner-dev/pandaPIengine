@@ -18,17 +18,21 @@
 #include "./search/PriorityQueueSearch.h"
 
 #include "Model.h"
+
 #ifdef RCHEURISTIC
 #include "heuristics/rcHeuristics/hsAddFF.h"
 #include "heuristics/rcHeuristics/hsLmCut.h"
 #include "heuristics/rcHeuristics/hsFilter.h"
 #endif
 #ifdef RCHEURISTIC2
+
 #include "heuristics/rcHeuristics/hsAddFF.h"
 #include "heuristics/rcHeuristics/hsLmCut.h"
 #include "heuristics/rcHeuristics/hsFilter.h"
 #include "heuristics/rcHeuristics/hhRC2.h"
+
 #endif
+
 #include "intDataStructures/IntPairHeap.h"
 #include "intDataStructures/bIntSet.h"
 
@@ -43,32 +47,34 @@ using namespace progression;
 
 int main(int argc, char *argv[]) {
 #ifndef NDEBUG
-	cout << "You have compiled the search engine without setting the NDEBUG flag. This will make it slow and should only be done for debug." << endl;
+    cout
+            << "You have compiled the search engine without setting the NDEBUG flag. This will make it slow and should only be done for debug."
+            << endl;
 #endif
-	//srand(atoi(argv[4]));
+    //srand(atoi(argv[4]));
 
-	string s;
-	int seed = 42;
-	if (argc == 1) {
-		cout << "No file name passed. Reading input from stdin";
-		s = "stdin";
-	} else {
-		s = argv[1];
-		if (argc > 2) seed = atoi(argv[2]);
-	}
-	cout << "Random seed: " << seed << endl;
-	srand(seed);
+    string s;
+    int seed = 42;
+    if (argc == 1) {
+        cout << "No file name passed. Reading input from stdin";
+        s = "stdin";
+    } else {
+        s = argv[1];
+        if (argc > 2) seed = atoi(argv[2]);
+    }
+    cout << "Random seed: " << seed << endl;
+    srand(seed);
 
 
 /*
  * Read model
  */
-	cout << "Reading HTN model from file \"" << s << "\" ... " << endl;
-	Model* htn = new Model();
-	htn->filename = s;
-	htn->read(s);
-	assert(htn->isHtnModel);
-	searchNode* tnI = htn->prepareTNi(htn);
+    cout << "Reading HTN model from file \"" << s << "\" ... " << endl;
+    Model *htn = new Model();
+    htn->filename = s;
+    htn->read(s);
+    assert(htn->isHtnModel);
+    searchNode *tnI = htn->prepareTNi(htn);
 #ifdef MAINTAINREACHABILITY
     htn->calcSCCs();
     htn->calcSCCGraph();
@@ -247,31 +253,31 @@ int main(int argc, char *argv[]) {
  * Create Heuristic
  */
 #if HEURISTIC == ZERO
-	//cout << "Heuristic: 0 for every node" << endl;
-	//search.hF = new hhZero(htn);
+    //cout << "Heuristic: 0 for every node" << endl;
+    //search.hF = new hhZero(htn);
 #endif
 #ifdef RCHEURISTIC
     cout << "Heuristic: RC encoding" << endl;
-	Model* heuristicModel;
-	cout << "Computing RC model ... " << endl;
-	RCModelFactory* factory = new RCModelFactory(htn);
-	heuristicModel = factory->getRCmodelSTRIPS();
-	delete factory;
+    Model* heuristicModel;
+    cout << "Computing RC model ... " << endl;
+    RCModelFactory* factory = new RCModelFactory(htn);
+    heuristicModel = factory->getRCmodelSTRIPS();
+    delete factory;
 
 #if HEURISTIC == RCFF
-	search.hF = new hhRC(htn, new hsAddFF(heuristicModel));
-	search.hF->sasH->heuristic = sasFF;
-	cout << "- Inner heuristic: FF" << endl;
+    search.hF = new hhRC(htn, new hsAddFF(heuristicModel));
+    search.hF->sasH->heuristic = sasFF;
+    cout << "- Inner heuristic: FF" << endl;
 #elif HEURISTIC == RCADD
-	search.hF = new hhRC(htn, new hsAddFF(heuristicModel));
-	search.hF->sasH->heuristic = sasAdd;
-	cout << "- Inner heuristic: Add" << endl;
+    search.hF = new hhRC(htn, new hsAddFF(heuristicModel));
+    search.hF->sasH->heuristic = sasAdd;
+    cout << "- Inner heuristic: Add" << endl;
 #elif HEURISTIC == RCLMC
     hhRC hF(htn, new hsLmCut(heuristicModel));
-	cout << "- Inner heuristic: LM-Cut" << endl;
+    cout << "- Inner heuristic: LM-Cut" << endl;
 #elif HEURISTIC == RCFILTER
-	search.hF = new hhRC(htn, new hsFilter(heuristicModel));
-	cout << "- Inner heuristic: Filter" << endl;
+    search.hF = new hhRC(htn, new hsFilter(heuristicModel));
+    cout << "- Inner heuristic: Filter" << endl;
 #endif
 #endif
 #ifdef RCHEURISTIC2
@@ -279,16 +285,16 @@ int main(int argc, char *argv[]) {
 
 #if HEURISTIC == RCFF2
     hhRC2 hF(htn);
-	cout << "- Inner heuristic: FF" << endl;
+    cout << "- Inner heuristic: FF" << endl;
 #elif HEURISTIC == RCADD2
     search.hF = new hhRC2(htn);
-	cout << "- Inner heuristic: Add" << endl;
+    cout << "- Inner heuristic: Add" << endl;
 #elif HEURISTIC == RCLMC2
-    hhRC2* hF = new hhRC2(htn);
-	cout << "- Inner heuristic: LM-Cut" << endl;
+    //hhRC2* hF = new hhRC2(htn, 0);
+    //cout << "- Inner heuristic: LM-Cut" << endl;
 #elif HEURISTIC == RCFILTER2
-	search.hF = new hhRC2(htn);
-	cout << "- Inner heuristic: Filter" << endl;
+    search.hF = new hhRC2(htn);
+    cout << "- Inner heuristic: Filter" << endl;
 #endif
 #endif
 #ifdef DOFREE
@@ -302,16 +308,16 @@ int main(int argc, char *argv[]) {
 #endif
 #endif
 #if (HEURISTIC == LMCLOCAL)
-	search.hF = new hhLMCount(htn, tnI, 0);
+    search.hF = new hhLMCount(htn, tnI, 0);
     search.hF->prettyPrintLMs(htn, tnI);
 #endif
 #if (HEURISTIC == LMCANDOR)
-	search.hF = new hhLMCount(htn, tnI, 1);
+    search.hF = new hhLMCount(htn, tnI, 1);
     search.hF->prettyPrintLMs(htn, tnI);
 #endif
 #if (HEURISTIC == LMCFD)
-	search.hF = new hhLMCount(htn, tnI, 2);
-	search.hF->prettyPrintLMs(htn, tnI);
+    search.hF = new hhLMCount(htn, tnI, 2);
+    search.hF->prettyPrintLMs(htn, tnI);
 #endif
 /*
  * Start Search
@@ -321,17 +327,33 @@ int main(int argc, char *argv[]) {
 
     OneQueueWAStarFringe fringe(gValNone, 1);
 
-    VisitedList visi (htn);
+    VisitedList visi(htn);
     PriorityQueueSearch search;
 
-    int hLength = 1;
-    Heuristic** heuristics = new Heuristic*[hLength];
-    heuristics[0] = hF;
+    int hLength = 6;
+    Heuristic **heuristics = new Heuristic *[hLength];
+    heuristics[0] = new hhRC2<hsLmCut>(htn, 0, false);
+
+    hhRC2<hsAddFF> *hF2 = new hhRC2<hsAddFF>(htn, 1, false);
+    hF2->sasH->heuristic = sasAdd;
+    heuristics[1] = hF2;
+
+    hhRC2<hsAddFF> *hF3 = new hhRC2<hsAddFF>(htn, 2, false);
+    hF2->sasH->heuristic = sasFF;
+    heuristics[2] = hF3;
+
+    heuristics[3] = new hhRC2<hsFilter>(htn, 3, false);
+
+    heuristics[4] = new hhDOfree(htn, tnI, 4, IloNumVar::Int, IloNumVar::Bool, cSatisficing, cTdgAllowUC, cPgNone,
+                                 cAndOrLmsNone, cLmcLmsFull, cNetChangeFull, cAddExternalLmsNo);
+
+    heuristics[5] = new hhDOfree(htn, tnI, 5, IloNumVar::Float, IloNumVar::Float, cSatisficing, cTdgAllowUC, cPgNone,
+                                 cAndOrLmsNone, cLmcLmsFull, cNetChangeFull, cAddExternalLmsNo);
 
     search.search(htn, tnI, timeL, heuristics, hLength, visi, fringe);
     delete htn;
 #ifdef RCHEURISTIC
-	delete heuristicModel;
+    delete heuristicModel;
 #endif
-	return 0;
+    return 0;
 }

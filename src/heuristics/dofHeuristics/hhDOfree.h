@@ -26,6 +26,7 @@
 #include "../planningGraph.h"
 #include "../landmarks/lmExtraction/LmCausal.h"
 #include "../../intDataStructures/IntUtil.h"
+#include "../rcHeuristics/hhRC2.h"
 
 namespace progression {
 
@@ -51,7 +52,7 @@ namespace progression {
         cNetChangeFull, cNetChangeNone
     };
 
-    class hhDOfree {
+    class hhDOfree : public Heuristic {
         //int fileID = 0;
 
         Model *htn;
@@ -87,7 +88,7 @@ namespace progression {
 
         void updatePG(searchNode *n);
 
-        hhRC2 *hRC = nullptr;
+        hhRC2<hsLmCut> *hRC = nullptr;
         LmCausal *causalLMs = nullptr;
 
         // mappings for the scc reachability, these are static
@@ -107,14 +108,14 @@ namespace progression {
         int **Ivars = nullptr;
 
     public:
-        hhDOfree(Model *htn, searchNode *n, IloNumVar::Type IntType, IloNumVar::Type BoolType, csSetting IlpSetting, csTdg tdgConstrs, csPg pgConstrs, csAndOrLms aoLMConstrs, csLmcLms lmcLMConstrs, csNetChange ncConstrs, csAddExternalLms addLMConstrs);
+        hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType, IloNumVar::Type BoolType, csSetting IlpSetting, csTdg tdgConstrs, csPg pgConstrs, csAndOrLms aoLMConstrs, csLmcLms lmcLMConstrs, csNetChange ncConstrs, csAddExternalLms addLMConstrs);
 
         virtual ~hhDOfree();
 
-        void setHeuristicValue(searchNode *n, searchNode *parent, int action);
+        void setHeuristicValue(searchNode *n, searchNode *parent, int action) override;
 
         void setHeuristicValue(searchNode *n, searchNode *parent, int absTask,
-                               int method);
+                               int method) override;
 
         void printHeuristicInformation();
 

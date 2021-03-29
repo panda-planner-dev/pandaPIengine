@@ -69,7 +69,6 @@ searchNode::searchNode() {
 	hRand = rand();
 	modificationDepth = -1;
 	mixedModificationDepth = -1;
-	heuristicValue = -1;
 	unconstraintPrimitive = nullptr;
 	unconstraintAbstract = nullptr;
 	numAbstract = 0;
