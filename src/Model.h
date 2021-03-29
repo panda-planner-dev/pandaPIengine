@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <istream>
 #include <forward_list>
 
 #include "ProgressionNetwork.h"
@@ -71,7 +72,7 @@ private:
 public:
 	Model();
 	virtual ~Model();
-	void read(string f);
+	void read(istream * inputStream); 
 	void calcSCCs();
 	searchNode* prepareTNi(const Model* htn);
 

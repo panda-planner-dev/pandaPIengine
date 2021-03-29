@@ -11,12 +11,14 @@
 #include <queue>
 #include <iostream>
 #include <stdlib.h>
+#include <getopt.h>
 #include <unordered_set>
 #include <landmarks/lmExtraction/LmCausal.h>
 #include <landmarks/lmExtraction/LMsInAndOrGraphs.h>
 #include <fringes/OneQueueWAStarFringe.h>
 #include "./search/PriorityQueueSearch.h"
 
+#include "Debug.h"
 #include "Model.h"
 #ifdef RCHEURISTIC
 #include "heuristics/rcHeuristics/hsAddFF.h"
@@ -45,30 +47,94 @@ int main(int argc, char *argv[]) {
 #ifndef NDEBUG
 	cout << "You have compiled the search engine without setting the NDEBUG flag. This will make it slow and should only be done for debug." << endl;
 #endif
-	//srand(atoi(argv[4]));
 
-	string s;
+
+
+	struct option options[] = {
+		{"debug",              	                            no_argument,    NULL,   'd'},
+		{"seed",              	                      required_argument,    NULL,   's'},
+		{NULL,                            0,              NULL,   0},
+	};
+	
+	bool debugMode = false;
 	int seed = 42;
-	if (argc == 1) {
-		cout << "No file name passed. Reading input from stdin";
-		s = "stdin";
-	} else {
-		s = argv[1];
-		if (argc > 2) seed = atoi(argv[2]);
+
+	while (true)
+	{
+		int c = getopt_long_only (argc, argv, "ds", options, NULL);
+		if (c == -1)
+			break;
+		if (c == '?' || c == ':')
+		{
+			// Invalid option; getopt_long () will print an error message
+			optionsValid = false;
+			continue;
+		}
+
+		if (c == 'd')
+			debugMode = true;
+		else if (c == 's')
+			seed = atoi(optarg);
 	}
+	
+	if (!optionsValid) {
+		std::cout << "Invalid options. Exiting." << std::endl;
+		return 1;
+	}
+
+	// set debug mode
+	if (debugMode) setDebugMode(debugMode);
+
+	// set random seed
 	cout << "Random seed: " << seed << endl;
 	srand(seed);
 
+	// get input files
+	std::vector<std::string> inputFiles;
+	for (int i = optind; i < argc; ++i)
+	{
+		inputFiles.push_back (argv[i]);
+	}
 
-/*
- * Read model
- */
+	std::string inputFilename = "-";
+
+	if (inputFiles.size() > 1){
+		std::cerr << "You may specify at most one file as input: the SAS+ problem description" << std::endl;
+		return 1;
+	} else {
+		if (inputFiles.size())
+			inputFilename = inputFiles[0];
+	}
+
+	std::istream * inputStream;
+	if (inputFilename == "-") {
+		std::out << "Reading input from standard input." << std::endl;
+		inputStream = &std::cin;
+	} else {
+		std::cout << "Reading input from " << inputFilename << "." << std::endl;
+
+		std::ifstream * fileInput = new std::ifstream(inputFilename);
+		if (!fileInput->good())
+		{
+			std::cerr << "Unable to open input file " << inputFilename << ": " << strerror (errno) << std::endl;
+			return 1;
+		}
+
+		inputStream = fileInput;
+	}
+
+
+
+    /* Read model */
 	cout << "Reading HTN model from file \"" << s << "\" ... " << endl;
 	Model* htn = new Model();
 	htn->filename = s;
-	htn->read(s);
+	htn->read(inputStream);
 	assert(htn->isHtnModel);
 	searchNode* tnI = htn->prepareTNi(htn);
+
+
+
 #ifdef MAINTAINREACHABILITY
     htn->calcSCCs();
     htn->calcSCCGraph();
