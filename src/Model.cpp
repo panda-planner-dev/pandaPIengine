@@ -2189,10 +2189,6 @@ void Model::read(istream * inputStream) {
 #if (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
 	generateVectorRepresentation();
 #endif
-	if (f != "stdin"){
-		((ifstream*) inputStream)->close();
-	}
-
 // for debug:
 #if DLEVEL == 5
 	printActions();

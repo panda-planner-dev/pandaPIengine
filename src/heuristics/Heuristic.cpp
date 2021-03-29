@@ -4,6 +4,7 @@
 
 #include "Heuristic.h"
 
-Heuristic::Heuristic(Model *htnModel) {
-
+Heuristic::Heuristic(Model *htnModel, int index) {
+	this->htn = htnModel;
+ 	this->index = index;
 }

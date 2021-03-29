@@ -53,9 +53,15 @@ template<class VisitedList, class Fringe>
 
 		fringe.printTypeInfo();	
 		
+		// compute the heuristic
+		tnI->heuristicValue = new int[hLength];
+		for(int i = 0; i < hLength; i++) {
+        	tnI->heuristicValue[i] = 0;
+		}
+
 		// add initial search node to queue
-		if (visitedList.insertVisi(tnI))
-			fringe.push(tnI);
+		//if (visitedList.insertVisi(tnI))
+		fringe.push(tnI);
 		assert(!fringe.isEmpty());
 	
 		int numSearchNodes = 1;
@@ -70,7 +76,7 @@ template<class VisitedList, class Fringe>
 				continue;	
 			}
 			
-			if (suboptimalSearch && htn->isGoal(n)) {
+			if (!suboptimalSearch && htn->isGoal(n)) {
 				// A non-early goal test makes only sense in an optimal planning setting.
 				// -> continuing search makes not really sense here
 				gettimeofday(&tp, NULL);
@@ -100,6 +106,7 @@ template<class VisitedList, class Fringe>
 	
 
 					// compute the heuristic
+					n2->heuristicValue = new int[hLength];
 					for(int i = 0; i < hLength; i++) {
                         hF[i]->setHeuristicValue(n2, n, n->unconstraintPrimitive[i]->task);
                     }
@@ -143,6 +150,7 @@ template<class VisitedList, class Fringe>
 					}
 	
 					// compute the heuristic
+					n2->heuristicValue = new int[hLength];
 					for(int i = 0; i < hLength; i++) {
                         hF[i]->setHeuristicValue(n2, n, decomposedStep, method);
                     }
@@ -177,7 +185,7 @@ template<class VisitedList, class Fringe>
 							<< "visitime " << setw(7) << fixed << setprecision(2) << visitedList.time/1000 << "s"
 						    << " generated nodes " << setw(9) << allnodes
 						   	<< " nodes/sec " << setw(7) << int(double(allnodes) / (currentT - startT) * 1000)
-						    << " cur h " << setw(4) << n->heuristicValue
+						    << " cur h " << setw(4) << n->heuristicValue[0]
 						   	<< " mod.depth " << setw(4) << n->modificationDepth
 						   	<< " inserts " << setw(9) << visitedList.attemptedInsertions
 						   	<< " duplicates " << setw(9) << visitedList.attemptedInsertions - visitedList.uniqueInsertions

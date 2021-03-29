@@ -68,7 +68,6 @@ bool searchNode::operator<(searchNode other) const {
 searchNode::searchNode() {
 	modificationDepth = -1;
 	mixedModificationDepth = -1;
-	heuristicValue = -1;
 	unconstraintPrimitive = nullptr;
 	unconstraintAbstract = nullptr;
 	numAbstract = 0;
@@ -100,6 +99,8 @@ searchNode::~searchNode() {
 	}
 	delete[] unconstraintAbstract;
 	delete[] unconstraintPrimitive;
+	
+	delete[] heuristicValue;
 
 #ifdef TRACKTASKSINTN
 	delete[] containedTasks;

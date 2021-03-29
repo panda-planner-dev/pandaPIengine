@@ -26,7 +26,7 @@ namespace progression {
         Model *m;
 
         // heuristics
-        hhRC2 *hRcLmc;
+        hhRC2<hsLmCut> *hRcLmc;
         std::vector<hhDOfree*> ilpHs;
     };
 }
