@@ -318,17 +318,20 @@ int main(int argc, char *argv[]) {
  */
     int timeL = TIMELIMIT;
     cout << "Time limit: " << timeL << " seconds" << endl;
-
-    OneQueueWAStarFringe fringe(gValNone, 1);
-
-    VisitedList visi (htn);
-    PriorityQueueSearch search;
-
-    int hLength = 1;
+    
+	int hLength = 1;
     Heuristic** heuristics = new Heuristic*[hLength];
     heuristics[0] = hF;
 
-    search.search(htn, tnI, timeL, heuristics, hLength, visi, fringe);
+	int aStarWeight = 1;
+	aStar aStarType = gValNone;
+	bool suboptimalSearch = false;
+
+    VisitedList visi (htn);
+    PriorityQueueSearch search;
+    OneQueueWAStarFringe fringe(aStarType, aStarWeight, hLength);
+
+    search.search(htn, tnI, timeL, suboptimalSearch, heuristics, hLength, visi, fringe);
     delete htn;
 #ifdef RCHEURISTIC
 	delete heuristicModel;

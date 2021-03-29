@@ -88,6 +88,7 @@ struct searchNode {
 	planStep** unconstraintPrimitive;
 
 	int* heuristicValue;
+	int fValue;
 	bool goalReachable = true;
 	int modificationDepth;
 	int mixedModificationDepth;
@@ -151,11 +152,6 @@ private:
 pair<string,int> extractSolutionFromSearchNode(Model * htn, searchNode* tnSol);
 pair<string,int> printTraceOfSearchNode(Model* htn, searchNode* tnSol);
 
-
-//////////////////// comparator
-struct CmpNodePtrs {
-	bool operator()(const searchNode* a, const searchNode* b) const;
-};
 
 }
 
