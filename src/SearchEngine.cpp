@@ -68,6 +68,8 @@ int main(int argc, char *argv[]) {
 	while (true)
 	{
 		int c = getopt_long_only (argc, argv, "ds", options, NULL);
+		cout << "Option: " << char(c) << endl;
+		
 		if (c == -1)
 			break;
 		if (c == '?' || c == ':')
@@ -80,6 +82,7 @@ int main(int argc, char *argv[]) {
 		if (c == 'd')
 			debugMode = true;
 		else if (c == 's')
+			if (!optarg){ cout << "Seed is missing" << endl; return 1; }
 			seed = atoi(optarg);
 	}
 
