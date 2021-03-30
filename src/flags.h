@@ -27,10 +27,6 @@ typedef int tHVal;
 #define LMCLOCAL 7
 #define LMCANDOR 8
 #define LMCFD 9
-#define RCFILTER2 10
-#define RCFF2 11
-#define RCADD2 12
-#define RCLMC2 13
 
 // [state-representation]
 #define SRCOPY 0  // copy bit vector that represents state
@@ -82,9 +78,6 @@ typedef int tHVal;
 
 #define ONEMODAC
 //#define ONEMODMETH
-
-#define HEURISTIC RCLMC2
-#define RCHEURISTIC2
 
 
 #define TRACKTASKSINTN

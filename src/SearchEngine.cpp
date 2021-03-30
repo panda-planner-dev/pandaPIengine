@@ -26,14 +26,11 @@
 #include "heuristics/rcHeuristics/hsLmCut.h"
 #include "heuristics/rcHeuristics/hsFilter.h"
 #endif
-#ifdef RCHEURISTIC2
 
 #include "heuristics/rcHeuristics/hsAddFF.h"
 #include "heuristics/rcHeuristics/hsLmCut.h"
 #include "heuristics/rcHeuristics/hsFilter.h"
 #include "heuristics/rcHeuristics/hhRC2.h"
-
-#endif
 
 #include "intDataStructures/IntPairHeap.h"
 #include "intDataStructures/bIntSet.h"
@@ -316,23 +313,6 @@ int main(int argc, char *argv[]) {
     cout << "- Inner heuristic: LM-Cut" << endl;
 #elif HEURISTIC == RCFILTER
     search.hF = new hhRC(htn, new hsFilter(heuristicModel));
-    cout << "- Inner heuristic: Filter" << endl;
-#endif
-#endif
-#ifdef RCHEURISTIC2
-    cout << "Heuristic: RC encoding" << endl;
-
-#if HEURISTIC == RCFF2
-    hhRC2 hF(htn);
-    cout << "- Inner heuristic: FF" << endl;
-#elif HEURISTIC == RCADD2
-    search.hF = new hhRC2(htn);
-    cout << "- Inner heuristic: Add" << endl;
-#elif HEURISTIC == RCLMC2
-    //hhRC2* hF = new hhRC2(htn, 0);
-    //cout << "- Inner heuristic: LM-Cut" << endl;
-#elif HEURISTIC == RCFILTER2
-    search.hF = new hhRC2(htn);
     cout << "- Inner heuristic: Filter" << endl;
 #endif
 #endif
