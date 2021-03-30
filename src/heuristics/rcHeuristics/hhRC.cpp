@@ -14,7 +14,7 @@
 #include <list>
 
 namespace progression {
-
+#if false
 void hhRC::setHeuristicValue(searchNode *n, searchNode *parent, int action) {
 	this->setHeuristicValue(n);
 }

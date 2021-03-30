@@ -18,6 +18,7 @@
 #include "RCModelFactory.h"
 
 enum innerHeuristic {FILTER, ADD, FF, LMCUT};
+enum eCorrectTaskCount {ctcNO, ctcADMISSIBLE, ctcINADMISSIBLE};
 
 template<class ClassicalHeuristic>
 class hhRC2 : public Heuristic {
@@ -28,13 +29,14 @@ private:
     RCModelFactory* factory;
     const bool storeCuts = true;
     IntUtil iu;
+    const eCorrectTaskCount correctTaskCount = ctcINADMISSIBLE;
 
 public:
     ClassicalHeuristic *sasH;
     list<LMCutLandmark *>* cuts = new list<LMCutLandmark *>();
 
-    hhRC2(Model* htnModel, int index, bool correctTaskCount)
-            :Heuristic(htnModel, index){
+    hhRC2(Model* htnModel, int index, eCorrectTaskCount correctTaskCount) : correctTaskCount(correctTaskCount),
+            Heuristic(htnModel, index){
 
         Model* heuristicModel;
         factory = new RCModelFactory(htnModel);
@@ -100,7 +102,7 @@ public:
             gset.insert(htn->gList[i]);
         }
 
-        for(int i = 0; i < n->numContainedTasks; i++) {
+        for (int i = 0; i < n->numContainedTasks; i++) {
             int t = n->containedTasks[i];
             gset.insert(factory->t2bur(t));
         }
@@ -166,18 +168,21 @@ public:
     }*/
 #endif
 
-//#ifdef CORRECTTASKCOUNT
-//        if (hval != UNREACHABLE) {
-//            for (int i = 0; i < n->numContainedTasks; i++) {
-//                if (n->containedTaskCount[i] > 1) {
-//                    int task = n->containedTasks[i];
-//                    int count = n->containedTaskCount[i];
-//                    //hval += (htn->minImpliedDistance[task] * (count - 1));
-//                    hval += (htn->minImpliedCosts[task] * (count - 1));
-//                }
-//            }
-//        }
-//#endif
+        if (correctTaskCount != ctcNO) {
+            if (hval != UNREACHABLE) {
+                for (int i = 0; i < n->numContainedTasks; i++) {
+                    if (n->containedTaskCount[i] > 1) {
+                        int task = n->containedTasks[i];
+                        int count = n->containedTaskCount[i];
+                        if (correctTaskCount != ctcINADMISSIBLE) {
+                            hval += (htn->minImpliedDistance[task] * (count - 1));
+                        } else if (correctTaskCount != ctcADMISSIBLE) {
+                            hval += (htn->minImpliedCosts[task] * (count - 1));
+                        }
+                    }
+                }
+            }
+        }
         return hval;
     }
 };

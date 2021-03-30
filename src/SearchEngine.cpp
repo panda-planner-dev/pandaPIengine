@@ -18,7 +18,7 @@
 #include <fringes/OneQueueWAStarFringe.h>
 #include "./search/PriorityQueueSearch.h"
 
-#include "Debug.h"
+//#include "Debug.h"
 #include "Model.h"
 
 #ifdef RCHEURISTIC
@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
 	}
 	
 	// set debug mode
-	if (debugMode) setDebugMode(debugMode);
+//	if (debugMode) setDebugMode(debugMode);
 
 	// set random seed
 	cout << "Random seed: " << seed << endl;
@@ -397,17 +397,17 @@ int main(int argc, char *argv[]) {
 
     int hLength = 1;
     Heuristic **heuristics = new Heuristic *[hLength];
-    heuristics[0] = new hhRC2<hsLmCut>(htn, 0, false);
+    heuristics[0] = new hhRC2<hsLmCut>(htn, 0, ctcINADMISSIBLE);
 
-//    hhRC2<hsAddFF> *hF2 = new hhRC2<hsAddFF>(htn, 1, false);
+//    hhRC2<hsAddFF> *hF2 = new hhRC2<hsAddFF>(htn, 1, ctcINADMISSIBLE);
 //    hF2->sasH->heuristic = sasAdd;
 //    heuristics[1] = hF2;
 //
-//    hhRC2<hsAddFF> *hF3 = new hhRC2<hsAddFF>(htn, 2, false);
+//    hhRC2<hsAddFF> *hF3 = new hhRC2<hsAddFF>(htn, 2, ctcINADMISSIBLE);
 //    hF2->sasH->heuristic = sasFF;
 //    heuristics[2] = hF3;
 //
-//    heuristics[3] = new hhRC2<hsFilter>(htn, 3, false);
+//    heuristics[3] = new hhRC2<hsFilter>(htn, 3, ctcINADMISSIBLE);
 //
 //    heuristics[4] = new hhDOfree(htn, tnI, 4, IloNumVar::Int, IloNumVar::Bool, cSatisficing, cTdgAllowUC, cPgNone,
 //                                 cAndOrLmsNone, cLmcLmsFull, cNetChangeFull, cAddExternalLmsNo);

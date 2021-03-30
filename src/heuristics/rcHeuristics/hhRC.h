@@ -19,7 +19,7 @@
 #include "hsFilter.h"
 
 namespace progression {
-
+#if false
     template<class ClassicalHeuristic>
 class hhRC : public Heuristic{
 private:
@@ -93,7 +93,7 @@ public:
 
 	}
 };
-
+#endif
 } /* namespace progression */
 
 #endif /* HEURISTICS_HHRC_H_ */
