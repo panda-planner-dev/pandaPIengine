@@ -13,6 +13,7 @@
 #include "../../intDataStructures/noDelIntSet.h"
 #include "../../intDataStructures/IntStack.h"
 #include "hsAddFF.h"
+#include "LMCutLandmark.h"
 
 namespace progression {
 
@@ -23,6 +24,8 @@ public:
 		
 	string getDescription(){ return "filter";}
 
+    list<LMCutLandmark *>* cuts = new list<LMCutLandmark *>();
+	
 	int getHeuristicValue(bucketSet& s, noDelIntSet& g);
 	Model* m;
 private:
