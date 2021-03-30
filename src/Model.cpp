@@ -1828,7 +1828,7 @@ namespace progression {
             }
         }
 
-        delete[] precToAction;
+        delete precToActionTemp;
         // s0
         getline(domainFile, line);
         getline(domainFile, line);
