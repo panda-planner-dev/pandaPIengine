@@ -538,7 +538,7 @@ void PDT::assignVariableIDs(sat_capsule & capsule, Model * htn){
 	for (int i = 0; i < methodVars; i++) methodVariables[i] = -1;
 
 	for (size_t a = 0; a < possibleAbstracts.size(); a++){
-		//int & t = possibleAbstracts[a];
+		DEBUG(int & t = possibleAbstracts[a]);
 		
 		for (size_t mi = 0; mi < htn->numMethodsForTask[possibleAbstracts[a]]; mi++){
 #ifdef NO_PRUNED_VARIABLES
