@@ -538,8 +538,6 @@ void PDT::assignVariableIDs(sat_capsule & capsule, Model * htn){
 	for (int i = 0; i < methodVars; i++) methodVariables[i] = -1;
 
 	for (size_t a = 0; a < possibleAbstracts.size(); a++){
-		DEBUG(int & t = possibleAbstracts[a]);
-		
 		for (size_t mi = 0; mi < htn->numMethodsForTask[possibleAbstracts[a]]; mi++){
 #ifdef NO_PRUNED_VARIABLES
 			if (prunedMethods[a][mi]) continue;
@@ -551,6 +549,7 @@ void PDT::assignVariableIDs(sat_capsule & capsule, Model * htn){
 			*getMethodVariable(a,mi) = num;
 
 			DEBUG(
+				int & t = possibleAbstracts[a];
 				int m = htn->taskToMethods[t][mi];
 				string name = "method   " + pad_int(m) + " @ " + pad_path(path) + ": " + pad_string(htn->methodNames[m]);
 				capsule.registerVariable(num,name);

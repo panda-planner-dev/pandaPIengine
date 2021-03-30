@@ -191,7 +191,10 @@ void atMostOne(void* solver, sat_capsule & capsule, std::vector<int> & is){
 	DEBUG(capsule.registerVariable(baseVar,"at-most-one " + pad_int(0)));
 
 	for (int b = 1; b < bits; b++){
-		capsule.new_variable(); // ignore return, they will be incremental
+#ifndef NDEBUG
+		int r =
+#endif
+			capsule.new_variable(); // ignore return, they will be incremental
 		assert(r == baseVar + b);
 		DEBUG(capsule.registerVariable(baseVar + b,"at-most-one " + pad_int(b)));
 	}
