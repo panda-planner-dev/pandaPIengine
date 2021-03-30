@@ -24,6 +24,8 @@
 #include "sat/sat_planner.h"
 #include "Invariants.h"
 
+#include "symbolic_search/automaton.h"
+
 #ifdef RCHEURISTIC
 #include "heuristics/rcHeuristics/hsAddFF.h"
 #include "heuristics/rcHeuristics/hsLmCut.h"
@@ -326,6 +328,8 @@ int main(int argc, char *argv[]) {
 #endif
 #endif
 		solve_with_sat_planner(htn);
+	} else if (algo == BDD){
+		build_automaton(htn);
 	}
 
     delete htn;
