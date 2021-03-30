@@ -35,8 +35,6 @@ typedef int tHVal;
 #define STATEREP SRCOPY // choose from [state-representation]
 
 
-
-
 // the following options are preliminary and not part of final version -> can be kept as compiler flags until they are finished
 //#define ONEMODMETH // todo: this was always buggy, but the case is compiled away anyway
 
@@ -65,6 +63,12 @@ typedef int tHVal;
 #ifndef CHECKAFTER
 #define CHECKAFTER 5000 // nodes after which the timelimit is checked
 #endif
+
+#define RINTANEN_INVARIANTS 1
+
+
+//#define SAT_USEMUTEXES
+#define BLOCK_COMPRESSION
 
 
 #define TRACESOLUTION
@@ -96,5 +100,6 @@ typedef int tHVal;
 #undef ONEMODAC // todo: this flag is not there anymore! needs to be set in the model constructor
 #define OPTIMIZEUNTILTIMELIMIT true
 #endif
+
 
 #endif /* FLAGS_H_ */
