@@ -1828,7 +1828,7 @@ namespace progression {
             }
         }
 
-        delete precToActionTemp;
+        delete[] precToActionTemp;
         // s0
         getline(domainFile, line);
         getline(domainFile, line);
@@ -2564,9 +2564,9 @@ namespace progression {
             // reachability
             int lastMaintained = 0;
             if (maintainTaskReachability == mtrACTIONS) {
-                int lastMaintained = this->numTasks;
+                lastMaintained = this->numTasks;
             } else if (maintainTaskReachability == mtrALL) {
-                int lastMaintained = this->numActions;
+                lastMaintained = this->numActions;
             }
             this->numReachable = new int[numTasks];
             for (int i = 0; i < numTasks; i++) {

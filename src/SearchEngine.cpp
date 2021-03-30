@@ -165,7 +165,7 @@ int main(int argc, char *argv[]) {
 
     /* Read model */
     // todo: the correct value of maintainTaskRechability depends on the heuristic
-    eMaintainTaskReachability reachability = mtrACTIONS;
+    eMaintainTaskReachability reachability = mtrALL;
     Model* htn = new Model(false, reachability, true, true);
 	htn->filename = inputFilename;
 	htn->read(inputStream);
