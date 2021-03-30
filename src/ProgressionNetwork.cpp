@@ -102,10 +102,8 @@ searchNode::~searchNode() {
 	
 	delete[] heuristicValue;
 
-#ifdef TRACKTASKSINTN
 	delete[] containedTasks;
 	delete[] containedTaskCount;
-#endif
 
 #if STATEREP == SRLIST
 	delete[] state;

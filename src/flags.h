@@ -48,7 +48,6 @@ typedef int tHVal;
 //#define ONEMODMETH
 
 
-#define TRACKTASKSINTN
 
 //#define TREATSCCS // prevent disconnected components
 #define INITSCCS

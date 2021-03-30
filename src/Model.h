@@ -64,13 +64,13 @@ private:
 	set<planStep*> done;
 	forward_list<planStep*> potentialPredecessors;
 
-#ifdef TRACKTASKSINTN
-	void updateTaskCounterM(searchNode* n, searchNode* parent, int method);
+    	const bool trackTasksInTN = false;
+    	void updateTaskCounterM(searchNode* n, searchNode* parent, int method);
 	void updateTaskCounterA(searchNode* n, searchNode* parent, int action);
-#endif
 
 public:
-	Model();
+    Model();
+    Model(bool trackTasksInTN);
 	virtual ~Model();
 	void read(istream * inputStream); 
 	void calcSCCs();

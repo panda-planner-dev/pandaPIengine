@@ -26,7 +26,10 @@ using namespace std;
 
 namespace progression {
 
-Model::Model() {
+Model::Model() : Model(false) {
+}
+
+Model::Model(bool trackTasks) : trackTasksInTN(trackTasks) {
 	numStateBits = 0;
 	numTasks = 0;
 	numPrecLessActions = 0;
@@ -212,8 +215,6 @@ Model::~Model() {
 	delete[] minImpliedCosts;
 	delete[] minImpliedDistance;
 }
-
-#ifdef TRACKTASKSINTN
 
 void Model::updateTaskCounterA(searchNode* n, searchNode* parent, int action) {
 	int ai = iu.indexOf(parent->containedTasks, 0, parent->numContainedTasks - 1, action);
@@ -581,7 +582,6 @@ void Model::updateTaskCounterM(searchNode* n, searchNode* parent, int m) {
 #endif
 }
 
-#endif
 
 searchNode* Model::decompose(searchNode *n, int taskNo, int method) {
 	planStep *decomposed = n->unconstraintAbstract[taskNo];
@@ -716,9 +716,9 @@ searchNode* Model::decompose(searchNode *n, int taskNo, int method) {
 	if (n->solution != nullptr)
 		n->solution->pointersToMe++;
 
-#ifdef TRACKTASKSINTN
-	updateTaskCounterM(result, n, method);
-#endif
+    if (trackTasksInTN) {
+        updateTaskCounterM(result, n, method);
+    }
 
 #ifdef MAINTAINREACHABILITY
 	updateReachability(result);
@@ -1197,9 +1197,9 @@ searchNode* Model::apply(searchNode* n, int taskNo) {
 	updateReachability(result);
 #endif
 
-#ifdef TRACKTASKSINTN
-	updateTaskCounterA(result, n, n->unconstraintPrimitive[taskNo]->task);
-#endif
+    if (trackTasksInTN) {
+        updateTaskCounterA(result, n, n->unconstraintPrimitive[taskNo]->task);
+    }
 
 #ifdef TRACKLMSFULL
 	//cout << "action application" << endl;
@@ -2715,13 +2715,13 @@ searchNode* Model::prepareTNi(const Model* htn) {
 	tnI->modificationDepth = 0;
 	tnI->mixedModificationDepth = 0;
 
-#ifdef TRACKTASKSINTN
-	tnI->numContainedTasks = 1;
-	tnI->containedTasks = new int[1];
-	tnI->containedTaskCount = new int[1];
-	tnI->containedTasks[0] = htn->initialTask;
-	tnI->containedTaskCount[0] = 1;
-#endif
+    if (trackTasksInTN) {
+        tnI->numContainedTasks = 1;
+        tnI->containedTasks = new int[1];
+        tnI->containedTaskCount = new int[1];
+        tnI->containedTasks[0] = htn->initialTask;
+        tnI->containedTaskCount[0] = 1;
+    }
 
 	return tnI;
 }
