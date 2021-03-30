@@ -39,7 +39,12 @@ public:
 
         Model* heuristicModel;
         factory = new RCModelFactory(htnModel);
-        heuristicModel = factory->getRCmodelSTRIPS();
+        if(estimate == estCOSTS) {
+            heuristicModel = factory->getRCmodelSTRIPS(0); // costs of methods need to be zero
+        } else {
+            heuristicModel = factory->getRCmodelSTRIPS(1); // estimate distance -> method costs 1
+            // fixme: this configuration is wired when actions have actual costs
+        }
 
         this->sasH = new ClassicalHeuristic(heuristicModel);
 		this->s0set.init(heuristicModel->numStateBits);

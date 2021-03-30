@@ -46,22 +46,11 @@ typedef int tHVal;
 // * Configuration *
 // *****************
 
-//#define SEARCHALG PROGRESSIONORG
-//#define SEARCHALG ICAPS18
-#define SEARCHALG JAIR19 // choose from [algorithm]
-
-// #define EARLYGOALTEST
-
 // select a state representation
 #define STATEREP SRCOPY // choose from [state-representation]
 
 // type of search
 #define SEARCHTYPE HEURISTICSEARCH // choose from [search-type]
-
-// options for heuristic search
-#define ASTAR
-#define GASTARWEIGHT 1
-#define ASTARAC
 
 #define PRGEFFECTLESS // always progress effectless actions
 

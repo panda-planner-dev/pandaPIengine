@@ -18,11 +18,7 @@ RCModelFactory::~RCModelFactory() {
 }
 
 Model* RCModelFactory::getRCmodelSTRIPS() {
-#ifdef ASTARAC
-	return this->getRCmodelSTRIPS(0);
-#else
 	return this->getRCmodelSTRIPS(1);
-#endif
 }
 
 Model* RCModelFactory::getRCmodelSTRIPS(int costsMethodActions) {
