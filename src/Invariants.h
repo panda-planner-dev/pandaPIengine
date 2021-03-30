@@ -8,7 +8,6 @@ void extract_invariants_from_parsed_model(Model * htn);
 int count_invariants(Model * htn);
 
 
-#ifdef RINTANEN_INVARIANTS
 void compute_Rintanen_initial_invariants(Model * htn,
 		vector<pair<int,int>> & v0,
 		bool * & toDelete,
@@ -46,7 +45,6 @@ void compute_Rintanen_reduce_invariants(Model * htn,
 
 	
 void compute_Rintanen_Invariants(Model * htn);
-#endif
 
 bool can_state_features_co_occur(Model * htn, int a, int b);
 

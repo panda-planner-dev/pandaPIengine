@@ -336,10 +336,7 @@ int main(int argc, char *argv[]) {
     	if (string(args_info.pruning_arg) == "h2") pruningMode = SAT_H2;
 
 		extract_invariants_from_parsed_model(htn);
-#ifdef RINTANEN_INVARIANTS
-		if (sat_mutexes)
-		compute_Rintanen_Invariants(htn);
-#endif
+		if (sat_mutexes) compute_Rintanen_Invariants(htn);
 
 		solve_with_sat_planner(htn, block_compression, sat_mutexes, pruningMode);
 	} else if (algo == BDD){
