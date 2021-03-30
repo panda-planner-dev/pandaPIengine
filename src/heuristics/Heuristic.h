@@ -10,6 +10,7 @@
 class Heuristic {
 protected:
     int index;
+    Model* htn;
 public:
     Heuristic(Model* htnModel, int index);
 

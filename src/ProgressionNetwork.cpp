@@ -99,6 +99,8 @@ searchNode::~searchNode() {
 	}
 	delete[] unconstraintAbstract;
 	delete[] unconstraintPrimitive;
+	
+	delete[] heuristicValue;
 
 #ifdef TRACKTASKSINTN
 	delete[] containedTasks;

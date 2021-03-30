@@ -2177,22 +2177,7 @@ void Model::generateVectorRepresentation() {
 }
 #endif
 
-void Model::read(string f) {
-	const char *cstr = f.c_str();
-	
-	std::istream * inputStream;
-	if (f == "stdin"){
-		inputStream = &std::cin;
-	} else {
-		ifstream * fileInput  = new ifstream(f);
-		if (!fileInput->good()) {
-			std::cerr << "Unable to open input file " << f << ": " << strerror (errno) << std::endl;
-			exit(1);
-		}
-
-		inputStream = fileInput;
-	}	
-	
+void Model::read(istream * inputStream) {
 	string line;
 	getline(*inputStream, line);
 	readClassical(*inputStream);
@@ -2204,10 +2189,6 @@ void Model::read(string f) {
 #if (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
 	generateVectorRepresentation();
 #endif
-	if (f != "stdin"){
-		((ifstream*) inputStream)->close();
-	}
-
 // for debug:
 #if DLEVEL == 5
 	printActions();

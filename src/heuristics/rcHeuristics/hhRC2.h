@@ -25,7 +25,6 @@ private:
     noDelIntSet gset;
     noDelIntSet intSet;
 	bucketSet s0set;
-    const Model* htn;
     RCModelFactory* factory;
     const bool storeCuts = true;
     IntUtil iu;
@@ -35,13 +34,16 @@ public:
     list<LMCutLandmark *>* cuts = new list<LMCutLandmark *>();
 
     hhRC2(Model* htnModel, int index, bool correctTaskCount)
-            :Heuristic(htnModel, index) {
+            :Heuristic(htnModel, index){
 
         Model* heuristicModel;
         factory = new RCModelFactory(htnModel);
         heuristicModel = factory->getRCmodelSTRIPS();
 
         this->sasH = new ClassicalHeuristic(heuristicModel);
+		this->s0set.init(heuristicModel->numStateBits);
+		this->gset.init(heuristicModel->numStateBits);
+		this->intSet.init(heuristicModel->numStateBits);
     }
 
     virtual ~hhRC2(){
@@ -164,18 +166,18 @@ public:
     }*/
 #endif
 
-#ifdef CORRECTTASKCOUNT
-        if (hval != UNREACHABLE) {
-            for (int i = 0; i < n->numContainedTasks; i++) {
-                if (n->containedTaskCount[i] > 1) {
-                    int task = n->containedTasks[i];
-                    int count = n->containedTaskCount[i];
-                    //hval += (htn->minImpliedDistance[task] * (count - 1));
-                    hval += (htn->minImpliedCosts[task] * (count - 1));
-                }
-            }
-        }
-#endif
+//#ifdef CORRECTTASKCOUNT
+//        if (hval != UNREACHABLE) {
+//            for (int i = 0; i < n->numContainedTasks; i++) {
+//                if (n->containedTaskCount[i] > 1) {
+//                    int task = n->containedTasks[i];
+//                    int count = n->containedTaskCount[i];
+//                    //hval += (htn->minImpliedDistance[task] * (count - 1));
+//                    hval += (htn->minImpliedCosts[task] * (count - 1));
+//                }
+//            }
+//        }
+//#endif
         return hval;
     }
 };
