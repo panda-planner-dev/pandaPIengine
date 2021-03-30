@@ -291,6 +291,9 @@ int main(int argc, char *argv[]) {
 
 
 				heuristics[i] = new hhDOfree(htn,tnI,i,intType,boolType,mode,tdg,pg,andOrLM,lmclms,netchange,externalLM);
+			} else {
+				cout << "Heuristic type \"" << hName << "\" is unknown." << endl;
+				return 1;
 			}
 
 			cout << "Heuristic #" << i << " = " << heuristics[i]->getDescription() << endl; 
