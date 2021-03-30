@@ -26,7 +26,7 @@ private:
     noDelIntSet intSet;
 	bucketSet s0set;
     RCModelFactory* factory;
-    const bool storeCuts = true;
+    bool storeCuts = true;
     IntUtil iu;
     const bool correctTaskCount = true;
     const eEstimate estimate = estDISTANCE;
@@ -46,6 +46,15 @@ public:
 		this->s0set.init(heuristicModel->numStateBits);
 		this->gset.init(heuristicModel->numStateBits);
 		this->intSet.init(heuristicModel->numStateBits);
+
+        if (storeCuts) {
+            if (typeid(ClassicalHeuristic) != typeid(hsLmCut)) {
+                storeCuts = false;
+                cout << "- the option \"store cuts\" of the RC heuristic can only be used with the inner heuristic LM-Cut. It will be disabled." << endl;
+            } else {
+                htnModel->calcMinimalImpliedX();
+            }
+        }
     }
 
     virtual ~hhRC2(){
@@ -109,8 +118,7 @@ public:
 
         hval = this->sasH->getHeuristicValue(s0set, gset);
 
-#ifdef RCLMC2STORELMS
-        // the indices of the methods need to be transformed to fit the scheme of the HTN model (as opposed to the rc model)
+    // the indices of the methods need to be transformed to fit the scheme of the HTN model (as opposed to the rc model)
     if((storeCuts) && (hval != UNREACHABLE)) {
         this->cuts = this->sasH->cuts;
         for (LMCutLandmark* storedcut : *cuts) {
@@ -166,7 +174,6 @@ public:
         }
         cout << "}" << endl;
     }*/
-#endif
 
         if (correctTaskCount) {
             if (hval != UNREACHABLE) {
