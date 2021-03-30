@@ -4,6 +4,8 @@
 #include <cassert>
 #include <iomanip>
 
+using namespace std;
+
 void generate_state_transition_formula(void* solver, sat_capsule & capsule, vector<vector<pair<int,int>>> & actionVariables, vector<int> & block_base_variables, Model* htn){
 	// no blocks so just unit blocks
 	vector<vector<int>> blocks;
@@ -111,8 +113,6 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 	unordered_set<int> goalSet;
 	for (size_t i = 0; i < htn->gSize; i++)
 		assertYes(solver,goalBase + htn->gList[i]);
-
-
 }
 
 void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<int> & block_base_variables, unordered_set<int>* & after_leaf_invariants, Model* htn){
@@ -223,9 +223,9 @@ void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<int> & b
 void no_abstract_in_leaf(void* solver, vector<PDT*> & leafs, Model* htn){
 	// forbid abstract tasks in leafs
 	for (PDT* & leaf : leafs){
-		for (const int & abs : leaf->abstractVariable)
-			if (abs != -1)
-				assertNot(solver,abs);
+		for (size_t a = 0; a < leaf->possibleAbstracts.size(); a++)
+			if (leaf->abstractVariable[a] != -1)
+				assertNot(solver,leaf->abstractVariable[a]);
 	}
 }
 

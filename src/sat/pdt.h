@@ -6,6 +6,17 @@
 #include "sog.h"
 #include "sat_encoder.h"
 
+struct causePointer {
+	// 1. Primitive task assigned to child
+	// 2. Index of the task in the child
+	// 3. Index of the cause in the child
+	bool present:1, isPrimitive:1;
+	unsigned taskIndex : 31, causeIndex : 31;
+};
+
+struct taskCause {
+	signed taskIndex : 32, methodIndex : 32;
+};
 
 struct PDT {
 	vector<int> path;
@@ -20,12 +31,31 @@ struct PDT {
 	// for every abstract, the task and method index by which it can be created
 	// the task ID is relative to possibleAbstracts
 	// the method ID relative to htn->numMethodsForTask for the actual task 
-	vector<vector<pair<int,int>>> causesForAbstracts;
+	
+	uint32_t * numberOfCausesPerAbstract;
+	uint32_t * startOfCausesPerAbstract;
+	taskCause * getCauseForAbstract(int a, int i);
+	taskCause * causesForAbstracts;
 	// primitives can also be caused by primitive inheritance, this will be marked with a -1,primIndex (of parent)
-	vector<vector<pair<int,int>>> causesForPrimitives;
+	
+	uint32_t * numberOfCausesPerPrimitive;
+	uint32_t * startOfCausesPerPrimitive;
+	taskCause * getCauseForPrimitive(int p, int i);
+	taskCause * causesForPrimitives;
 
-	vector<vector<bool>> prunedCausesForAbstract;
-	vector<vector<bool>> prunedCausesForPrimitive;
+	/// pruning information
+
+	uint32_t * prunedCausesAbstractStart = 0;
+	bool getPrunedCausesForAbstract(int a, int b);
+	void setPrunedCausesForAbstract(int a, int b);
+	bool areAllCausesPrunedAbstract(int a);
+	uint64_t * prunedCausesForAbstract = 0;
+
+	uint32_t * prunedCausesPrimitiveStart = 0;
+	bool getPrunedCausesForPrimitive(int a, int b);
+	void setPrunedCausesForPrimitive(int a, int b);
+	bool areAllCausesPrunedPrimitive(int a);
+	uint64_t * prunedCausesForPrimitive = 0;
 
 	bool expanded;
 
@@ -36,26 +66,29 @@ struct PDT {
 	
 	vector<vector<bool>> prunedMethods;
 
-	// Tuple
-	// 1. Number of the child
-	// 2. Primitive task assigned to child
-	// 3. Index of the task in the child
-	// 4. Index of the cause in the child
-	vector<vector<vector<tuple<int,bool,int,int>>>> listIndexOfChildrenForMethods;
+	//vector<vector<vector<causePointer>>> listIndexOfChildrenForMethods;
+	uint32_t * taskStartingPosition;
+	causePointer * listIndexOfChildrenForMethods;
+	
+	causePointer * getListIndexOfChildrenForMethods(int a, int b, int c);
 
 	// for every primitive:
 	// 1. Number of the child 
 	// 2. Index of the task in the possible primitives array
 	// 3. Index of cause in the child
-	vector<tuple<int,int,int>> positionOfPrimitivesInChildren;
+	vector<tuple<uint16_t,uint32_t,uint32_t>> positionOfPrimitivesInChildren;
 	
 /// SAT encoding stuff
 	bool vertexVariables;
 	bool childrenVariables;
 	int noTaskPresent;
-	vector<int> primitiveVariable;
-	vector<int> abstractVariable;
-	vector<vector<int>> methodVariables;
+	uint32_t * primitiveVariable;
+	uint32_t * abstractVariable;
+
+
+	uint32_t * methodVariablesStartIndex;
+	int32_t * getMethodVariable(int a, int m);
+	int32_t * methodVariables;
 
 ///// that's what Tree Rex does ... for incremental solving
 	//int baseStateVarVariable;
@@ -77,14 +110,14 @@ struct PDT {
 	void resetPruning(Model * htn);
 	void propagatePruning(Model * htn);
 
-	void countPruning(int & overallSize, int & overallPruning);
+	void countPruning(int & overallSize, int & overallPruning, bool onlyPrimitives);
 
 	/**
 	 * Recursively assigns variable IDs needed for encoding this PDT
 	 */
 	void assignVariableIDs(sat_capsule & capsule, Model * htn);
 	
-	void addDecompositionClauses(void* solver, sat_capsule & capsule);
+	void addDecompositionClauses(void* solver, sat_capsule & capsule, Model * htn);
 
 	void addPrunedClauses(void* solver);
 	
@@ -98,7 +131,7 @@ struct PDT {
 
 
 private:
-	bool pruneCause(pair<int,int> & cause);
+	bool pruneCause(taskCause * cause);
 };
 
 

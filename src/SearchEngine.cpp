@@ -38,6 +38,7 @@
 using namespace std;
 using namespace progression;
 
+
 int main(int argc, char *argv[]) {
 #ifndef NDEBUG
 	cout << "You have compiled the search engine without setting the NDEBUG flag. This will make it slow and should only be done for debug." << endl;

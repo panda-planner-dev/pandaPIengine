@@ -5,9 +5,9 @@
 #include "pdt.h"
 
 
-SOG* runPOSOGOptimiser(SOG* sog, vector<tuple<int,int,int>> & methods, Model* htn){
-	vector<unordered_set<int>> antiAdj;
-	vector<unordered_set<int>> antiBdj;
+SOG* runPOSOGOptimiser(SOG* sog, vector<tuple<uint32_t,uint32_t,uint32_t>> & methods, Model* htn){
+	vector<unordered_set<uint16_t>> antiAdj;
+	vector<unordered_set<uint16_t>> antiBdj;
 	int m0 = get<0>(methods[0]);
 	// put the subtasks of the first method into the SOG
 	sog->numberOfVertices = htn->numSubTasks[m0];
@@ -16,7 +16,7 @@ SOG* runPOSOGOptimiser(SOG* sog, vector<tuple<int,int,int>> & methods, Model* ht
 	sog->bdj.resize(sog->numberOfVertices);
 	antiAdj.resize(sog->numberOfVertices);
 	antiBdj.resize(sog->numberOfVertices);
-	vector<int> mapping;
+	vector<uint16_t> mapping;
 	for (size_t i = 0; i < sog->numberOfVertices; i++){
 		mapping.push_back(i);
 		sog->labels[i].insert(htn->subTasks[m0][i]);
@@ -83,12 +83,13 @@ next_vertex:;
 				matchingVertices.push_back(sog->numberOfVertices);
 				// add the vertex
 				sog->numberOfVertices++;
-				unordered_set<int> _temp;
-				sog->labels.push_back(_temp);
-				sog->adj.push_back(_temp);
-				sog->bdj.push_back(_temp);
-				antiAdj.push_back(_temp);
-				antiBdj.push_back(_temp);
+				unordered_set<uint16_t> _temp16;
+				unordered_set<uint32_t> _temp32;
+				sog->labels.push_back(_temp32);
+				sog->adj.push_back(_temp16);
+				sog->bdj.push_back(_temp16);
+				antiAdj.push_back(_temp16);
+				antiBdj.push_back(_temp16);
 			}
 
 
@@ -237,7 +238,7 @@ SOG* linearLabelSetOptimisation(Model * htn, vector<pair<int,vector<int>>> & lab
 }
 
 
-SOG* runTOSOGOptimiser(SOG* sog, vector<tuple<int,int,int>> & methods, Model* htn){
+SOG* runTOSOGOptimiser(SOG* sog, vector<tuple<uint32_t,uint32_t,uint32_t>> & methods, Model* htn){
 	//cout << endl << endl << endl << "================================================" << endl;
 	
 	int m = get<0>(methods[0]);
@@ -272,7 +273,7 @@ SOG* runTOSOGOptimiser(SOG* sog, vector<tuple<int,int,int>> & methods, Model* ht
 	return sog;
 }	
 	
-SOG* runTOSOGOptimiserRecursive(SOG* sog, vector<tuple<int,int,int>> & methods, Model* htn){
+SOG* runTOSOGOptimiserRecursive(SOG* sog, vector<tuple<uint32_t,uint32_t,uint32_t>> & methods, Model* htn){
 	//cout << endl << endl << endl << "================================================" << endl;
 	// 1. Step extract the recursive tasks per method
 	vector<pair<int,vector<int>>> labelSequence;
@@ -478,7 +479,7 @@ SOG* runTOSOGOptimiserRecursive(SOG* sog, vector<tuple<int,int,int>> & methods, 
 
 
 // just the greedy optimiser
-SOG* optimiseSOG(vector<tuple<int,int,int>> & methods, Model* htn){
+SOG* optimiseSOG(vector<tuple<uint32_t,uint32_t,uint32_t>> & methods, Model* htn){
 	// edge case
 	bool allMethodsAreTotallyOrdered = true;
 	for (const auto & [m,_1,_2] : methods)
@@ -493,7 +494,7 @@ SOG* optimiseSOG(vector<tuple<int,int,int>> & methods, Model* htn){
 		return sog;
 	}
 	
-	sort(methods.begin(), methods.end(), [&](tuple<int,int,int> m1, tuple<int,int,int> m2) {
+	sort(methods.begin(), methods.end(), [&](tuple<uint32_t,uint32_t,uint32_t> m1, tuple<uint32_t,uint32_t,uint32_t> m2) {
         return htn->numSubTasks[get<0>(m1)] > htn->numSubTasks[get<0>(m2)];   
     });
 

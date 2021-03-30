@@ -363,6 +363,14 @@ graph * compute_disabling_graph(Model * htn, bool no_invariant_inference){
 }
 
 bool doActionsInterfere(Model * htn, vector<int> & previous, vector<int> & next){
+	//set<int> prevSet;
+	//for (int p : previous)
+	//	prevSet.insert(p);
+
+	// don't need to handle identical actions as it is ok to repeat them ...
+	//for (int n : next)
+	//	if (prevSet.count(n)) return true; // two identical actions may not be executed at the same time.
+	
 	unordered_set<int> nextPreconditions;
 	unordered_set<int> nextAdds;
 	unordered_set<int> nextDeletes;

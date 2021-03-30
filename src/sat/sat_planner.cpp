@@ -15,7 +15,61 @@
 #include <fstream>
 #include <iomanip>
 
+#include <sys/sysinfo.h>
+#include "stdlib.h"
+#include "stdio.h"
+#include "string.h"
 
+int parseLine(char* line){
+    // This assumes that a digit will be found and the line ends in " Kb".
+    int i = strlen(line);
+    const char* p = line;
+    while (*p <'0' || *p > '9') p++;
+    line[i-3] = '\0';
+    i = atoi(p);
+    return i;
+}
+
+int getValue(){ //Note: this value is in KB!
+    FILE* file = fopen("/proc/self/status", "r");
+    int result = -1;
+    char line[128];
+
+    while (fgets(line, 128, file) != NULL){
+        if (strncmp(line, "VmSize:", 7) == 0){
+            result = parseLine(line);
+            break;
+        }
+    }
+    fclose(file);
+    return result;
+}
+
+int getValue2(){ //Note: this value is in KB!
+    FILE* file = fopen("/proc/self/status", "r");
+    int result = -1;
+    char line[128];
+
+    while (fgets(line, 128, file) != NULL){
+        if (strncmp(line, "VmRSS:", 6) == 0){
+            result = parseLine(line);
+            break;
+        }
+    }
+    fclose(file);
+    return result;
+}
+
+
+
+int last;
+
+void printMemory(){
+	//cout << getValue() << " " << getValue2() << endl;
+	int now = getValue();
+	cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t" << color(Color::BLUE,"+MEM ") << setw(6) << (now - last) << " total: " << setw(6) << now/1024 <<  endl;
+	last = now;
+}
 
 
 void printSolution(void * solver, Model * htn, PDT* pdt, MatchingData & matching){
@@ -56,7 +110,7 @@ void printSolution(void * solver, Model * htn, PDT* pdt, MatchingData & matching
 	
 	if (htn->isTotallyOrdered()){
 		for (PDT* & leaf : leafs){
-			for (size_t pIndex = 0; pIndex < leaf->primitiveVariable.size(); pIndex++){
+			for (size_t pIndex = 0; pIndex < leaf->possiblePrimitives.size(); pIndex++){
 				int prim = leaf->primitiveVariable[pIndex];
 				if (prim == -1) continue;
 				if (ipasir_val(solver,prim) > 0){
@@ -252,15 +306,19 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	std::clock_t afterPDT = std::clock();
 	double pdt_time = 1000.0 * (afterPDT - beforePDT) / CLOCKS_PER_SEC;
 	cout << "Computing PDT took: " << setprecision(3) << pdt_time << " ms" << endl;
+	//printMemory();
 	// get leafs
 	cout << "Computed PDT. Extracting leafs ... ";
 	vector<PDT*> leafs;
 	pdt->getLeafs(leafs);
 	cout << leafs.size() << " leafs" << endl;
 
-	cout << "Extracting leaf SOG ... ";
-	SOG* leafsog = pdt->getLeafSOG();
-	cout << "done" << endl;
+	SOG* leafsog = nullptr;
+	if (!htn->isTotallyOrdered()){
+		cout << "Extracting leaf SOG ... ";
+		SOG* leafsog = pdt->getLeafSOG();
+		cout << "done" << endl;
+	}
 	
 	/*
 	ofstream dfile;
@@ -279,12 +337,26 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	dfile << "}" << endl;
 	dfile.close();*/
 	
+	
+	//printMemory();
+	cout << "Clear pruning tables ...";
 	pdt->resetPruning(htn); // clear tables in whole tree
+	cout << " done." << endl;
 	//printPDT(htn,pdt);
+	//printMemory();
+
 
 	unordered_set<int>* after_leaf_invariants = new unordered_set<int>[2*htn->numStateBits];
 
 	if (htn->isTotallyOrdered()){
+		// mark all abstracts in leafs as pruned
+		for (PDT* l : leafs)
+			for (size_t a = 0; a < l->prunedAbstracts.size(); a++)
+				l->prunedAbstracts[a] = true;
+		
+		for (PDT* leaf : leafs) leaf->propagatePruning(htn);
+
+
 		int pruningPhase = 1;
 		int round = 1;
 		int additionalInvariants = 0;
@@ -299,40 +371,60 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 				if (!filter_leafs_Rintanen(leafs, htn, after_leaf_invariants, additionalInvariants))
 					break;
 			}
-			for (PDT* leaf : leafs) leaf->propagatePruning(htn);
-			if (pdt->prunedAbstracts[0]) return false;
-			
-
-			int overallAssignments = 0;
-			int prunedAssignments = 0;
-			pdt->countPruning(overallAssignments, prunedAssignments);
-			cout << "Pruning: " << prunedAssignments << " of " << overallAssignments << endl;
 		}
+		for (PDT* leaf : leafs) leaf->propagatePruning(htn);
+
+		int overallAssignments = 0;
+		int prunedAssignments = 0;
+		pdt->countPruning(overallAssignments, prunedAssignments, false);
+		cout << "Pruning: " << prunedAssignments << " of " << overallAssignments << endl;
+		overallAssignments = 0;
+		prunedAssignments = 0;
+		for (PDT* leaf : leafs)
+			leaf->countPruning(overallAssignments, prunedAssignments, true);
+		cout << "Leaf Primitive Pruning: " << prunedAssignments << " of " << overallAssignments << endl;
+
+		// if we have pruned the initial abstract task, return ...	
+		if (pdt->prunedAbstracts[0]) return false;
 		
 		cout << "Pruning gave " << additionalInvariants << " new invariants" << endl;	
+		//printMemory();
 	}
-
 
 #ifndef NDEBUG
 	printPDT(htn,pdt);
 #endif
 	/////////////////////////// generate the formula
+	int numVarsBefore = capsule.number_of_variables;
+	cout << "Assigning variable IDs for PDT ...";
 	pdt->assignVariableIDs(capsule, htn);
+	cout << " done. " << (capsule.number_of_variables - numVarsBefore) << " new variables." << endl;
+	//printMemory();
 	DEBUG(capsule.printVariables());
+	
+	//exit(0);
 
 	int beforeDecomp = get_number_of_clauses();
-	pdt->addDecompositionClauses(solver, capsule);
+	pdt->addDecompositionClauses(solver, capsule, htn);
 	int afterDecomp = get_number_of_clauses();
 	// assert the initial abstract task
 	assertYes(solver,pdt->abstractVariable[0]);
-	no_abstract_in_leaf(solver,leafs,htn);
+	if (!htn->isTotallyOrdered())
+		no_abstract_in_leaf(solver,leafs,htn);
+	cout << "Decomposition Clauses generated." << endl;	
 	
 	pdt->addPrunedClauses(solver);
 	//for (PDT* leaf : leafs) leaf->addPrunedClauses(solver); // add assertNo for pruned things
+	cout << "Pruned clauses." << endl;	
+	//printMemory();
+
+#ifdef BLOCK_COMPRESSION
+	vector<vector<int>> blocks;
+#endif
 
 	if (htn->isTotallyOrdered()){	
 #ifdef BLOCK_COMPRESSION
-		vector<vector<int>> blocks = compute_block_compression(htn, leafs);
+		blocks = compute_block_compression(htn, leafs);
 		cout << "Block compression leads to " << blocks.size() << " timesteps." << endl;
 #ifndef NDEBUG
 		for (auto block : blocks){
@@ -348,12 +440,11 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 			}
 		}
 #endif
-
 #endif
-	} else {
 	}
 	
 	cout << "Decomp formula generated" << endl;
+	//printMemory();
 
 	// generate primitive executability formula
 	vector<vector<pair<int,int>>> vars;
@@ -370,7 +461,10 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	vector<int> block_base_variables;
 
 #ifdef BLOCK_COMPRESSION
-	generate_state_transition_formula(solver, capsule, vars, block_base_variables, blocks, htn);
+	if (htn->isTotallyOrdered())
+		generate_state_transition_formula(solver, capsule, vars, block_base_variables, blocks, htn);
+	else
+		generate_state_transition_formula(solver, capsule, vars, block_base_variables, htn);
 #else
 	generate_state_transition_formula(solver, capsule, vars, block_base_variables, htn);
 #endif
@@ -380,6 +474,7 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	if (!htn->isTotallyOrdered()){
 		generate_matching_formula(solver, capsule, htn, leafsog, vars, matching);
 	}
+	//printMemory();
 
 	cout << "Matching" << endl;
 	DEBUG(capsule.printVariables());
@@ -420,7 +515,6 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 		else
 			style[prim] = "style=filled,fillcolor=yellow";
 	}
-	/*
 	for (int prim : leafs[3]->possiblePrimitives){
 		if (style.count(prim))
 			style[prim] = "style=filled,fillcolor=red";
@@ -478,11 +572,16 @@ void bdfs(Model * htn, PDT * cur, PDT * source, vector<pair<int,int>> possibleAs
 		vector<unordered_set<pair<int,int>>> childrenPossibleAssignments (cur->children.size());
 
 		for (auto [tIndex,mIndex] : possibleAssignments){
+
 			if (tIndex != -1){
 				// applying method mIndex, which tasks will this result in
-				assert(cur->listIndexOfChildrenForMethods.size() > tIndex);
-				assert(cur->listIndexOfChildrenForMethods[tIndex].size() > mIndex);
-				for (auto [child,isPrimitive,subIndex,_] : cur->listIndexOfChildrenForMethods[tIndex][mIndex]){
+				//assert(cur->listIndexOfChildrenForMethods.size() > tIndex);
+				//assert(cur->listIndexOfChildrenForMethods[tIndex].size() > mIndex);
+				for (size_t child = 0; child < cur->children.size(); child++){
+					if (!cur->getListIndexOfChildrenForMethods(tIndex,mIndex,child)->present) continue;
+					bool isPrimitive = cur->getListIndexOfChildrenForMethods(tIndex,mIndex,child)->isPrimitive;
+					int subIndex = cur->getListIndexOfChildrenForMethods(tIndex,mIndex,child)->taskIndex;
+					
 					if (isPrimitive)
 						childrenPossibleAssignments[child].insert(make_pair(-1, subIndex));
 					else{
@@ -514,10 +613,23 @@ void bdfs(Model * htn, PDT * cur, PDT * source, vector<pair<int,int>> possibleAs
 		// set for duplicate elimination
 		unordered_set<pair<int,int>> possibleMotherAssignments;
 		for (auto [tIndex,mIndex] : possibleAssignments){
+
 			if (tIndex != -1){
-				for (auto & cause : cur->causesForAbstracts[tIndex]) possibleMotherAssignments.insert(cause);
+				for (int c = 0; c < cur->numberOfCausesPerAbstract[tIndex]; c++){
+					pair<int,int> pp;
+					pp.first = cur->getCauseForAbstract(tIndex,c)->taskIndex;
+					pp.second = cur->getCauseForAbstract(tIndex,c)->methodIndex;
+					
+					possibleMotherAssignments.insert(pp);
+				}
 			} else {
-				for (auto & cause : cur->causesForPrimitives[mIndex]) possibleMotherAssignments.insert(cause);
+				for (int c = 0; c < cur->numberOfCausesPerPrimitive[mIndex]; c++){
+					pair<int,int> pp;
+					pp.first = cur->getCauseForAbstract(mIndex,c)->taskIndex;
+					pp.second = cur->getCauseForAbstract(mIndex,c)->methodIndex;
+					
+					possibleMotherAssignments.insert(pp);
+				}
 			}
 		}
 		
@@ -540,7 +652,17 @@ void temp(Model * htn, PDT * pdt){
 			int p = l->possiblePrimitives[pI];
 			cout << "Leaf " << l << " " << p << endl;
 			map<PDT*,vector<pair<int,int>>> overallAssignments;
-			bdfs(htn, l->mother, l, l->causesForPrimitives[pI], overallAssignments);
+			
+			
+			vector<pair<int,int>> possibleAssignments;
+			for (int c = 0; c < l->numberOfCausesPerPrimitive[pI]; c++){
+				pair<int,int> pp;
+				pp.first = l->getCauseForPrimitive(pI,c)->taskIndex;	
+				pp.second = l->getCauseForPrimitive(pI,c)->methodIndex;	
+			}
+
+
+			bdfs(htn, l->mother, l, possibleAssignments, overallAssignments);
 			cout << "  Computed implications for " << overallAssignments.size() << " other vertices." << endl;
 			cout << "  extracting mutexes" << endl;
 			for (auto & [node,possible] : overallAssignments){
@@ -566,7 +688,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 	sat_capsule capsule;
 	reset_number_of_clauses();
 
-	int depth = 3;
+	int depth = 1;
 	while (true){
 		void* solver = ipasir_init();
 		cout << endl << endl << color(Color::YELLOW, "Generating formula for depth " + to_string(depth)) << endl;
