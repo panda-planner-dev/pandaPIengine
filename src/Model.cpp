@@ -4911,7 +4911,8 @@ void Model::calcMinimalProgressionBound(bool to) {
             start = varChange[i][2 * j];
           }
         }
-        else if (end != varChange[i][2 * j]){
+        else if (varChange[i][2 * j] != -1 && end != varChange[i][2 * j]){
+          cerr << endl << "variable: " << i << ", value old: " << end << ", value it should be: " << varChange[i][2 * j] << endl;
           return -1;
         }
         if (varChange[i][2 * j + 1] != -1){
