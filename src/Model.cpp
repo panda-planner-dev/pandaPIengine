@@ -1597,8 +1597,8 @@ void Model::generateMethodRepresentation() {
 	methodSubtaskSuccNum = new int*[numMethods];
 
 	for (int i = 0; i < numMethods; i++) {
-		bool firsts[numSubTasks[i]];
-		bool lasts[numSubTasks[i]];
+		bool * firsts = new bool[numSubTasks[i]];
+		bool * lasts = new bool[numSubTasks[i]];
 		methodSubtaskSuccNum[i] = new int[numSubTasks[i]];
 		for (int j = 0; j < numSubTasks[i]; j++) {
 			methodSubtaskSuccNum[i][j] = 0;
@@ -1642,6 +1642,8 @@ void Model::generateMethodRepresentation() {
 		}
 		assert(curFI == numFirstTasks[i]);
 		assert(curLI == numLastTasks[i]);
+		delete[] firsts;
+		delete[] lasts;
 	}
 }
 
@@ -1805,7 +1807,7 @@ void Model::readClassical(istream& domainFile) {
 		}
 	}
 
-	set<int> precToActionTemp[numStateBits];
+	set<int> * precToActionTemp = new set<int>[numStateBits];
 	for (int i = 0; i < numActions; i++) {
 		for (int j = 0; j < numPrecs[i]; j++) {
 			int f = precLists[i][j];
@@ -1823,6 +1825,8 @@ void Model::readClassical(istream& domainFile) {
 			precToAction[i][cur++] = ac;
 		}
 	}
+
+	delete[] precToAction;
 	// s0
 	getline(domainFile, line);
 	getline(domainFile, line);
@@ -2055,7 +2059,7 @@ void Model::readHierarchical(istream& domainFile) {
 	}
 
 	stToMethod = new int*[this->numTasks];
-	int k[this->numTasks];
+	int *k = new int[this->numTasks];
 	for (int i = 0; i < this->numTasks; i++) {
 		stToMethod[i] = new int[stToMethodNum[i]];
 		k[i] = 0;
@@ -2071,6 +2075,7 @@ void Model::readHierarchical(istream& domainFile) {
 			}
 		}
 	}
+	delete[] k;
 
 #ifndef NDEBUG
 	/*
@@ -2392,7 +2397,7 @@ void Model::calcSCCs() {
 
 	// generate inverse mapping
 	sccToTasks = new int*[numSCCs];
-	int currentI[numSCCs];
+	int * currentI = new int[numSCCs];
 	for (int i = 0; i < numSCCs; i++)
 		currentI[i] = 0;
 	for (int i = 0; i < numSCCs; i++) {
@@ -2404,6 +2409,8 @@ void Model::calcSCCs() {
 		sccToTasks[scc][currentI[scc]] = i;
 		currentI[scc]++;
 	}
+
+	delete[] currentI;
 
 	// search for sccs with size 1 that contain self-loops
 	set<int> selfLoopSccs;
@@ -2564,7 +2571,7 @@ void Model::calcSCCGraph() {
 	}
 	this->reachable = new int*[numTasks];
 
-	int ready[numSCCs];
+	int * ready = new int[numSCCs];
 	vector<int> stack;
 
 	for (int i = 0; i < numSCCs; i++) {
@@ -2665,6 +2672,8 @@ void Model::calcSCCGraph() {
 	assert(numReachable[i] >= 0);
 #endif
 #endif
+
+	delete[] ready;
 }
 
 /*

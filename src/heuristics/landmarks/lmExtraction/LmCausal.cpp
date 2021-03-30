@@ -756,7 +756,7 @@ namespace progression {
         for (int i = 0; i < this->numLMs; i++) {
             landmark *lm = landmarks[i];
             cout << "- LM ";
-            string *nameStrs;
+            string *nameStrs = nullptr;
             if (lm->type == fact) {
                 cout << "fact";
                 nameStrs = htn->factStrs;

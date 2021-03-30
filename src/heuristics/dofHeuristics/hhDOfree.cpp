@@ -10,7 +10,8 @@
 hhDOfree::hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType, IloNumVar::Type BoolType, csSetting IlpSetting,
                    csTdg tdgConstrs, csPg pgConstrs, csAndOrLms aoLMConstrs, csLmcLms lmcLMConstrs,
                    csNetChange ncConstrs, csAddExternalLms addLMConstrs) :
-        cIntType(IntType),
+        Heuristic(htn, index),
+		cIntType(IntType),
         cBoolType(BoolType),
         cSetting(IlpSetting),
         cTdg(tdgConstrs),
@@ -18,8 +19,7 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType
         cAndOrLms(aoLMConstrs),
         cLmcLms(lmcLMConstrs),
         cNetChange(ncConstrs),
-        cAddExternalLms(addLMConstrs),
-        Heuristic(htn, index){
+        cAddExternalLms(addLMConstrs) {
 
     assert((cIntType == IloNumVar::Float) || (cIntType == IloNumVar::Int));
     assert((cBoolType == IloNumVar::Float) || (cBoolType == IloNumVar::Bool));
@@ -61,8 +61,8 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType
     EStartI = new int[htn->numActions];
 
     // storing for a certain state feature the action that has it as add effect
-    vector<int> EInvAction[htn->numStateBits];
-    vector<int> EInvEffIndex[htn->numStateBits];
+    vector<int> * EInvAction = new vector<int>[htn->numStateBits];
+    vector<int> * EInvEffIndex = new vector<int>[htn->numStateBits];
 
     for (int a = 0; a < htn->numActions; a++) {
         EStartI[a] = curI; // set first index of this action
@@ -92,6 +92,9 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType
         }
     }
 
+	delete[] EInvAction;
+	delete[] EInvEffIndex;
+
     this->iTP = new int[htn->numStateBits]; // time proposition
     this->iTA = new int[htn->numActions]; // time action
     cout << "done." << endl;
@@ -111,7 +114,7 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType
             }
             sccIncommingMethods[sccTo] = new int *[htn->sccSize[sccTo]];
 
-            set<int> incomingMethods[htn->sccSize[sccTo]];
+            set<int> * incomingMethods = new set<int>[htn->sccSize[sccTo]];
             for (int j = 0; j < htn->sccGnumPred[sccTo]; j++) {
                 int sccFrom = htn->sccGinverse[sccTo][j];
                 for (int iTFrom = 0; iTFrom < htn->sccSize[sccFrom]; iTFrom++) {
@@ -135,7 +138,7 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType
             int sumSizes = 0;
             for (int k = 0; k < htn->sccSize[sccTo]; k++) {
                 sumSizes += incomingMethods[k].size();
-                int task = htn->sccToTasks[sccTo][k];
+                //int task = htn->sccToTasks[sccTo][k];
                 // cout << htn->taskNames[task] << " reached by ";
                 sccIncommingMethods[sccTo][k] = new int[incomingMethods[k].size()];
                 sccNumIncommingMethods[sccTo][k] = incomingMethods[k].size();
@@ -148,6 +151,8 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType
                 }
                 //cout << endl;
             }
+
+			delete[] incomingMethods;
             assert(sumSizes > 0); // some task out of the scc should be reached
         }
 
@@ -170,9 +175,10 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType
             sccInnerToFrom[scc] = new int *[htn->sccSize[scc]];
             sccInnerFromToMethods[scc] = new int **[htn->sccSize[scc]];
 
-            set<int> reachability[htn->sccSize[scc]][htn->sccSize[scc]];
-            set<int> tasksToFrom[htn->sccSize[scc]];
-            set<int> tasksFromTo[htn->sccSize[scc]];
+            set<int> ** reachability = new set<int>*[htn->sccSize[scc]];
+            for (int iTo = 0; iTo < htn->sccSize[scc]; iTo++) reachability[iTo] = new set<int>[htn->sccSize[scc]];
+            set<int> * tasksToFrom = new set<int>[htn->sccSize[scc]];
+            set<int> * tasksFromTo = new set<int>[htn->sccSize[scc]];
 
             for (int iTo = 0; iTo < htn->sccSize[scc]; iTo++) {
                 int taskTo = htn->sccToTasks[scc][iTo];
@@ -233,6 +239,11 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType
                     }
                 }
             }
+
+            for (int iTo = 0; iTo < htn->sccSize[scc]; iTo++) delete[] reachability[iTo];
+			delete[] reachability;
+			delete[] tasksFromTo;
+			delete[] tasksToFrom;
         }
 
         RlayerCurrent = new int[htn->sccMaxSize];

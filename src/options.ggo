@@ -1,0 +1,11 @@
+package "pandaPIengine"
+version "0.1"
+purpose "A versatile HTN planning"
+usage "./pandaPIengine [OPTIONS] input.sas"
+description "<description>"
+versiontext "<versiontext>"
+
+args "--string-parser -u"
+
+option "debug" d "activate debug mode" optional
+option "seed" s "specify the random seed" optional int
