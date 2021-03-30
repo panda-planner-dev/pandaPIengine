@@ -209,11 +209,8 @@ Model::~Model() {
 	delete[] stToMethodNum;
 	delete[] stToMethod;
 
-#ifdef CALCMINIMALIMPLIEDCOSTS
 	delete[] minImpliedCosts;
 	delete[] minImpliedDistance;
-#endif
-
 }
 
 #ifdef TRACKTASKSINTN
@@ -2729,8 +2726,6 @@ searchNode* Model::prepareTNi(const Model* htn) {
 	return tnI;
 }
 
-#ifdef CALCMINIMALIMPLIEDCOSTS
-
 struct tOrMnode {
 	bool isMethod = false;
 	int id;
@@ -2836,7 +2831,6 @@ void Model::calcMinimalImpliedX() {
 	}
 	*/
 }
-#endif
 
     void Model::writeToPDDL(string dName, string pName) {
         ofstream dfile;

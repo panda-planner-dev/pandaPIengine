@@ -218,13 +218,9 @@ public:
 	bool taskReachable(searchNode* tn, int t);
 #endif
 
-
-
-#ifdef CALCMINIMALIMPLIEDCOSTS
 	int* minImpliedCosts;
 	int* minImpliedDistance;
 	void calcMinimalImpliedX();
-#endif
 
 	// permanent SCC information
 	bool calculatedSccs = false;

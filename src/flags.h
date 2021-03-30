@@ -86,47 +86,6 @@ typedef int tHVal;
 #define HEURISTIC RCLMC2
 #define RCHEURISTIC2
 
-/*
-// configure DOF
-//#define HEURISTIC DOFREEILP
-#define HEURISTIC DOFREELP
-//#define HEURISTIC RCFF2
-
-#define ILPSETTING cSatisficing
-//#define ILPSETTING cOptimal
-
-// use TDG constraints
-// #define ILPTDG cTdgFull
-#define ILPTDG cTdgAllowUC
-
-// use planning graph constraints
-//#define ILPPG cPgFull
-// #define ILPPG cPgTimeRelaxed
-#define ILPPG cPgNone
-
-// use AND/OR landmark constraints
-#define ILPANDORLMS cAndOrLmsNone
-//#define ILPANDORLMS cAndOrLmsOnlyTnI
-//#define ILPANDORLMS cAndOrLmsFull
-
-// use LM-Cut landmark constraints
-//#define ILPLMCLMS cLmcLmsNone
-#define ILPLMCLMS cLmcLmsFull
-
-// use net change constraints
-//#define ILPNC cNetChangeNone
-#define ILPNC cNetChangeFull
-
-#define RCLMC2STORELMS
-
-*/
-
-#define CORRECTTASKCOUNT
-
-#ifdef CORRECTTASKCOUNT
-#define CALCMINIMALIMPLIEDCOSTS
-#endif
-
 
 #define TRACKTASKSINTN
 
