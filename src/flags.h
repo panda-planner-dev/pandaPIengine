@@ -40,22 +40,11 @@ typedef int tHVal;
 #define HEURISTICSEARCH 2
 
 // [algorithm]
-#define PROGRESSIONORG 0 // branches over abstract and primitive tasks
-#define ICAPS18 1        // branches over primitive and one abstract task
 #define JAIR19 2         // processes abstract tasks first
-
-
-#define DOFRECREATE 1
-#define DOFUPDATE 2
-#define DOFUPDATEWITHREACHABILITY 3
-
 
 // *****************
 // * Configuration *
 // *****************
-
-// time limit in seconds
-#define TIMELIMIT 1800
 
 //#define SEARCHALG PROGRESSIONORG
 //#define SEARCHALG ICAPS18

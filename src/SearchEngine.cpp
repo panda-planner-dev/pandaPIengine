@@ -341,7 +341,7 @@ int main(int argc, char *argv[]) {
 /*
  * Start Search
  */
-    int timeL = TIMELIMIT;
+    int timeL = 1800;
     cout << "Time limit: " << timeL << " seconds" << endl;
 
     int hLength = 1;
