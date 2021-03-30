@@ -95,7 +95,8 @@ int main(int argc, char *argv[]) {
 
 
     /* Read model */
-	Model* htn = new Model(false, true, true);
+    // todo: the correct value of maintainTaskRechability depends on the heuristic
+    Model* htn = new Model(false, mtrACTIONS, true, true);
 	htn->filename = inputFilename;
 	htn->read(inputStream);
 	assert(htn->isHtnModel);
