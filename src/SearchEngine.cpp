@@ -200,7 +200,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (algo == PROGRESSION){
-		cout << "Selected Planning Algorihtm: progression search";
+		cout << "Selected Planning Algorithm: progression search";
 	
 		int hLength = args_info.heuristic_given;
 		cout << "Parsing heuristics ..." << endl;
