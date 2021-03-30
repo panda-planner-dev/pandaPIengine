@@ -17,16 +17,18 @@
 #include "hsFilter.h"
 #include "RCModelFactory.h"
 
-enum eEstimate {estDISTANCE, estCOSTS};
+enum eEstimate {
+    estDISTANCE, estCOSTS
+};
 
 template<class ClassicalHeuristic>
 class hhRC2 : public Heuristic {
 private:
     noDelIntSet gset;
     noDelIntSet intSet;
-	bucketSet s0set;
-    RCModelFactory* factory;
-    const bool storeCuts = true;
+    bucketSet s0set;
+    RCModelFactory *factory;
+    bool storeCuts = true;
     IntUtil iu;
     const eEstimate estimate = estDISTANCE;
     const bool correctTaskCount = true;
@@ -35,20 +37,37 @@ public:
     ClassicalHeuristic *sasH;
     list<LMCutLandmark *>* cuts = new list<LMCutLandmark *>();
 	
+    hhRC2(Model *htnModel, int index, eEstimate estimate, bool correctTaskCount) : Heuristic(htnModel, index),
+                                                                                   estimate(estimate),
+                                                                                   correctTaskCount(correctTaskCount) {
 
-    hhRC2(Model* htnModel, int index, eEstimate estimate, bool correctTaskCount) : Heuristic(htnModel, index), estimate(estimate), correctTaskCount(correctTaskCount) {
-
-        Model* heuristicModel;
+        Model *heuristicModel;
         factory = new RCModelFactory(htnModel);
-        heuristicModel = factory->getRCmodelSTRIPS();
+        if (estimate == estCOSTS) {
+            heuristicModel = factory->getRCmodelSTRIPS(0); // costs of methods need to be zero
+        } else {
+            heuristicModel = factory->getRCmodelSTRIPS(1); // estimate distance -> method costs 1
+            // fixme: this configuration is wired when actions have actual costs
+        }
 
         this->sasH = new ClassicalHeuristic(heuristicModel);
-		this->s0set.init(heuristicModel->numStateBits);
-		this->gset.init(heuristicModel->numStateBits);
-		this->intSet.init(heuristicModel->numStateBits);
+        this->s0set.init(heuristicModel->numStateBits);
+        this->gset.init(heuristicModel->numStateBits);
+        this->intSet.init(heuristicModel->numStateBits);
+
+        if (storeCuts) {
+            if (typeid(ClassicalHeuristic) != typeid(hsLmCut)) {
+                storeCuts = false;
+                cout
+                        << "- the option \"store cuts\" of the RC heuristic can only be used with the inner heuristic LM-Cut. It will be disabled."
+                        << endl;
+            } else {
+                htnModel->calcMinimalImpliedX();
+            }
+        }
     }
 
-    virtual ~hhRC2(){
+    virtual ~hhRC2() {
         delete factory;
     }
 	
@@ -58,14 +77,14 @@ public:
 
     void setHeuristicValue(searchNode *n, searchNode *parent, int action) override {
         n->heuristicValue[index] = this->setHeuristicValue(n);
-        if(n->goalReachable) {
+        if (n->goalReachable) {
             n->goalReachable = (n->heuristicValue[index] != UNREACHABLE);
         }
     }
 
     void setHeuristicValue(searchNode *n, searchNode *parent, int absTask, int method) override {
         n->heuristicValue[index] = this->setHeuristicValue(n);
-        if(n->goalReachable) {
+        if (n->goalReachable) {
             n->goalReachable = (n->heuristicValue[index] != UNREACHABLE);
         }
     }
@@ -113,64 +132,62 @@ public:
 
         hval = this->sasH->getHeuristicValue(s0set, gset);
 
-#ifdef RCLMC2STORELMS
         // the indices of the methods need to be transformed to fit the scheme of the HTN model (as opposed to the rc model)
-    if((storeCuts) && (hval != UNREACHABLE)) {
-        this->cuts = this->sasH->cuts;
-        for (LMCutLandmark* storedcut : *cuts) {
-            iu.sort(storedcut->lm, 0, storedcut->size - 1);
-            /*for (int i = 0; i < storedcut->size; i++) {
-                if ((i > 0) && (storedcut->lm[i] >= htn->numActions) && (storedcut->lm[i - 1] < htn->numActions))
-                    cout << "| ";
-                cout << storedcut->lm[i] << " ";
-            }
-            cout << "(there are " << htn->numActions << " actions)" << endl;*/
+        if ((storeCuts) && (hval != UNREACHABLE)) {
+            this->cuts = this->sasH->cuts;
+            for (LMCutLandmark *storedcut : *cuts) {
+                iu.sort(storedcut->lm, 0, storedcut->size - 1);
+                /*for (int i = 0; i < storedcut->size; i++) {
+                    if ((i > 0) && (storedcut->lm[i] >= htn->numActions) && (storedcut->lm[i - 1] < htn->numActions))
+                        cout << "| ";
+                    cout << storedcut->lm[i] << " ";
+                }
+                cout << "(there are " << htn->numActions << " actions)" << endl;*/
 
-            // looking for index i s.t. lm[i] is a method and lm[i - 1] is an action
-            int leftmostMethod;
-            if(storedcut->lm[0] >= htn->numActions) {
-                leftmostMethod = 0;
-            } else if (storedcut->lm[storedcut->size - 1] < htn->numActions) {
-                leftmostMethod = storedcut->size;
-            } else { // there is a border between actions and methods
-                int rightmostAction = 0;
-                leftmostMethod = storedcut->size - 1;
-                while (rightmostAction != (leftmostMethod - 1)) {
-                    int middle = (rightmostAction + leftmostMethod) / 2;
-                    if (storedcut->lm[middle] < htn->numActions){
-                        rightmostAction = middle;
-                    } else {
-                        leftmostMethod = middle;
+                // looking for index i s.t. lm[i] is a method and lm[i - 1] is an action
+                int leftmostMethod;
+                if (storedcut->lm[0] >= htn->numActions) {
+                    leftmostMethod = 0;
+                } else if (storedcut->lm[storedcut->size - 1] < htn->numActions) {
+                    leftmostMethod = storedcut->size;
+                } else { // there is a border between actions and methods
+                    int rightmostAction = 0;
+                    leftmostMethod = storedcut->size - 1;
+                    while (rightmostAction != (leftmostMethod - 1)) {
+                        int middle = (rightmostAction + leftmostMethod) / 2;
+                        if (storedcut->lm[middle] < htn->numActions) {
+                            rightmostAction = middle;
+                        } else {
+                            leftmostMethod = middle;
+                        }
                     }
                 }
-            }
-            storedcut->firstMethod = leftmostMethod;
-            /*if (leftmostMethod > storedcut->size -1)
-                cout << "leftmost method: NO METHOD" << endl;
-            else
-                cout << "leftmost method: " << leftmostMethod << endl;*/
-            for (int i = storedcut->firstMethod; i < storedcut->size; i++) {
-                storedcut->lm[i] -= htn->numActions; // transform index
+                storedcut->firstMethod = leftmostMethod;
+                /*if (leftmostMethod > storedcut->size -1)
+                    cout << "leftmost method: NO METHOD" << endl;
+                else
+                    cout << "leftmost method: " << leftmostMethod << endl;*/
+                for (int i = storedcut->firstMethod; i < storedcut->size; i++) {
+                    storedcut->lm[i] -= htn->numActions; // transform index
+                }
             }
         }
-    }
 
-    /*
-    for(LMCutLandmark* lm :  *cuts) {
-        cout << "cut: {";
-        for (int i = 0; i < lm->size; i++) {
-            if(lm->isAction(i)) {
-                cout << this->htn->taskNames[lm->lm[i]];
-            } else {
-                cout << this->htn->methodNames[lm->lm[i]];
+        /*
+        for(LMCutLandmark* lm :  *cuts) {
+            cout << "cut: {";
+            for (int i = 0; i < lm->size; i++) {
+                if(lm->isAction(i)) {
+                    cout << this->htn->taskNames[lm->lm[i]];
+                } else {
+                    cout << this->htn->methodNames[lm->lm[i]];
+                }
+                if (i < lm->size - 1) {
+                    cout << ", ";
+                }
             }
-            if (i < lm->size - 1) {
-                cout << ", ";
-            }
-        }
-        cout << "}" << endl;
-    }*/
-#endif
+            cout << "}" << endl;
+        }*/
 
         if (correctTaskCount) {
             if (hval != UNREACHABLE) {

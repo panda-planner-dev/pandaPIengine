@@ -10,11 +10,13 @@
 
 #include <climits>
 #include <utility>
+#include <list>
 #include "../../intDataStructures/IntPairHeap.h"
 #include "../../intDataStructures/bucketSet.h"
 #include "../../intDataStructures/noDelIntSet.h"
 #include "../../intDataStructures/IntStack.h"
 #include "../../Model.h"
+#include "LMCutLandmark.h"
 
 // inner Types
 //typedef long long hType;
@@ -43,7 +45,7 @@ namespace progression {
 
         Model *m;
         myHeu heuristic = sasFF;
-        int calls = 0;
+        list<LMCutLandmark *>* cuts = new list<LMCutLandmark *>();
     private:
         // todo: when parallelized, this must be per core
         IntPairHeap<hType> *queue;

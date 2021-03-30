@@ -981,7 +981,7 @@ int hhDOfree::recreateModel(searchNode *n) {
     IloCplex cplex(model);
 
     cplex.setParam(IloCplex::Param::Threads, 1);
-    //cplex.setParam(IloCplex::Param::TimeLimit, TIMELIMIT / CHECKAFTER);
+    //cplex.setParam(IloCplex::Param::TimeLimit, time / CHECKAFTER); // for some time
     //cplex.setParam(IloCplex::MIPEmphasis, CPX_MIPEMPHASIS_FEASIBILITY); // focus on feasability
     //cplex.setParam(IloCplex::MIPEmphasis, IloCplex::MIPEmphasisType::MIPEmphasisFeasibility); // focus on feasability
     //cplex.setParam(IloCplex::IntSolLim, 1); // stop after first integer solution

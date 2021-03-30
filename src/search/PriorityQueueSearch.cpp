@@ -17,11 +17,6 @@
 #include "../Model.h"
 #include "../intDataStructures/FlexIntStack.h"
 
-#if SEARCHTYPE == DFSEARCH
-#include "StackFringe.h"
-#elif SEARCHTYPE == BFSEARCH
-#include "QueueFringe.h"
-#endif
 
 #ifdef PREFMOD
 // preferred modifications

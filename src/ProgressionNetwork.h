@@ -65,10 +65,9 @@ struct planStep {
 	int* reachableT = nullptr;
 #endif
 
-#ifdef RCHEURISTIC
+    // todo: delete the following two values when RC is replaced by RC2
 	int numGoalFacts;
 	int* goalFacts = nullptr;
-#endif
 
 	bool operator==(const planStep &that) const;
 
@@ -107,11 +106,9 @@ struct searchNode {
 	int searchNodeID;
 #endif 
 
-#ifdef TRACKTASKSINTN
-	int numContainedTasks = -1;
+	int numContainedTasks = 0;
 	int* containedTasks = nullptr;
 	int* containedTaskCount = nullptr;
-#endif
 
 #ifdef TRACKLMS
 	// obsolete, will be removed use TRACKLMSFULL
