@@ -75,6 +75,8 @@ namespace progression {
         forward_list<planStep *> potentialPredecessors;
 
         const bool trackTasksInTN = false;
+        const bool progressEffectLess = true;
+        const bool progressOneModActions = true;
 
         void updateTaskCounterM(searchNode *n, searchNode *parent, int method);
 
@@ -83,7 +85,7 @@ namespace progression {
     public:
         Model();
 
-        Model(bool trackTasksInTN);
+        Model(bool trackTasksInTN, bool progressEffectLess, bool progressOneModActions);
 
         virtual ~Model();
 

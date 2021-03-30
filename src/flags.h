@@ -27,11 +27,6 @@ typedef int tHVal;
 #define SRCALC2 2 // calculate state based on current plan
 #define SRLIST 3  // maintain int list with bits currently set
 
-// [search-type]
-#define DFSEARCH 0
-#define BFSEARCH 1
-#define HEURISTICSEARCH 2
-
 // *****************
 // * Configuration *
 // *****************
@@ -39,13 +34,16 @@ typedef int tHVal;
 // select a state representation
 #define STATEREP SRCOPY // choose from [state-representation]
 
-// type of search
-#define SEARCHTYPE HEURISTICSEARCH // choose from [search-type]
 
-#define PRGEFFECTLESS // always progress effectless actions
 
-#define ONEMODAC
-//#define ONEMODMETH
+
+// the following options are preliminary and not part of final version -> can be kept as compiler flags until they are finished
+//#define ONEMODMETH // todo: this was always buggy, but the case is compiled away anyway
+
+// todo: LM tracking needs to be extended to LM orderings
+//#define TRACKLMSFULL
+//#define TRACKLMS
+
 
 
 
@@ -53,7 +51,6 @@ typedef int tHVal;
 #define INITSCCS
 
 #define DOFTASKREACHABILITY // store the hierarchical task reachability in the ILP to make  it easier to solve
-//#define DOFREE
 //#define CHECKAFTER 50 // nodes after which the timelimit is checked
 //#define MAINTAINREACHABILITY
 //#define ALLTASKS // it is needed for all tasks
@@ -95,8 +92,8 @@ typedef int tHVal;
 // if we write the state space to file, we need to disable pretty much all optimisations ...
 #ifdef SAVESEARCHSPACE
 #undef OPTIMIZEUNTILTIMELIMIT
-#undef PRGEFFECTLESS
-#undef ONEMODAC
+#undef PRGEFFECTLESS // todo: this flag is not there anymore! needs to be set in the model constructor
+#undef ONEMODAC // todo: this flag is not there anymore! needs to be set in the model constructor
 #define OPTIMIZEUNTILTIMELIMIT true
 #endif
 

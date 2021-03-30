@@ -26,10 +26,10 @@ using namespace std;
 
 namespace progression {
 
-    Model::Model() : Model(false) {
+    Model::Model() : Model(false, true, true) {
     }
 
-    Model::Model(bool trackTasks) : trackTasksInTN(trackTasks) {
+    Model::Model(bool trackTasks, bool progressEffectLess, bool progressOneModActions) : trackTasksInTN(trackTasks), progressEffectLess(progressEffectLess), progressOneModActions(progressOneModActions) {
         numStateBits = 0;
         numTasks = 0;
         numPrecLessActions = 0;
@@ -79,10 +79,10 @@ namespace progression {
         s0Vector = nullptr;
 #endif
 
-#ifdef PRGEFFECTLESS
+    if (progressEffectLess) {
         effectLess = new FlexIntStack();
         effectLess->init(25);
-#endif
+    }
 #ifdef ONEMODMETH
         oneMod = new FlexIntStack();
         oneMod->init(25);
@@ -192,9 +192,9 @@ namespace progression {
                 delete[] sccToTasks[i];
             delete[] sccToTasks;
         }
-#ifdef PRGEFFECTLESS
+
         delete effectLess;
-#endif
+
 #ifdef ONEMODMETH
         delete oneMod;
 #endif
@@ -653,24 +653,24 @@ namespace progression {
             }
         }
 
-#ifdef PRGEFFECTLESS
-        effectLess->clear();
-#endif
+        if (progressEffectLess) {
+            effectLess->clear();
+        }
 
         int primI = n->numPrimitive;
         int absI = n->numAbstract - 1;
         for (int i = 0; i < numFirstTasks[method]; i++) {
             if (isPrimitive[mInstance.first[i]->task]) {
                 result->unconstraintPrimitive[primI] = mInstance.first[i];
-#ifdef PRGEFFECTLESS
-                if ((this->numAdds[result->unconstraintPrimitive[primI]->task] == 0)
-                    && (this->numDels[result->unconstraintPrimitive[primI]->task]
-                        == 0)
-                    && (this->isApplicable(result,
-                                           result->unconstraintPrimitive[primI]->task))) {
-                    effectLess->push(primI);
+                if (progressEffectLess) {
+                    if ((this->numAdds[result->unconstraintPrimitive[primI]->task] == 0)
+                        && (this->numDels[result->unconstraintPrimitive[primI]->task]
+                            == 0)
+                        && (this->isApplicable(result,
+                                               result->unconstraintPrimitive[primI]->task))) {
+                        effectLess->push(primI);
+                    }
                 }
-#endif
                 primI++;
             } else {
                 result->unconstraintAbstract[absI] = mInstance.first[i];
@@ -888,43 +888,43 @@ namespace progression {
         assert(result->nummLMs <= n->nummLMs);
 #endif
 
-#ifdef PRGEFFECTLESS
-        for (int ac = effectLess->getFirst(); ac >= 0; ac = effectLess->getNext()) {
-            assert(
-                    ((this->numAdds[result->unconstraintPrimitive[ac]->task] == 0) &&
-                     (this->numDels[result->unconstraintPrimitive[ac]->task] == 0) &&
-                     (this->isApplicable(result, result->unconstraintPrimitive[ac]->task))));
-            searchNode *n2 = this->apply(result, ac);
-            delete result;
-            result = n2;
-            numEffLessProg++;
-        }
-#endif
-#ifdef ONEMODAC
-        if ((result->numAbstract == 0) && (result->numPrimitive > 0)) {
-            int applicable = NOACTION;
-            for (int i = 0; i < result->numPrimitive; i++) {
-                if (isApplicable(result, result->unconstraintPrimitive[i]->task)) {
-                    if (applicable == NOACTION) {
-                        applicable = i;
-                    } else {
-                        applicable = FORBIDDEN;
-                        break;
-                    }
-                }
-            }
-            if ((applicable != NOACTION) && (applicable != FORBIDDEN)) {
+        if (progressEffectLess) {
+            for (int ac = effectLess->getFirst(); ac >= 0; ac = effectLess->getNext()) {
                 assert(
-                        isApplicable(result, result->unconstraintPrimitive[applicable]->task));
-                searchNode *n2 = this->apply(result, applicable);
+                        ((this->numAdds[result->unconstraintPrimitive[ac]->task] == 0) &&
+                         (this->numDels[result->unconstraintPrimitive[ac]->task] == 0) &&
+                         (this->isApplicable(result, result->unconstraintPrimitive[ac]->task))));
+                searchNode *n2 = this->apply(result, ac);
                 delete result;
                 result = n2;
-                numOneModActions++;
-            } else if (applicable == NOACTION) { // there is no abstract task and no applicable primitive
-                result->goalReachable = false;
+                numEffLessProg++;
             }
         }
-#endif
+       if (progressOneModActions) {
+           if ((result->numAbstract == 0) && (result->numPrimitive > 0)) {
+               int applicable = NOACTION;
+               for (int i = 0; i < result->numPrimitive; i++) {
+                   if (isApplicable(result, result->unconstraintPrimitive[i]->task)) {
+                       if (applicable == NOACTION) {
+                           applicable = i;
+                       } else {
+                           applicable = FORBIDDEN;
+                           break;
+                       }
+                   }
+               }
+               if ((applicable != NOACTION) && (applicable != FORBIDDEN)) {
+                   assert(
+                           isApplicable(result, result->unconstraintPrimitive[applicable]->task));
+                   searchNode *n2 = this->apply(result, applicable);
+                   delete result;
+                   result = n2;
+                   numOneModActions++;
+               } else if (applicable == NOACTION) { // there is no abstract task and no applicable primitive
+                   result->goalReachable = false;
+               }
+           }
+       }
 
 #ifdef ONEMODMETH
         for (int t = oneMod->getFirst(); t >= 0; t = oneMod->getNext()) {
@@ -1116,29 +1116,27 @@ namespace progression {
         for (int i = 0; i < n->numAbstract; i++) {
             result->unconstraintAbstract[currentA] = n->unconstraintAbstract[i];
 #ifdef ONEMODMETH
-            if (numMethodsForTask[result->unconstraintAbstract[currentA]->task]
-                    == 1)
-                oneMod->push(currentA);
+            if (numMethodsForTask[result->unconstraintAbstract[currentA]->task] == 1) oneMod->push(currentA);
 #endif
             currentA++;
         }
-#ifdef PRGEFFECTLESS
-        effectLess->clear();
-#endif
+        if (progressEffectLess) {
+            effectLess->clear();
+        }
         for (int i = 0; i < n->numPrimitive; i++) {
             if (i != taskNo) {
                 result->unconstraintPrimitive[currentP] =
                         n->unconstraintPrimitive[i];
-#ifdef PRGEFFECTLESS
-                if ((this->numAdds[result->unconstraintPrimitive[currentP]->task]
-                     == 0)
-                    && (this->numDels[result->unconstraintPrimitive[currentP]->task]
-                        == 0)
-                    && (this->isApplicable(result,
-                                           result->unconstraintPrimitive[currentP]->task))) {
-                    effectLess->push(currentP);
+                if (progressEffectLess) {
+                    if ((this->numAdds[result->unconstraintPrimitive[currentP]->task]
+                         == 0)
+                        && (this->numDels[result->unconstraintPrimitive[currentP]->task]
+                            == 0)
+                        && (this->isApplicable(result,
+                                               result->unconstraintPrimitive[currentP]->task))) {
+                        effectLess->push(currentP);
+                    }
                 }
-#endif
                 currentP++;
             }
         }
@@ -1146,23 +1144,21 @@ namespace progression {
         for (planStep *ps2 : potentiallyFirst) {
             if (isPrimitive[ps2->task]) {
                 result->unconstraintPrimitive[currentP] = ps2;
-#ifdef PRGEFFECTLESS
-                if ((this->numAdds[result->unconstraintPrimitive[currentP]->task]
-                     == 0)
-                    && (this->numDels[result->unconstraintPrimitive[currentP]->task]
-                        == 0)
-                    && (this->isApplicable(result,
-                                           result->unconstraintPrimitive[currentP]->task))) {
-                    effectLess->push(currentP);
+                if (progressEffectLess) {
+                    if ((this->numAdds[result->unconstraintPrimitive[currentP]->task]
+                         == 0)
+                        && (this->numDels[result->unconstraintPrimitive[currentP]->task]
+                            == 0)
+                        && (this->isApplicable(result,
+                                               result->unconstraintPrimitive[currentP]->task))) {
+                        effectLess->push(currentP);
+                    }
                 }
-#endif
                 currentP++;
             } else {
                 result->unconstraintAbstract[currentA] = ps2;
 #ifdef ONEMODMETH
-                if (numMethodsForTask[result->unconstraintAbstract[currentA]->task]
-                        == 1)
-                    oneMod->push(currentA);
+                if (numMethodsForTask[result->unconstraintAbstract[currentA]->task] == 1) oneMod->push(currentA);
 #endif
                 currentA++;
             }
@@ -1366,43 +1362,43 @@ namespace progression {
         result->reachedmLMs = n->reachedmLMs;
 #endif
 
-#ifdef PRGEFFECTLESS
-        for (int ac = effectLess->getFirst(); ac >= 0; ac = effectLess->getNext()) {
-            assert(
-                    ((this->numAdds[result->unconstraintPrimitive[ac]->task] == 0) &&
-                     (this->numDels[result->unconstraintPrimitive[ac]->task] == 0) &&
-                     (this->isApplicable(result, result->unconstraintPrimitive[ac]->task))));
-            searchNode *n2 = this->apply(result, ac);
-            delete result;
-            result = n2;
-            numEffLessProg++;
-        }
-#endif
-#ifdef ONEMODAC
-        if ((result->numAbstract == 0) && (result->numPrimitive > 0)) {
-            int applicable = NOACTION;
-            for (int i = 0; i < result->numPrimitive; i++) {
-                if (isApplicable(result, result->unconstraintPrimitive[i]->task)) {
-                    if (applicable == NOACTION) {
-                        applicable = i;
-                    } else {
-                        applicable = FORBIDDEN;
-                        break;
-                    }
-                }
-            }
-            if ((applicable != NOACTION) && (applicable != FORBIDDEN)) {
+        if (progressEffectLess) {
+            for (int ac = effectLess->getFirst(); ac >= 0; ac = effectLess->getNext()) {
                 assert(
-                        isApplicable(result, result->unconstraintPrimitive[applicable]->task));
-                searchNode *n2 = this->apply(result, applicable);
+                        ((this->numAdds[result->unconstraintPrimitive[ac]->task] == 0) &&
+                         (this->numDels[result->unconstraintPrimitive[ac]->task] == 0) &&
+                         (this->isApplicable(result, result->unconstraintPrimitive[ac]->task))));
+                searchNode *n2 = this->apply(result, ac);
                 delete result;
                 result = n2;
-                numOneModActions++;
-            } else if (applicable == NOACTION) { // there is no abstract task and no applicable primitive
-                result->goalReachable = false;
+                numEffLessProg++;
             }
         }
-#endif
+        if (progressOneModActions) {
+            if ((result->numAbstract == 0) && (result->numPrimitive > 0)) {
+                int applicable = NOACTION;
+                for (int i = 0; i < result->numPrimitive; i++) {
+                    if (isApplicable(result, result->unconstraintPrimitive[i]->task)) {
+                        if (applicable == NOACTION) {
+                            applicable = i;
+                        } else {
+                            applicable = FORBIDDEN;
+                            break;
+                        }
+                    }
+                }
+                if ((applicable != NOACTION) && (applicable != FORBIDDEN)) {
+                    assert(
+                            isApplicable(result, result->unconstraintPrimitive[applicable]->task));
+                    searchNode *n2 = this->apply(result, applicable);
+                    delete result;
+                    result = n2;
+                    numOneModActions++;
+                } else if (applicable == NOACTION) { // there is no abstract task and no applicable primitive
+                    result->goalReachable = false;
+                }
+            }
+        }
 
 #ifdef ONEMODMETH
         for (int t = oneMod->getFirst(); t >= 0; t = oneMod->getNext()) {

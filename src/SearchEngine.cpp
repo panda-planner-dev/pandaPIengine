@@ -95,8 +95,7 @@ int main(int argc, char *argv[]) {
 
 
     /* Read model */
-    bool trackTasksInTN = true; // maintains an array containing the tasks in die network
-	Model* htn = new Model(trackTasksInTN);
+	Model* htn = new Model(false, true, true);
 	htn->filename = inputFilename;
 	htn->read(inputStream);
 	assert(htn->isHtnModel);
