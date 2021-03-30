@@ -34,6 +34,7 @@ private:
 public:
     ClassicalHeuristic *sasH;
     list<LMCutLandmark *>* cuts = new list<LMCutLandmark *>();
+	
 
     hhRC2(Model* htnModel, int index, eEstimate estimate, bool correctTaskCount) : Heuristic(htnModel, index), estimate(estimate), correctTaskCount(correctTaskCount) {
 
@@ -50,6 +51,10 @@ public:
     virtual ~hhRC2(){
         delete factory;
     }
+	
+	string getDescription(){
+		return "hhRC2("	+ sasH->getDescription() + ";" + (estimate == estDISTANCE?"distance":"cost") + ";" + (correctTaskCount?"correct count":"") + ")";
+	}
 
     void setHeuristicValue(searchNode *n, searchNode *parent, int action) override {
         n->heuristicValue[index] = this->setHeuristicValue(n);

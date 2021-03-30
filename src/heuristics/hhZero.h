@@ -17,6 +17,7 @@ class hhZero : public Heuristic {
 public:
 	hhZero(Model* htn, int index);
 	virtual ~hhZero();
+	string getDescription(){ return "zero()";}
 	void setHeuristicValue(searchNode *n, searchNode *parent, int action);
 	void setHeuristicValue(searchNode *n, searchNode *parent, int absTask, int method);
 };

@@ -7,5 +7,29 @@ versiontext "<versiontext>"
 
 args "--string-parser -u"
 
+
+## use "-" for an option without a short option
+
+section "General Options"
+
 option "debug" d "activate debug mode" optional
-option "seed" s "specify the random seed" optional int
+option "seed" S "specify the random seed [default=42]" int default="42"
+option "timelimit" T "specify timelimit in seconds [default=1800]" int default="1800"
+
+section "Planner Selection" sectiondesc="default=progression"
+
+defgroup "planningAlgorithm"
+groupoption "progression" p "progression search" group="planningAlgorithm"
+groupoption "sat" s "translation to SAT" group="planningAlgorithm"
+groupoption "bdd" b "symbolic search" group="planningAlgorithm"
+groupoption "interactive" I "interactive search" group="planningAlgorithm"
+
+section "Progression Search Options"
+
+option "heuristic" H "specify a heuristic [default=rc(ff)]" string multiple default="rc(ff)"
+option "astarweight" w "weight of the heuristic for A* [default=1]" int default="1"
+option "gValue" g "g value (path,action,mixed,none) [default=path]" string values="path","action","mixed","none" default="path"
+option "suboptimal" - "suboptimal search (early goal test and visited lists ignores costs) [default=off]" flag off
+
+
+

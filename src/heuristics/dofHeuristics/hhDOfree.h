@@ -22,6 +22,7 @@
 #include <string>
 #include <limits.h>
 #include <set>
+#include <string>
 #include <ilcplex/ilocplex.h>
 #include "../planningGraph.h"
 #include "../landmarks/lmExtraction/LmCausal.h"
@@ -111,6 +112,19 @@ namespace progression {
         hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType, IloNumVar::Type BoolType, csSetting IlpSetting, csTdg tdgConstrs, csPg pgConstrs, csAndOrLms aoLMConstrs, csLmcLms lmcLMConstrs, csNetChange ncConstrs, csAddExternalLms addLMConstrs);
 
         virtual ~hhDOfree();
+		
+		string getDescription(){
+			return string("hhDOf(") + 
+        "intType=" + (cIntType == IloNumVar::Int?"int":"float") + ";" + 
+        "boolType=" + (cBoolType == IloNumVar::Bool?"bool":"float") + ";" + 
+        "setting=" + (cSetting == cOptimal?"optimal":"satisficing") + ";" + 
+        "tdg=" + (cTdg == cTdgFull?"full":(cTdg==cTdgAllowUC?"with-uc":"none")) + ";" + 
+        "pg=" + (cPg == cPgFull?"full":(cPg==cPgTimeRelaxed?"time-relaxed":"none")) + ";" + 
+        "andOrLms=" + (cAndOrLms == cAndOrLmsFull?"full":(cAndOrLms==cAndOrLmsOnlyTnI?"onlyTNi":"none")) + ";" + 
+        "externalLms=" + (cAddExternalLms == cAddExternalLmsYes?"yes":"no") + ";" + 
+        "lmcLms=" + (cLmcLms == cLmcLmsFull?"full":"no") + ";" + 
+        "netchange=" + (cNetChange == cNetChangeFull?"full":"no") + 
+		")";}
 
         void setHeuristicValue(searchNode *n, searchNode *parent, int action) override;
 

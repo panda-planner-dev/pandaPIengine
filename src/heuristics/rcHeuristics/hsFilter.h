@@ -20,6 +20,8 @@ class hsFilter {
 public:
 	hsFilter(Model* sas);
 	virtual ~hsFilter();
+		
+	string getDescription(){ return "filter";}
 
 	int getHeuristicValue(bucketSet& s, noDelIntSet& g);
 	Model* m;
