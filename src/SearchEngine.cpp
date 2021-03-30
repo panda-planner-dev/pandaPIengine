@@ -8,7 +8,6 @@
 
 #include "flags.h" // defines flags
 
-#include <queue>
 #include <iostream>
 #include <stdlib.h>
 #include <getopt.h>
@@ -21,10 +20,21 @@
 #include "Debug.h"
 #include "Model.h"
 
+#include "interactivePlanner.h"
+
+#ifdef RCHEURISTIC
+#include "heuristics/rcHeuristics/hsAddFF.h"
+#include "heuristics/rcHeuristics/hsLmCut.h"
+#include "heuristics/rcHeuristics/hsFilter.h"
+#endif
+#ifdef RCHEURISTIC2
+
 #include "heuristics/rcHeuristics/hsAddFF.h"
 #include "heuristics/rcHeuristics/hsLmCut.h"
 #include "heuristics/rcHeuristics/hsFilter.h"
 #include "heuristics/rcHeuristics/hhRC2.h"
+
+#endif
 
 #include "intDataStructures/IntPairHeap.h"
 #include "intDataStructures/bIntSet.h"
@@ -40,6 +50,64 @@
 using namespace std;
 using namespace progression;
 
+vector<string> parse_list_of_strings(istringstream & ss){
+	vector<string> strings;
+	while (true){
+		if (ss.eof()) break;
+		string x; ss >> x;
+		strings.push_back(x);
+	}
+
+	return strings;
+}
+
+vector<string> parse_list_of_strings(string & line){
+	istringstream ss (line);
+	return parse_list_of_strings(ss);
+}
+
+
+pair<string,map<string,string>> parse_heuristic_with_arguments_from_braced_expression(string str){
+	string heuristic = "";
+	size_t pos= 0;
+	while (pos < str.size() && str[pos] != '('){
+   		heuristic += str[pos];
+		pos++;
+	}
+	
+	map<string,string> arguments;
+
+   	if (pos != str.size()){
+		string argument_string = str.substr(pos+1,str.size() - pos - 2);
+		replace(argument_string.begin(), argument_string.end(), ';', ' ');
+		vector<string> args = parse_list_of_strings(argument_string);
+
+		int position = 1;
+		for (string arg : args){
+			replace(arg.begin(), arg.end(), '=', ' ');
+			vector<string> argElems = parse_list_of_strings(arg);
+			if (argElems.size() == 1)
+				arguments["arg" + to_string(position)] = argElems[0];
+			else if (argElems.size() == 2)	
+				arguments[argElems[0]] = argElems[1];
+			else{
+				cout << "option " << arg << " has more than one equals sign ..." << endl;
+				exit(1);
+			}
+			position++;
+		}
+	} // else there are none
+
+	return make_pair(heuristic,arguments);
+}
+
+
+enum planningAlgorithm{
+	PROGRESSION,SAT,BDD,INTERACTIVE
+};
+
+
+
 int main(int argc, char *argv[]) {
 #ifndef NDEBUG
     cout
@@ -53,13 +121,12 @@ int main(int argc, char *argv[]) {
 	// set debug mode
 	if (args_info.debug_given) setDebugMode(true);
 
-	int seed = 42;
-	if (args_info.seed_given) seed = args_info.seed_arg;
+	int seed = args_info.seed_arg; // has default value
 	cout << "Random seed: " << seed << endl;
 	srand(seed);
-
-	// FILES
-
+    
+	int timeL = args_info.timelimit_arg;
+    cout << "Time limit: " << timeL << " seconds" << endl;
 
 	// get input files
 	std::vector<std::string> inputFiles;
@@ -93,10 +160,13 @@ int main(int argc, char *argv[]) {
 		inputStream = fileInput;
 	}
 
+	//
+
 
     /* Read model */
     // todo: the correct value of maintainTaskRechability depends on the heuristic
-    Model* htn = new Model(false, mtrACTIONS, true, true);
+    eMaintainTaskReachability reachability = mtrACTIONS;
+    Model* htn = new Model(false, reachability, true, true);
 	htn->filename = inputFilename;
 	htn->read(inputStream);
 	assert(htn->isHtnModel);
@@ -105,69 +175,171 @@ int main(int argc, char *argv[]) {
 	if (inputFilename != "-") ((ifstream*) inputStream)->close();
 
 
+	
+    if(reachability != mtrNO) {
+        htn->calcSCCs();
+        htn->calcSCCGraph();
 
-#ifdef MAINTAINREACHABILITY
-    htn->calcSCCs();
-    htn->calcSCCGraph();
+        // add reachability information to initial task network
+        htn->updateReachability(tnI);
+    }
 
-    // add reachability information to initial task network
-    htn->updateReachability(tnI);
-#endif
-/*
-	cout << "YouPlan!" << endl;
-	while(true) {
-	    int j = 0;
-        for(int i = 0; i < tnI->numAbstract; i++){
-            cout << j++ << " " << htn->taskNames[tnI->unconstraintAbstract[i]->task] << endl;
-        }
-        for(int i = 0; i < tnI->numPrimitive; i++){
-            cout << j++ << " " << htn->taskNames[tnI->unconstraintPrimitive[i]->task] << endl;
-        }
-        int step;
-	    cout << "What to do?" << endl;
-	    if (j == 1)
-	        step = 0;
-	    else
-            cin >> step;
-        if(step == -2) break;
-        if(step == -1) exit(0);
-        if(step < tnI->numAbstract) {
-            int t = tnI->unconstraintAbstract[step]->task;
-            int i = 0;
-            for(; i < htn->numMethodsForTask[t]; i++) {
-                int m = htn->taskToMethods[t][i];
-                cout << i << " " << htn->methodNames[m] << endl;
-            }
-            cout << "Which method to use?" << endl;
-            int step2;
-            if (i == 1)
-                step2 = 0;
-            else
-                cin >> step2;
-            int m = htn->taskToMethods[t][step2];
-            tnI = htn->decompose(tnI, step, m);
-        } else {
-            step -= tnI->numAbstract;
-            int a = tnI->unconstraintPrimitive[step]->task;
-            cout << "prec:" << endl;
-            for(int i = 0; i < htn->numPrecs[a]; i++) {
-                int f = htn->precLists[a][i];
-                cout << "- " << f << " " << htn->factStrs[f] << endl;
-            }
-            cout << "add:" << endl;
-            for(int i = 0; i < htn->numAdds[a]; i++) {
-                int f = htn->addLists[a][i];
-                cout << "- " << f << " " << htn->factStrs[f] << endl;
-            }
-            cout << "del:" << endl;
-            for(int i = 0; i < htn->numDels[a]; i++) {
-                int f = htn->delLists[a][i];
-                cout << "- " << f << " " << htn->factStrs[f] << endl;
-            }
-            tnI = htn->apply(tnI, step);
-        }
+
+
+	planningAlgorithm algo = PROGRESSION;
+	if (args_info.progression_given) algo = PROGRESSION;
+	if (args_info.sat_given) algo = SAT;
+	if (args_info.bdd_given) algo = BDD;
+	if (args_info.interactive_given) algo = INTERACTIVE;
+
+
+	if (algo == INTERACTIVE){
+		cout << "Selected Planning Algorihtm: interactive";
+		interactivePlanner(htn,tnI);
+		return 0;
 	}
-*/
+
+	if (algo == PROGRESSION){
+		cout << "Selected Planning Algorihtm: progression search";
+	
+		int hLength = args_info.heuristic_given;
+		cout << "Parsing heuristics ..." << endl;
+		cout << "Number of heuristics: " << hLength << endl;
+    	Heuristic **heuristics = new Heuristic *[hLength];
+		for (int i = 0; i < hLength; i++){
+			auto [hName, args] = parse_heuristic_with_arguments_from_braced_expression(args_info.heuristic_arg[i]);
+		
+			if (hName == "zero"){
+    			heuristics[i] = new hhZero(htn, i);
+			} else if (hName == "rc2"){
+				string subName = (args.count("h"))?args["h"]:args["arg1"];
+			
+				string estimate_string = (args.count("est"))?args["est"]:args["arg2"];
+				eEstimate estimate = estDISTANCE;
+				if (estimate_string == "cost")
+					estimate = estCOSTS;
+				
+				string correct_task_count_string = (args.count("taskcount"))?args["taskcount"]:args["arg3"];
+				bool correctTaskCount = true;
+				if (correct_task_count_string == "no")
+					correctTaskCount = false;
+
+				if (subName == "lmc")
+		    		heuristics[i] = new hhRC2<hsLmCut>(htn, i, estimate, correctTaskCount);
+				else if (subName == "add"){
+		    		heuristics[i] = new hhRC2<hsAddFF>(htn, i, estimate, correctTaskCount);
+					((hhRC2<hsAddFF>*)heuristics[i])->sasH->heuristic = sasAdd;
+				} else if (subName == "ff"){
+		    		heuristics[i] = new hhRC2<hsAddFF>(htn, i, estimate, correctTaskCount);
+					((hhRC2<hsAddFF>*)heuristics[i])->sasH->heuristic = sasFF;
+				} else if (subName == "filter")
+		    		heuristics[i] = new hhRC2<hsFilter>(htn, i, estimate, correctTaskCount);
+				else {
+					cout << "No inner heuristic specified for RC. Using FF" << endl;
+		    		heuristics[i] = new hhRC2<hsAddFF>(htn, i, estimate, correctTaskCount);
+					((hhRC2<hsAddFF>*)heuristics[i])->sasH->heuristic = sasFF;
+				}
+			} else if (hName == "dof"){
+				string type_string = (args.count("type"))?args["type"]:args["arg1"];
+				IloNumVar::Type intType = IloNumVar::Int;
+				IloNumVar::Type boolType = IloNumVar::Bool;
+				if (type_string == "lp"){
+					intType = IloNumVar::Float;
+					boolType = IloNumVar::Float;
+				}
+
+				string mode_string = (args.count("mode"))?args["mode"]:args["arg2"];
+				csSetting mode = cSatisficing;
+				if (mode_string == "optimal")
+					mode = cOptimal;
+
+				string tdg_string = (args.count("tdg"))?args["tdg"]:args["arg3"];
+				csTdg tdg = cTdgAllowUC;
+				if (tdg_string == "uc")
+					tdg = cTdgFull;
+				else if (tdg_string == "none")
+					tdg = cTdgNone;
+			
+				string pg_string = (args.count("pg"))?args["pg"]:args["arg4"];
+				csPg pg = cPgNone;
+				if (pg_string == "full")
+					pg = cPgFull;
+				else if (tdg_string == "relaxed")
+					pg = cPgTimeRelaxed;
+
+				string andorLM_string = (args.count("andOrLM"))?args["andOrLM"]:args["arg5"];
+				csAndOrLms andOrLM = cAndOrLmsNone;
+				if (andorLM_string == "full")
+					andOrLM = cAndOrLmsFull;
+				else if (andorLM_string == "onlyTNi")
+					andOrLM = cAndOrLmsOnlyTnI;
+
+				string externalLM_string = (args.count("externalLM"))?args["externalLM"]:args["arg6"];
+				csAddExternalLms externalLM = cAddExternalLmsNo;
+				if (externalLM_string == "none")
+					externalLM = cAddExternalLmsYes;
+
+				string lmclms_string = (args.count("lmclmc"))?args["lmclmc"]:args["arg7"];
+				csLmcLms lmclms = cLmcLmsFull;
+				if (lmclms_string == "none")
+					lmclms = cLmcLmsNone;
+
+				string netchange_string = (args.count("netchange"))?args["netchange"]:args["arg8"];
+				csNetChange netchange = cNetChangeFull;
+				if (netchange_string == "none")
+					netchange = cNetChangeNone;
+
+
+				heuristics[i] = new hhDOfree(htn,tnI,i,intType,boolType,mode,tdg,pg,andOrLM,lmclms,netchange,externalLM);
+			}
+
+			cout << "Heuristic #" << i << " = " << heuristics[i]->getDescription() << endl; 
+		}
+
+		int aStarWeight = args_info.astarweight_arg;
+    	aStar aStarType = gValNone;
+    	if (string(args_info.gValue_arg) == "path") aStarType = gValPathCosts;
+    	if (string(args_info.gValue_arg) == "action") aStarType = gValActionCosts;
+    	if (string(args_info.gValue_arg) == "mixed") aStarType = gValActionPathCosts;
+    	if (string(args_info.gValue_arg) == "none") aStarType = gValNone;
+		
+		bool suboptimalSearch = args_info.suboptimal_flag;
+
+		cout << "Search config:" << endl;
+		cout << " - type: ";
+		switch (aStarWeight){
+			case gValNone: cout << "greedy"; break;
+			case gValActionCosts: cout << "cost optimal"; break;
+			case gValPathCosts: cout << "path cost"; break;
+			case gValActionPathCosts: cout << "action cost + decomposition cost"; break;
+		}
+		cout << endl;
+		cout << " - weight: " << aStarWeight << endl;
+		cout << " - suboptimal: " << (suboptimalSearch?"true":"false") << endl;
+
+
+    	VisitedList visi(htn);
+    	PriorityQueueSearch search;
+    	OneQueueWAStarFringe fringe(aStarType, aStarWeight, hLength);
+
+    	search.search(htn, tnI, timeL, suboptimalSearch, heuristics, hLength, visi, fringe);
+
+
+	}
+
+    delete htn;
+    
+	
+	return 0;
+}
+
+
+
+
+
+
+
+
 /*
     long initO, initN;
     long genO, genN;
@@ -273,79 +445,3 @@ int main(int argc, char *argv[]) {
 
 	exit(17);*/
 
-/*
- * Create Heuristic
- */
-#if (HEURISTIC == LMCLOCAL)
-    search.hF = new hhLMCount(htn, tnI, 0);
-    search.hF->prettyPrintLMs(htn, tnI);
-#endif
-#if (HEURISTIC == LMCANDOR)
-    search.hF = new hhLMCount(htn, tnI, 1);
-    search.hF->prettyPrintLMs(htn, tnI);
-#endif
-#if (HEURISTIC == LMCFD)
-    search.hF = new hhLMCount(htn, tnI, 2);
-    search.hF->prettyPrintLMs(htn, tnI);
-#endif
-/*
- * Start Search
- */
-    int timeL = 1800;
-    cout << "Time limit: " << timeL << " seconds" << endl;
-
-    int hLength = 5;
-    Heuristic **heuristics = new Heuristic *[hLength];
-    heuristics[0] = new hhRC2<hsLmCut>(htn, 0, estDISTANCE, true);
-
-    // old RC heuristic implementation
-    Model* heuristicModel;
-    cout << "Computing RC model ... " << endl;
-    RCModelFactory* factory = new RCModelFactory(htn);
-    heuristicModel = factory->getRCmodelSTRIPS();
-    delete factory;
-
-    auto oldRC = new hhRC<hsAddFF>(htn, heuristicModel, 1, estDISTANCE, false);
-    oldRC->sasH->heuristic = sasFF;
-    heuristics[1] = oldRC;
-
-    oldRC = new hhRC<hsAddFF>(htn, heuristicModel, 2, estDISTANCE, false);
-    oldRC->sasH->heuristic = sasAdd;
-    heuristics[2] = oldRC;
-
-    heuristics[3] = new hhRC<hsLmCut>(htn, heuristicModel, 2, estDISTANCE, false);
-    heuristics[4] = new hhRC<hsFilter>(htn, heuristicModel, 2, estDISTANCE, false);
-
-//    hhRC2<hsAddFF> *hF2 = new hhRC2<hsAddFF>(htn, 1, ctcINADMISSIBLE);
-//    hF2->sasH->heuristic = sasAdd;
-//    heuristics[1] = hF2;
-//
-//    hhRC2<hsAddFF> *hF3 = new hhRC2<hsAddFF>(htn, 2, ctcINADMISSIBLE);
-//    hF2->sasH->heuristic = sasFF;
-//    heuristics[2] = hF3;
-//
-//    heuristics[3] = new hhRC2<hsFilter>(htn, 3, ctcINADMISSIBLE);
-//
-//    heuristics[4] = new hhDOfree(htn, tnI, 4, IloNumVar::Int, IloNumVar::Bool, cSatisficing, cTdgAllowUC, cPgNone,
-//                                 cAndOrLmsNone, cLmcLmsFull, cNetChangeFull, cAddExternalLmsNo);
-//
-//    heuristics[5] = new hhDOfree(htn, tnI, 5, IloNumVar::Float, IloNumVar::Float, cSatisficing, cTdgAllowUC, cPgNone,
-//                                 cAndOrLmsNone, cLmcLmsFull, cNetChangeFull, cAddExternalLmsNo);
-
-    // heuristics[6] = new hhZero(htn, 6);
-
-    int aStarWeight = 1;
-    aStar aStarType = gValNone;
-    bool suboptimalSearch = false;
-
-    VisitedList visi(htn);
-    PriorityQueueSearch search;
-    OneQueueWAStarFringe fringe(aStarType, aStarWeight, hLength);
-
-    search.search(htn, tnI, timeL, suboptimalSearch, heuristics, hLength, visi, fringe);
-    delete htn;
-#ifdef RCHEURISTIC
-    delete heuristicModel;
-#endif
-    return 0;
-}

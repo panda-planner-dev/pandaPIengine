@@ -34,6 +34,8 @@ namespace progression {
         hsAddFF(Model *sas);
 
         virtual ~hsAddFF();
+	
+		string getDescription(){ return "ff";}
 
 #if (STATEREP == SRCALC1) || (STATEREP == SRCOPY)
 

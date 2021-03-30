@@ -40,6 +40,8 @@ namespace progression {
 
         int getHeuristicValue(bucketSet &s, noDelIntSet &g);
         bool reportedOverflow = false;
+		
+		string getDescription(){ return "ff";}
 
         Model *m;
         myHeu heuristic = sasFF;

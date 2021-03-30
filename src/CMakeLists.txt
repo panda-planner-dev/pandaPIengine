@@ -32,7 +32,7 @@ add_subdirectory(intDataStructures)
 
 add_custom_command(
 	OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/cmdline.h ${CMAKE_CURRENT_SOURCE_DIR}/cmdline.c
-	COMMAND gengetopt --include-getopt --unamed-opts -i options.ggo
+	COMMAND gengetopt --include-getopt --default-optional --unamed-opts -i options.ggo
 	DEPENDS options.ggo
 	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 	COMMENT "Generating getopt parser code (cmdline.{h,c}) ..."

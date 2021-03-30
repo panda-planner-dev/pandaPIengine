@@ -33,6 +33,8 @@ public:
 
 	int getHeuristicValue(bucketSet& s, noDelIntSet& g);
 	Model* m;
+	
+	string getDescription(){ return "lmc";}
 
 	//list<LMCutLandmark*> cuts;
     list<LMCutLandmark *>* cuts = new list<LMCutLandmark *>();
