@@ -39,7 +39,7 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 		DEBUG(capsule.registerVariable(base,"state var " + pad_int(0) + " @ " + pad_int(time) + ": " + pad_string(htn->factStrs[0])));
 
 		for (size_t svar = 1; svar < htn->numStateBits; svar++){
-			int _r = capsule.new_variable(); // ignore return, they will be incremental
+			capsule.new_variable(); // ignore return, they will be incremental
 			assert(_r == base + svar);
 			DEBUG(capsule.registerVariable(base + svar,	"state var " + pad_int(svar) + " @ " + pad_int(time) + ": " + pad_string(htn->factStrs[svar])));
 		}
@@ -181,7 +181,7 @@ void generate_mutex_formula(void* solver, sat_capsule & capsule, vector<int> & b
 		}
 
 		
-		int lastTime = blocks[time].back();
+		//int lastTime = blocks[time].back();
 
 		for (int i = 0; i < 2*htn->numStateBits; i++){
 			int a = i - htn->numStateBits;

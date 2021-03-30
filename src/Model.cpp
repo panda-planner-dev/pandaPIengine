@@ -66,6 +66,7 @@ namespace progression {
         gList = nullptr;
         isPrimitive = nullptr;
         taskNames = nullptr;
+	emptyMethod = nullptr;
         decomposedTask = nullptr;
         numSubTasks = nullptr;
         numFirstPrimSubTasks = nullptr;
@@ -115,6 +116,7 @@ namespace progression {
         delete[] factStrs;
         delete[] firstIndex;
         delete[] lastIndex;
+	delete[] varOfStateBit;
         delete[] varNames;
         delete[] actionCosts;
         for (int i = 0; i < numActions; i++) {
@@ -153,6 +155,7 @@ namespace progression {
         delete[] gList;
         delete[] isPrimitive;
         delete[] taskNames;
+        delete[] emptyMethod;
 #if RINTANEN_INVARIANTS == 1 || (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
         for (int i = 0; i < numActions; i++) {
             delete[] addVectors[i];
@@ -1694,6 +1697,7 @@ namespace progression {
         firstIndex = new int[numVars];
         lastIndex = new int[numVars];
         varNames = new string[numVars];
+	varOfStateBit = new int[numStateBits];
         for (int i = 0; i < numVars; i++) {
             getline(domainFile, line);
             sStream = new stringstream(line);
@@ -1703,6 +1707,9 @@ namespace progression {
             assert(lastIndex[i] < numStateBits);
             *sStream >> varNames[i];
             delete sStream;
+
+		for (int j = firstIndex[i]; j <= lastIndex[i]; j++)
+			varOfStateBit[j] = i;
         }
         getline(domainFile, line);
         getline(domainFile, line);
@@ -1925,6 +1932,7 @@ namespace progression {
         *sStream >> numTasks;
         delete sStream;
         taskNames = new string[numTasks];
+	emptyMethod = new int[numTasks];
         isPrimitive = new bool[numTasks];
         bool isAbstract;
         for (int i = 0; i < numTasks; i++) {
@@ -1937,6 +1945,7 @@ namespace progression {
             *sStream >> isAbstract;
             isPrimitive[i] = !isAbstract;
             *sStream >> taskNames[i];
+		emptyMethod[i] = -1;
             delete sStream;
         }
     }
@@ -1997,6 +2006,8 @@ namespace progression {
             getline(domainFile, line);
             subTasks[i] = readIntList(line, numSubTasks[i]);
             if (numSubTasks[i] == 0) {
+			emptyMethod[decomposedTask[i]] = i;
+			// TODO: don't do this for all planners ...
                 cout << "Search engine: Method " << methodNames[i]
                      << " has no subtasks - please compile this away before search."
                      << endl;

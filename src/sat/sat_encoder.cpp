@@ -191,7 +191,7 @@ void atMostOne(void* solver, sat_capsule & capsule, std::vector<int> & is){
 	DEBUG(capsule.registerVariable(baseVar,"at-most-one " + pad_int(0)));
 
 	for (int b = 1; b < bits; b++){
-		int r = capsule.new_variable(); // ignore return, they will be incremental
+		capsule.new_variable(); // ignore return, they will be incremental
 		assert(r == baseVar + b);
 		DEBUG(capsule.registerVariable(baseVar + b,"at-most-one " + pad_int(b)));
 	}
@@ -215,7 +215,7 @@ void atMostOne(void* solver, sat_capsule & capsule, std::vector<int> & is){
 
 void atMostK(void* solver, sat_capsule & capsule, int K, std::vector<int> & is){
 	std::vector<int> vars;
-	for (int x : is){
+	for (int x = 0; x < is.size(); x++){
 		vars.push_back(capsule.new_variable());
 		for (int i = 1; i <= K+1; i++)
 			capsule.new_variable(); // id will not be needed

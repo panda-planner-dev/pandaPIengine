@@ -77,7 +77,7 @@ void graph::calcSCCs() {
 
 	// generate inverse mapping
 	sccToVertices = new int*[numSCCs];
-	int currentI[numSCCs];
+	int * currentI = new int[numSCCs];
 	for (int i = 0; i < numSCCs; i++)
 		currentI[i] = 0;
 	for (int i = 0; i < numSCCs; i++) {
@@ -88,6 +88,8 @@ void graph::calcSCCs() {
 		sccToVertices[scc][currentI[scc]] = i;
 		currentI[scc]++;
 	}
+
+	delete[] currentI;
 
 	delete[] U;
 	delete S;
@@ -151,12 +153,15 @@ bool graph::can_reach_any_of(vector<int> & from, vector<int> & to){
 	unordered_set<int> toSet;
 	for (const int & x : to) toSet.insert(x);
 
-	bool visi[numVertices];
+	bool * visi = new bool[numVertices];
 	for (int i = 0; i < numVertices; i++) visi[i] = false;
 
 	queue<int> q;
 	for (const int & x : from) {
-		if (toSet.count(x)) return true;
+		if (toSet.count(x)){
+			delete[] visi;
+			return true;
+		}
 		q.push(x);
 	}
 
@@ -167,13 +172,17 @@ bool graph::can_reach_any_of(vector<int> & from, vector<int> & to){
 		for (int j = 0; j < adjSize[x]; j++){
 			int y = adj[x][j];
 			if (!visi[y]){
-				if (toSet.count(y)) return true;
+				if (toSet.count(y)) {
+					delete[] visi;
+					return true;
+				}
 				visi[y] = true;
 				q.push(y);
 			}
 		}
 	}
 
+	delete[] visi;
 	return false;
 }
 
@@ -282,7 +291,6 @@ graph * compute_disabling_graph(Model * htn, bool no_invariant_inference){
 	std::clock_t dg_start = std::clock();
 
 	vector<unordered_set<int>> tempAdj (htn->numActions);
-	int edge = 0;
 	for (int f = 0; f < htn->numStateBits; f++){
 		for (int deletingIndex = 0; deletingIndex < htn->delToActionSize[f]; deletingIndex++){
 			int deletingAction = htn->delToAction[f][deletingIndex];

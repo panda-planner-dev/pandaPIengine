@@ -103,6 +103,7 @@ namespace progression {
         int *firstIndex;
         int *lastIndex;
         string *varNames;
+	int* varOfStateBit;
 
         // additional strict mutexes
         int numStrictMutexes;
@@ -176,6 +177,8 @@ namespace progression {
         int numTasks;
         bool *isPrimitive;
         string *taskNames;
+	
+	int* emptyMethod;
 
         // initial task
         int initialTask;
