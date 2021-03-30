@@ -47,7 +47,7 @@ hsLmCut::hsLmCut(Model* sas) {
 		}
 	}
 	addToTask = new int*[m->numStateBits];
-	int temp[m->numStateBits];
+	int *temp = new int[m->numStateBits];
 	for (int i = 0; i < m->numStateBits; i++) {
 		addToTask[i] = new int[numAddToTask[i]];
 		temp[i] = 0;
@@ -62,6 +62,7 @@ hsLmCut::hsLmCut(Model* sas) {
 			}
 		}
 	}
+	delete[] temp;
 	remove = new noDelIntSet();
 	remove->init(m->numStateBits);
 	maxPrec = new int[m->numActions];
@@ -145,7 +146,7 @@ int hsLmCut::getHeuristicValue(bucketSet& s, noDelIntSet& g) {
 		// calculate costs
 		int minCosts = INT_MAX;
 
-		LMCutLandmark* currendCut;
+		LMCutLandmark* currendCut = nullptr;
 		int ci = 0;
 		if (storeCuts) {
             currendCut = new LMCutLandmark(cut->getSize());

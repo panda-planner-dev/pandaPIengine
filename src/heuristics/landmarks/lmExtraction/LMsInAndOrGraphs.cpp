@@ -155,7 +155,7 @@ LMsInAndOrGraphs::~LMsInAndOrGraphs() {
 void LMsInAndOrGraphs::generateAndOrLMs(searchNode* tnI){
 
 	timeval tp;
-	long startT;
+	long startT = 0;
 	if(!silent) {
 		gettimeofday(&tp, NULL);
 		startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
