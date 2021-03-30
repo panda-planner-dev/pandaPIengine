@@ -26,10 +26,13 @@ using namespace std;
 
 namespace progression {
 
-    Model::Model() : Model(false, true, true) {
+    Model::Model() : Model(false, mtrNO, true, true) {
     }
 
-    Model::Model(bool trackTasks, bool progressEffectLess, bool progressOneModActions) : trackTasksInTN(trackTasks), progressEffectLess(progressEffectLess), progressOneModActions(progressOneModActions) {
+    Model::Model(bool trackTasks, eMaintainTaskReachability maintainTaskReachability, bool progressEffectLess,
+                 bool progressOneModActions) : trackTasksInTN(trackTasks), progressEffectLess(progressEffectLess),
+                                               progressOneModActions(progressOneModActions),
+                                               maintainTaskReachability(maintainTaskReachability) {
         numStateBits = 0;
         numTasks = 0;
         numPrecLessActions = 0;
@@ -90,10 +93,10 @@ namespace progression {
         s0Vector = nullptr;
 #endif
 
-    if (progressEffectLess) {
-        effectLess = new FlexIntStack();
-        effectLess->init(25);
-    }
+        if (progressEffectLess) {
+            effectLess = new FlexIntStack();
+            effectLess->init(25);
+        }
 #ifdef ONEMODMETH
         oneMod = new FlexIntStack();
         oneMod->init(25);
@@ -748,9 +751,9 @@ namespace progression {
             updateTaskCounterM(result, n, method);
         }
 
-#ifdef MAINTAINREACHABILITY
+    if (maintainTaskReachability != mtrNO) {
         updateReachability(result);
-#endif
+    }
 
 #ifdef TRACKLMSFULL
         /*cout << "decomposition" << endl;
@@ -928,31 +931,31 @@ namespace progression {
                 numEffLessProg++;
             }
         }
-       if (progressOneModActions) {
-           if ((result->numAbstract == 0) && (result->numPrimitive > 0)) {
-               int applicable = NOACTION;
-               for (int i = 0; i < result->numPrimitive; i++) {
-                   if (isApplicable(result, result->unconstraintPrimitive[i]->task)) {
-                       if (applicable == NOACTION) {
-                           applicable = i;
-                       } else {
-                           applicable = FORBIDDEN;
-                           break;
-                       }
-                   }
-               }
-               if ((applicable != NOACTION) && (applicable != FORBIDDEN)) {
-                   assert(
-                           isApplicable(result, result->unconstraintPrimitive[applicable]->task));
-                   searchNode *n2 = this->apply(result, applicable);
-                   delete result;
-                   result = n2;
-                   numOneModActions++;
-               } else if (applicable == NOACTION) { // there is no abstract task and no applicable primitive
-                   result->goalReachable = false;
-               }
-           }
-       }
+        if (progressOneModActions) {
+            if ((result->numAbstract == 0) && (result->numPrimitive > 0)) {
+                int applicable = NOACTION;
+                for (int i = 0; i < result->numPrimitive; i++) {
+                    if (isApplicable(result, result->unconstraintPrimitive[i]->task)) {
+                        if (applicable == NOACTION) {
+                            applicable = i;
+                        } else {
+                            applicable = FORBIDDEN;
+                            break;
+                        }
+                    }
+                }
+                if ((applicable != NOACTION) && (applicable != FORBIDDEN)) {
+                    assert(
+                            isApplicable(result, result->unconstraintPrimitive[applicable]->task));
+                    searchNode *n2 = this->apply(result, applicable);
+                    delete result;
+                    result = n2;
+                    numOneModActions++;
+                } else if (applicable == NOACTION) { // there is no abstract task and no applicable primitive
+                    result->goalReachable = false;
+                }
+            }
+        }
 
 #ifdef ONEMODMETH
         for (int t = oneMod->getFirst(); t >= 0; t = oneMod->getNext()) {
@@ -1219,9 +1222,9 @@ namespace progression {
         for (int i = 0; i < result->numAbstract; i++) {
             result->unconstraintAbstract[i]->pointersToMe++;
         }
-#ifdef MAINTAINREACHABILITY
-        updateReachability(result);
-#endif
+        if (maintainTaskReachability != mtrNO) {
+            updateReachability(result);
+        }
 
         if (trackTasksInTN) {
             updateTaskCounterA(result, n, n->unconstraintPrimitive[taskNo]->task);
@@ -1541,8 +1544,6 @@ namespace progression {
 
 #endif
 
-#ifdef MAINTAINREACHABILITY
-
     void Model::updateReachability(searchNode *n) {
         for (int i = 0; i < n->numAbstract; i++) {
             if (n->unconstraintAbstract[i]->reachableT == nullptr) {
@@ -1581,8 +1582,6 @@ namespace progression {
             ps->reachableT[k++] = t;
         }
     }
-
-#endif
 
     void Model::generateMethodRepresentation() {
 
@@ -2663,73 +2662,72 @@ void Model::analyseSCCcyclicity(){
 
 void Model::calcSCCGraph() {
 	constructSCCGraph();
-
-        // reachability
-#ifdef MAINTAINREACHABILITY
-#ifdef ALLTASKS
-        int lastMaintained = this->numTasks;
-#endif
-#ifdef ONLYACTIONS
-        int lastMaintained = this->numActions;
-#endif
-        this->numReachable = new int[numTasks];
-        for (int i = 0; i < numTasks; i++) {
-            this->numReachable[i] = -1;
-        }
-        this->reachable = new int *[numTasks];
-
-        int *ready = new int[numSCCs];
-        vector<int> stack;
-
-        for (int i = 0; i < numSCCs; i++) {
-            ready[i] = sccGnumSucc[i];
-            if (sccGnumSucc[i] == 0)
-                stack.push_back(i);
-        }
-        set<int> tReachable;
-        int processedSCCs = 0;
-
-        while (!stack.empty()) {
-            int scc = stack.back();
-            stack.pop_back();
-            processedSCCs++;
-            // calculate reachability
-            tReachable.clear();
-            for (int i = 0; i < sccSize[scc]; i++) {
-                if (sccToTasks[scc][i] < lastMaintained)
-                    tReachable.insert(sccToTasks[scc][i]);
+       if (maintainTaskReachability != mtrNO) {
+            // reachability
+            int lastMaintained = 0;
+            if (maintainTaskReachability == mtrACTIONS) {
+                lastMaintained = this->numTasks;
+            } else if (maintainTaskReachability == mtrALL) {
+                lastMaintained = this->numActions;
             }
-            for (int i = 0; i < sccGnumSucc[scc]; i++) { // loop over successor sccs
-                int nextSCC = sccG[scc][i];
-                int someTask = sccToTasks[nextSCC][0]; // reachability is equal for all tasks in an scc -> we need only to consider one
-                assert(numReachable[someTask] >=
-                       0); // should have been set before because it belongs to a successor scc
-                for (int k = 0; k < numReachable[someTask]; k++) {
-                    if (reachable[someTask][k] < lastMaintained)
-                        tReachable.insert(reachable[someTask][k]);
+            this->numReachable = new int[numTasks];
+            for (int i = 0; i < numTasks; i++) {
+                this->numReachable[i] = -1;
+            }
+            this->reachable = new int *[numTasks];
+
+            int *ready = new int[numSCCs];
+            vector<int> stack;
+
+            for (int i = 0; i < numSCCs; i++) {
+                ready[i] = sccGnumSucc[i];
+                if (sccGnumSucc[i] == 0)
+                    stack.push_back(i);
+            }
+            set<int> tReachable;
+            int processedSCCs = 0;
+
+            while (!stack.empty()) {
+                int scc = stack.back();
+                stack.pop_back();
+                processedSCCs++;
+                // calculate reachability
+                tReachable.clear();
+                for (int i = 0; i < sccSize[scc]; i++) {
+                    if (sccToTasks[scc][i] < lastMaintained)
+                        tReachable.insert(sccToTasks[scc][i]);
+                }
+                for (int i = 0; i < sccGnumSucc[scc]; i++) { // loop over successor sccs
+                    int nextSCC = sccG[scc][i];
+                    int someTask = sccToTasks[nextSCC][0]; // reachability is equal for all tasks in an scc -> we need only to consider one
+                    assert(numReachable[someTask] >=
+                           0); // should have been set before because it belongs to a successor scc
+                    for (int k = 0; k < numReachable[someTask]; k++) {
+                        if (reachable[someTask][k] < lastMaintained)
+                            tReachable.insert(reachable[someTask][k]);
+                    }
+                }
+                // write back reachability
+                for (int i = 0; i < sccSize[scc]; i++) {
+                    int task = sccToTasks[scc][i];
+                    numReachable[task] = tReachable.size();
+                    reachable[task] = new int[numReachable[task]];
+                    int pos = 0;
+                    for (set<int>::iterator j = tReachable.begin();
+                         j != tReachable.end(); j++, pos++) {
+                        reachable[task][pos] = *j;
+                    }
+                    assert(pos == numReachable[task]);
+                }
+
+                // update stack
+                for (int i = 0; i < sccGnumPred[scc]; i++) {
+                    ready[sccGinverse[scc][i]]--;
+                    if (ready[sccGinverse[scc][i]] == 0) {
+                        stack.push_back(sccGinverse[scc][i]);
+                    }
                 }
             }
-            // write back reachability
-            for (int i = 0; i < sccSize[scc]; i++) {
-                int task = sccToTasks[scc][i];
-                numReachable[task] = tReachable.size();
-                reachable[task] = new int[numReachable[task]];
-                int pos = 0;
-                for (set<int>::iterator j = tReachable.begin();
-                     j != tReachable.end(); j++, pos++) {
-                    reachable[task][pos] = *j;
-                }
-                assert(pos == numReachable[task]);
-            }
-
-            // update stack
-            for (int i = 0; i < sccGnumPred[scc]; i++) {
-                ready[sccGinverse[scc][i]]--;
-                if (ready[sccGinverse[scc][i]] == 0) {
-                    stack.push_back(sccGinverse[scc][i]);
-                }
-            }
-        }
 
 /*
 #ifdef MAINTAINREACHABILITYNOVEL
@@ -2757,28 +2755,24 @@ void Model::calcSCCGraph() {
 	delete[] temp;
 #endif*/
 
-
-        assert(processedSCCs == numSCCs);
+            assert(processedSCCs == numSCCs);
 //#ifdef MAINTAINREACHABILITY
-#ifdef ONLYACTIONS
-        intSet.init(this->numActions);
-#endif
-#ifdef ALLTASKS
-        intSet.init(this->numTasks);
-#endif
-
+            if (maintainTaskReachability == mtrACTIONS) {
+                intSet.init(this->numActions);
+            } else if (maintainTaskReachability == mtrALL) {
+                intSet.init(this->numTasks);
+            }
 #ifndef NDEBUG
-        for (int i = 0; i < numSCCs; i++) {
-            if (ready[i])
-                cout << "FAIL " << i << endl;
-            assert(ready[i] == 0);
+            for (int i = 0; i < numSCCs; i++) {
+                if (ready[i])
+                    cout << "FAIL " << i << endl;
+                assert(ready[i] == 0);
+            }
+            for (int i = 0; i < numTasks; i++)
+                assert(numReachable[i] >= 0);
+#endif
+            delete[] ready;
         }
-        for (int i = 0; i < numTasks; i++)
-            assert(numReachable[i] >= 0);
-#endif
-#endif
-
-        delete[] ready;
     }
 
 /*

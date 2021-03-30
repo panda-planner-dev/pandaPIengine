@@ -27,6 +27,7 @@ using namespace std;
 
 namespace progression {
 
+    enum eMaintainTaskReachability {mtrNO, mtrACTIONS, mtrALL};
     class Model {
     private:
         bool first = true;
@@ -73,6 +74,7 @@ namespace progression {
         const bool trackTasksInTN = false;
         const bool progressEffectLess = true;
         const bool progressOneModActions = true;
+        const eMaintainTaskReachability maintainTaskReachability = mtrNO;
 
         void updateTaskCounterM(searchNode *n, searchNode *parent, int method);
 
@@ -81,7 +83,7 @@ namespace progression {
     public:
         Model();
 
-        Model(bool trackTasksInTN, bool progressEffectLess, bool progressOneModActions);
+        Model(bool trackTasksInTN, eMaintainTaskReachability maintainTaskReachability, bool progressEffectLess, bool progressOneModActions);
 
         virtual ~Model();
 
@@ -247,15 +249,12 @@ namespace progression {
         int numOneModActions = 0;
         int numOneModMethods = 0;
 
-
-#ifdef MAINTAINREACHABILITY
+        // for task reachbility
         noDelIntSet intSet;
 
         void updateReachability(searchNode *n);
 
         void calcReachability(planStep *ps);
-
-#endif
 
 #ifdef MAINTAINREACHABILITYNOVEL
         int* taskCanBeReachedFromNum = nullptr;

@@ -168,7 +168,9 @@ int main(int argc, char *argv[]) {
 
 
     /* Read model */
-	Model* htn = new Model();
+    // todo: the correct value of maintainTaskRechability depends on the heuristic
+    eMaintainTaskReachability reachability = mtrALL;
+    Model* htn = new Model(false, reachability, true, true);
 	htn->filename = inputFilename;
 	htn->read(inputStream);
 	assert(htn->isHtnModel);
@@ -176,13 +178,14 @@ int main(int argc, char *argv[]) {
 			
 	if (inputFilename != "-") ((ifstream*) inputStream)->close();
 
-#ifdef MAINTAINREACHABILITY
-    htn->calcSCCs();
-    htn->calcSCCGraph();
+	
+    if(reachability != mtrNO) {
+        htn->calcSCCs();
+        htn->calcSCCGraph();
 
-    // add reachability information to initial task network
-    htn->updateReachability(tnI);
-#endif
+        // add reachability information to initial task network
+        htn->updateReachability(tnI);
+    }
 
 
 
@@ -197,7 +200,7 @@ int main(int argc, char *argv[]) {
 		cout << "Selected Planning Algorihtm: interactive";
 		interactivePlanner(htn,tnI);
 	} else if (algo == PROGRESSION){
-		cout << "Selected Planning Algorihtm: progression search";
+		cout << "Selected Planning Algorithm: progression search";
 	
 		int hLength = args_info.heuristic_given;
 		cout << "Parsing heuristics ..." << endl;

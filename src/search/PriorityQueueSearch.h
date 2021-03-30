@@ -42,7 +42,7 @@ template<class VisitedList, class Fringe>
 		bool continueSearch = true;
 	
 		cout << "Search Configuration" << endl;
-		cout << "- Using JAIR 2019 progression algorithm" << endl;
+		cout << "- Using JAIR 2020 progression algorithm" << endl;
 	
 		if (optimzeSol) {
 			cout << "- After first solution is found, search is continued until ";
