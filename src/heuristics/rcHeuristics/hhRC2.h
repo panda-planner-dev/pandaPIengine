@@ -28,15 +28,14 @@ private:
     RCModelFactory* factory;
     const bool storeCuts = true;
     IntUtil iu;
-    const bool correctTaskCount = true;
     const eEstimate estimate = estDISTANCE;
+    const bool correctTaskCount = true;
 
 public:
     ClassicalHeuristic *sasH;
     list<LMCutLandmark *>* cuts = new list<LMCutLandmark *>();
 
-    hhRC2(Model* htnModel, int index, eEstimate estimate, bool correctTaskCount) : estimate(estimate), correctTaskCount(correctTaskCount),
-            Heuristic(htnModel, index){
+    hhRC2(Model* htnModel, int index, eEstimate estimate, bool correctTaskCount) : Heuristic(htnModel, index), estimate(estimate), correctTaskCount(correctTaskCount) {
 
         Model* heuristicModel;
         factory = new RCModelFactory(htnModel);

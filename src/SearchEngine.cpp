@@ -18,7 +18,7 @@
 #include <fringes/OneQueueWAStarFringe.h>
 #include "./search/PriorityQueueSearch.h"
 
-//#include "Debug.h"
+#include "Debug.h"
 #include "Model.h"
 
 #ifdef RCHEURISTIC
@@ -44,6 +44,8 @@
 #include "heuristics/dofHeuristics/hhStatisticsCollector.h"
 #include "VisitedList.h"
 
+#include "cmdline.h"
+
 using namespace std;
 using namespace progression;
 
@@ -54,57 +56,24 @@ int main(int argc, char *argv[]) {
             << endl;
 #endif
 
+	gengetopt_args_info args_info;
+	if (cmdline_parser(argc, argv, &args_info) != 0) return 1;
 
-	struct option options[] = {
-		{"debug",              	                            no_argument,    NULL,   'd'},
-		{"seed",              	                      required_argument,    NULL,   's'},
-		{NULL,                            0,              NULL,   0},
-	};
-	
-	bool optionsValid = true;
-	bool debugMode = false;
-	int seed = 42;
-
-	while (true)
-	{
-		int c = getopt_long_only (argc, argv, "ds", options, NULL);
-		cout << "Option: " << char(c) << endl;
-		
-		if (c == -1)
-			break;
-		if (c == '?' || c == ':')
-		{
-			// Invalid option; getopt_long () will print an error message
-			optionsValid = false;
-			continue;
-		}
-
-		if (c == 'd')
-			debugMode = true;
-		else if (c == 's')
-			if (!optarg){ cout << "Seed is missing" << endl; return 1; }
-			seed = atoi(optarg);
-	}
-
-	if (!optionsValid) {
-		std::cout << "Invalid options. Exiting." << std::endl;
-		return 1;
-	}
-	
 	// set debug mode
-//	if (debugMode) setDebugMode(debugMode);
+	if (args_info.debug_given) setDebugMode(true);
 
-	// set random seed
+	int seed = 42;
+	if (args_info.seed_given) seed = args_info.seed_arg;
 	cout << "Random seed: " << seed << endl;
 	srand(seed);
+
+	// FILES
 
 
 	// get input files
 	std::vector<std::string> inputFiles;
-	for (int i = optind; i < argc; ++i)
-	{
-		inputFiles.push_back (argv[i]);
-	}
+	for ( unsigned i = 0 ; i < args_info.inputs_num ; ++i )
+    	inputFiles.push_back(args_info.inputs[i]);
 
 	std::string inputFilename = "-";
 
@@ -415,7 +384,7 @@ int main(int argc, char *argv[]) {
 //    heuristics[5] = new hhDOfree(htn, tnI, 5, IloNumVar::Float, IloNumVar::Float, cSatisficing, cTdgAllowUC, cPgNone,
 //                                 cAndOrLmsNone, cLmcLmsFull, cNetChangeFull, cAddExternalLmsNo);
 
-    heuristics[6] = new hhZero(htn, 6);
+    // heuristics[6] = new hhZero(htn, 6);
 
     int aStarWeight = 1;
     aStar aStarType = gValNone;
