@@ -3374,7 +3374,7 @@ void Model::calcMinimalProgressionBound(bool to) {
       }
       if (numOrderings[i] == 0){
         for (int j = 0; j < numSubTasks[i]; j++){
-          subTasksInOrder[i][j] = subTasks[i][j];
+          subTasksInOrder[i][j] = subTasks[i][numSubTasks[i] - 1 - j];
         }
         hasNoLastTask[i] = true;
         continue;
