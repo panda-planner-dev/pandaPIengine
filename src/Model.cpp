@@ -4731,6 +4731,7 @@ void Model::calcMinimalProgressionBound(bool to) {
       int primA = 0;
       int * primPList = new int[numStateBits];
       int * primAList = new int[numStateBits];
+      bool inappliccable = false;
       if (primTasks){
         int * pNum = new int[2];
         int err = calculatePrecsAndAdds(pNum, primPList, primAList, primTaskString, convertMutexVars);
@@ -4739,13 +4740,19 @@ void Model::calcMinimalProgressionBound(bool to) {
         if (err < 0){
           cerr << endl << "tasks for Method:" << endl << tn << endl << "not applicable in this order: " << primTaskString << endl;
           cerr << "not printing method!" << endl;
-          return;
+          inappliccable = true;
         }
       }
 
       sasfile << "begin_operator" << endl;
       sasfile << tn << endl;
-      
+      if (inappliccable){
+        sasfile << 0 << endl;
+        sasfile << 0 << endl;
+        sasfile << 1 << endl;
+        sasfile << "end_operator" << endl;
+        continue;
+      }
       // action
       int numP = this->numPrecsTrans[i] + primP;
       int** precs = new int*[numP];
