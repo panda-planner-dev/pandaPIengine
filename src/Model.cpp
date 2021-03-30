@@ -51,18 +51,29 @@ namespace progression {
         precLessActions = nullptr;
         precToActionSize = nullptr;
         precToAction = nullptr;
+	addToActionSize = nullptr;
+	addToAction = nullptr;
+	delToActionSize = nullptr;
+	delToAction = nullptr;
         numPrecs = nullptr;
         numAdds = nullptr;
         numDels = nullptr;
+#ifdef RINTANEN_INVARIANTS
+	numChanged = nullptr;
+	changedLists = nullptr;
+#endif
         s0List = nullptr;
         gList = nullptr;
         isPrimitive = nullptr;
         taskNames = nullptr;
+	emptyMethod = nullptr;
         decomposedTask = nullptr;
         numSubTasks = nullptr;
         numFirstPrimSubTasks = nullptr;
         numFirstAbstractSubTasks = nullptr;
         numOrderings = nullptr;
+	methodIsTotallyOrdered = nullptr;
+	methodTotalOrder = nullptr;
         methodNames = nullptr;
         numFirstTasks = nullptr;
         numLastTasks = nullptr;
@@ -73,7 +84,7 @@ namespace progression {
         methodsFirstTasks = nullptr;
         methodsLastTasks = nullptr;
         methodSubtaskSuccNum = nullptr;
-#if (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
+#if RINTANEN_INVARIANTS || (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
         addVectors = nullptr;
         delVectors = nullptr;
         s0Vector = nullptr;
@@ -105,30 +116,47 @@ namespace progression {
         delete[] factStrs;
         delete[] firstIndex;
         delete[] lastIndex;
+	delete[] varOfStateBit;
         delete[] varNames;
         delete[] actionCosts;
         for (int i = 0; i < numActions; i++) {
             delete[] precLists[i];
             delete[] addLists[i];
             delete[] delLists[i];
+#ifdef RINTANEN_INVARIANTS
+		delete[] changedLists[i];
+#endif
         }
         delete[] precLists;
         delete[] addLists;
         delete[] delLists;
+#ifdef RINTANEN_INVARIANTS
+	delete[] changedLists;
+#endif
         delete[] precLessActions;
         delete[] precToActionSize;
+	delete[] delToActionSize;
+	delete[] addToActionSize;
         for (int i = 0; i < numStateBits; i++) {
             delete[] precToAction[i];
+		delete[] delToAction[i];
+		delete[] addToAction[i];
         }
         delete[] precToAction;
+	delete[] delToAction;
+	delete[] addToAction;
         delete[] numPrecs;
         delete[] numAdds;
         delete[] numDels;
+#ifdef RINTANEN_INVARIANTS
+	delete[] numChanged;
+#endif
         delete[] s0List;
         delete[] gList;
         delete[] isPrimitive;
         delete[] taskNames;
-#if (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
+        delete[] emptyMethod;
+#if RINTANEN_INVARIANTS == 1 || (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
         for (int i = 0; i < numActions; i++) {
             delete[] addVectors[i];
             delete[] delVectors[i];
@@ -1669,6 +1697,7 @@ namespace progression {
         firstIndex = new int[numVars];
         lastIndex = new int[numVars];
         varNames = new string[numVars];
+	varOfStateBit = new int[numStateBits];
         for (int i = 0; i < numVars; i++) {
             getline(domainFile, line);
             sStream = new stringstream(line);
@@ -1678,6 +1707,9 @@ namespace progression {
             assert(lastIndex[i] < numStateBits);
             *sStream >> varNames[i];
             delete sStream;
+
+		for (int j = firstIndex[i]; j <= lastIndex[i]; j++)
+			varOfStateBit[j] = i;
         }
         getline(domainFile, line);
         getline(domainFile, line);
@@ -1828,8 +1860,50 @@ namespace progression {
                 precToAction[i][cur++] = ac;
             }
         }
+		delete[] precToActionTemp;
 
-        delete[] precToAction;
+		// add to action
+		set<int> *addToActionTemp = new set<int>[numStateBits];
+		for (int i = 0; i < numActions; i++) {
+			for (int j = 0; j < numAdds[i]; j++) {
+				int f = addLists[i][j];
+				addToActionTemp[f].insert(i);
+			}
+		}
+		addToActionSize = new int[numStateBits];
+		addToAction = new int*[numStateBits];
+
+		for (int i = 0; i < numStateBits; i++) {
+			addToActionSize[i] = addToActionTemp[i].size();
+			addToAction[i] = new int[addToActionSize[i]];
+			int cur = 0;
+			for (int ac : addToActionTemp[i]) {
+				addToAction[i][cur++] = ac;
+			}
+		}
+		delete[] addToActionTemp;
+
+		// del to action
+		set<int> * delToActionTemp = new set<int>[numStateBits];
+		for (int i = 0; i < numActions; i++) {
+			for (int j = 0; j < numDels[i]; j++) {
+				int f = delLists[i][j];
+				delToActionTemp[f].insert(i);
+			}
+		}
+		delToActionSize = new int[numStateBits];
+		delToAction = new int*[numStateBits];
+
+		for (int i = 0; i < numStateBits; i++) {
+			delToActionSize[i] = delToActionTemp[i].size();
+			delToAction[i] = new int[delToActionSize[i]];
+			int cur = 0;
+			for (int ac : delToActionTemp[i]) {
+				delToAction[i][cur++] = ac;
+			}
+		}
+		delete[] delToActionTemp;
+
         // s0
         getline(domainFile, line);
         getline(domainFile, line);
@@ -1858,6 +1932,7 @@ namespace progression {
         *sStream >> numTasks;
         delete sStream;
         taskNames = new string[numTasks];
+	emptyMethod = new int[numTasks];
         isPrimitive = new bool[numTasks];
         bool isAbstract;
         for (int i = 0; i < numTasks; i++) {
@@ -1870,6 +1945,7 @@ namespace progression {
             *sStream >> isAbstract;
             isPrimitive[i] = !isAbstract;
             *sStream >> taskNames[i];
+		emptyMethod[i] = -1;
             delete sStream;
         }
     }
@@ -1907,7 +1983,12 @@ namespace progression {
         ordering = new int *[numMethods];
         numOrderings = new int[numMethods];
         methodNames = new string[numMethods];
-        isTotallyOrdered = true;
+        
+		methodIsTotallyOrdered = new bool[numMethods];
+		methodTotalOrder = new int*[numMethods];
+	
+		
+		isTotallyOrdered = true;
         isUniquePaths = true;
         isParallelSequences = true;
         for (int i = 0; i < numMethods; i++) {
@@ -1925,6 +2006,8 @@ namespace progression {
             getline(domainFile, line);
             subTasks[i] = readIntList(line, numSubTasks[i]);
             if (numSubTasks[i] == 0) {
+			emptyMethod[decomposedTask[i]] = i;
+			// TODO: don't do this for all planners ...
                 cout << "Search engine: Method " << methodNames[i]
                      << " has no subtasks - please compile this away before search."
                      << endl;
@@ -1938,65 +2021,9 @@ namespace progression {
             getline(domainFile, line);
             ordering[i] = readIntList(line, numOrderings[i]);
 
-
-            //vector<vector<int>> adj (numSubTasks[i]);
-            //for (int o = 0; o < numOrderings[i]; o+=2)
-            //	adj[ordering[i][o]].push_back(ordering[i][o+1]);
-
-            // transitive reduction (i.e. remove all unnecessary edges)
-            vector<vector<bool>> trans(numSubTasks[i]);
-            vector<vector<bool>> transOriginal(numSubTasks[i]);
-            for (int x = 0; x < numSubTasks[i]; x++)
-                for (int y = 0; y < numSubTasks[i]; y++) trans[x].push_back(false), transOriginal[x].push_back(false);
-
-            for (int o = 0; o < numOrderings[i]; o += 2)
-                trans[ordering[i][o]][ordering[i][o + 1]] = transOriginal[ordering[i][o]][ordering[i][o + 1]] = true;
-
-            for (int k = 0; k < numSubTasks[i]; k++)
-                for (int x = 0; x < numSubTasks[i]; x++)
-                    for (int y = 0; y < numSubTasks[i]; y++)
-                        if (transOriginal[x][k] && transOriginal[k][y]) trans[x][y] = false;
-
-
-            /////// the method is totally ordered iff every task has exactly one successor and one predecessor except for one task each
-            vector<int> ord;
-            int notOneSuccessor = 0;
-            bool notZeroOrOneSuccessor = false;
-            for (int x = 0; x < numSubTasks[i]; x++) {
-                int numSucc = 0;
-                for (int y = 0; y < numSubTasks[i]; y++)
-                    if (trans[x][y])
-                        numSucc++, ord.push_back(x), ord.push_back(y);
-                if (numSucc != 1) notOneSuccessor++;
-                if (numSucc > 1) notZeroOrOneSuccessor = true;
-            }
-
-            int notOnePredecessor = 0;
-            bool notZeroOrOnePredecessor = false;
-            for (int y = 0; y < numSubTasks[i]; y++) {
-                int numPrec = 0;
-                for (int x = 0; x < numSubTasks[i]; x++)
-                    if (trans[x][y])
-                        numPrec++;
-                if (numPrec != 1) notOnePredecessor++;
-                if (numPrec > 1) notZeroOrOnePredecessor = true;
-            }
-
-            if (notOneSuccessor > 1 || notOnePredecessor > 1) {
-                isTotallyOrdered = false;
-                if (notZeroOrOneSuccessor || decomposedTask[i] != initialTask) {
-                    isUniquePaths = false;
-                    if (notZeroOrOnePredecessor || decomposedTask[i] != initialTask)
-                        isParallelSequences = false;
-                }
-            }
-
-            ordering[i] = new int[ord.size()];
-            for (int x = 0; x < ord.size(); x++)
-                ordering[i][x] = ord[x];
-            numOrderings[i] = ord.size();
-
-
+            // transitive reduction and determination of properties
+            computeTransitiveChangeOfMethodOrderings(false,i);
+            
 #ifndef NDEBUG
             assert((numOrderings[i] % 2) == 0);
             for (int j = 0; j < numOrderings[i]; j++) {
@@ -2157,7 +2184,7 @@ namespace progression {
         }
     }
 
-#if (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
+#if RINTANEN_INVARIANTS == 1 || (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
     void Model::generateVectorRepresentation() {
         addVectors = new bool*[numActions];
         delVectors = new bool*[numActions];
@@ -2194,9 +2221,27 @@ namespace progression {
         if (isHtnModel) {
             generateMethodRepresentation();
         }
-#if (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
+#if RINTANEN_INVARIANTS == 1 || (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
         generateVectorRepresentation();
 #endif
+#ifdef RINTANEN_INVARIANTS
+	numChanged = new int[numActions];
+	changedLists = new int*[numActions];
+	for (int i = 0; i < numActions; i++) {
+		unordered_set<int> changed;
+		for (int j = 0; j < numAdds[i]; j++)
+			changed.insert(addLists[i][j]);
+		for (int j = 0; j < numDels[i]; j++)
+			changed.insert(delLists[i][j]);
+	
+		numChanged[i] = changed.size();
+		changedLists[i] = new int[numChanged[i]];
+		int j = 0;
+		for (auto x : changed)
+			changedLists[i][j++] = x;
+	}
+#endif
+
 // for debug:
 #if DLEVEL == 5
         printActions();
@@ -2494,72 +2539,130 @@ namespace progression {
         }
     }
 
-    void Model::calcSCCGraph() {
+void Model::constructSCCGraph(){
         calculatedSccs = true;
         set<int> **sccg = new set<int> *[numSCCs];
-        for (int i = 0; i < numSCCs; i++)
+	set<int>** sccg_rev = new set<int>*[numSCCs];
+	for (int i = 0; i < numSCCs; i++){
             sccg[i] = new set<int>;
+		sccg_rev[i] = new set<int>;
+	}
 
-        for (int iT = 0; iT < numTasks; iT++) {
-            int sccFrom = taskToSCC[iT];
-            for (int iM = 0; iM < numMethodsForTask[iT]; iM++) {
-                int m = taskToMethods[iT][iM];
-                for (int iST = 0; iST < numSubTasks[m]; iST++) {
-                    int sccTo = taskToSCC[subTasks[m][iST]];
-                    if (sccFrom != sccTo) {
-                        sccg[sccFrom]->insert(sccTo);
-                    }
+    for (int iT = 0; iT < numTasks; iT++) {
+        int sccFrom = taskToSCC[iT];
+        for (int iM = 0; iM < numMethodsForTask[iT]; iM++) {
+            int m = taskToMethods[iT][iM];
+            for (int iST = 0; iST < numSubTasks[m]; iST++) {
+                int sccTo = taskToSCC[subTasks[m][iST]];
+                if (sccFrom != sccTo) {
+                    sccg[sccFrom]->insert(sccTo);
+					sccg_rev[sccTo]->insert(sccFrom);
                 }
             }
         }
-        if (numCyclicSccs == 0) {
-            cout << "- The problem is acyclic" << endl;
-        } else {
-            cout << "- The problem is cyclic" << endl;
-            cout << "- Number of cyclic SCCs: " << numCyclicSccs << endl;
-            cout << "- Number of cyclic SCCs of size 1: " << numSccOneWithSelfLoops << endl;
-        }
+    }
+    if (numCyclicSccs == 0) {
+        cout << "- The problem is acyclic" << endl;
+    } else {
+        cout << "- The problem is cyclic" << endl;
+        cout << "- Number of cyclic SCCs: " << numCyclicSccs << endl;
+        cout << "- Number of cyclic SCCs of size 1: " << numSccOneWithSelfLoops << endl;
+    }
 
-        // top-down mapping
-        this->sccGnumSucc = new int[numSCCs];
-        for (int i = 0; i < numSCCs; i++) {
-            sccGnumSucc[i] = sccg[i]->size();
-        }
+    // top-down mapping
+    this->sccGnumSucc = new int[numSCCs];
+    for (int i = 0; i < numSCCs; i++) {
+		sccGnumSucc[i] = sccg[i]->size();
+    }
 
-        sccG = new int *[numSCCs];
-        for (int i = 0; i < numSCCs; i++) {
-            sccG[i] = new int[sccGnumSucc[i]];
-            int k = 0;
-            for (int j : *sccg[i]) sccG[i][k++] = j;
-            assert(k == sccGnumSucc[i]);
-        }
+    sccG = new int *[numSCCs];
+    for (int i = 0; i < numSCCs; i++) {
+        sccG[i] = new int[sccGnumSucc[i]];
+        int k = 0;
+		for (const int & j : *sccg[i]) {
+			sccG[i][k] = j;
+			k++;
+		}
+        assert(k == sccGnumSucc[i]);
+    }
 
-        // bottom-up mapping
-        this->sccGnumPred = new int[numSCCs];
-        for (int i = 0; i < numSCCs; i++)
-            sccGnumPred[i] = 0;
+    // bottom-up mapping
+    this->sccGnumPred = new int[numSCCs];
+    for (int i = 0; i < numSCCs; i++)
+		sccGnumPred[i] = sccg_rev[i]->size();
 
-        for (int i = 0; i < numSCCs; i++)
-            for (int j : *sccg[i])
-                sccGnumPred[j]++;
+	sccGinverse = new int*[numSCCs];
+	for (int i = 0; i < numSCCs; i++) {
+		sccGinverse[i] = new int[sccGnumPred[i]];
+		int k = 0;
+		for (const int & j : *sccg_rev[i]) {
+			sccGinverse[i][k] = j;
+			k++;
+		}
+		assert(k == sccGnumPred[i]);
+	}
 
-        sccGinverse = new int *[numSCCs];
-        int *ks = new int[numSCCs];
-        for (int i = 0; i < numSCCs; i++) {
-            ks[i] = 0;
-            sccGinverse[i] = new int[sccGnumPred[i]];
-        }
+	for (int i = 0; i < numSCCs; i++){
+		delete sccg[i];
+		delete sccg_rev[i];
+	}
+	delete[] sccg;
+	delete[] sccg_rev;
+}
 
-        for (int i = 0; i < numSCCs; i++) {
-            for (int j : *sccg[i]) {
-                sccGinverse[j][ks[j]] = i;
-                ks[j]++;
-            }
-        }
 
-        for (int i = 0; i < numSCCs; i++) {
-            assert(ks[i] == sccGnumPred[i]);
-        }
+void Model::topsortDFS(int i, int & curpos, bool * & topVisited){
+	if (topVisited[i]) return;
+	topVisited[i] = true;
+	for (int j = 0; j < sccGnumSucc[i]; j++)
+		topsortDFS(sccG[i][j], curpos, topVisited);
+
+	sccTopOrder[curpos++] = i;
+}
+
+
+void Model::analyseSCCcyclicity(){
+	cout << "Hallo" << endl;
+
+	// perform topsort
+	sccTopOrder = new int[numSCCs];
+	bool * topVisited = new bool[numSCCs];
+	for (int i = 0; i < numSCCs; i++) topVisited[i] = false;
+	int curpos = 0;
+	for (int i = 0; i < numSCCs; i++)
+		if (!topVisited[i])
+			topsortDFS(i,curpos, topVisited);
+
+	assert(curpos == numSCCs);
+
+	// analyse whether a task is acyclic
+	sccIsAcyclic = new bool[numSCCs];
+	for (int i = 0; i < numSCCs; i++)
+		sccIsAcyclic[i] = true;
+
+	// self cyclic
+	for (int i = 0; i < numCyclicSccs; i++)
+		sccIsAcyclic[sccsCyclic[i]] = false;
+	
+	for (int i = 0; i < numSCCs; i++){
+		if (!sccIsAcyclic[i]) continue;
+
+		for (int j = 0; sccIsAcyclic[i] && j < sccGnumSucc[i]; j++)
+			sccIsAcyclic[i] &= sccIsAcyclic[sccG[i][j]];
+	}
+	
+	/*for (int i = 0; i < numSCCs; i++){
+		if (sccIsAcyclic[i]) continue;
+		cout << "SCC size " << sccSize[i];
+		if (sccIsAcyclic[i]) cout << "\t\t acyclic" << endl;
+		cout << endl;
+		for (int j = 0; j < sccSize[i]; j++)
+			cout << "\t" << taskNames[sccToTasks[i][j]] << endl;
+	}*/
+}
+
+void Model::calcSCCGraph() {
+	constructSCCGraph();
 
         // reachability
 #ifdef MAINTAINREACHABILITY
@@ -2654,9 +2757,6 @@ namespace progression {
 	delete[] temp;
 #endif*/
 
-        for (int i = 0; i < numSCCs; i++)
-            delete sccg[i];
-        delete[] sccg;
 
         assert(processedSCCs == numSCCs);
 //#ifdef MAINTAINREACHABILITY
@@ -2939,4 +3039,135 @@ bool Model::taskReachable(searchNode* tn, int t) {
         pfile.close();
     }
 }
+
+
+void Model::methodTopSortDFS(int cur, map<int,unordered_set<int>> & adj, map<int, int> & colour, int & curpos, int* order){
+	assert (colour[cur] != 1);
+	if (colour[cur]) return;
+
+	colour[cur] = 1;
+	for (const int & nei : adj[cur]) methodTopSortDFS(nei,adj,colour, curpos, order);
+	colour[cur] = 2;
+
+	order[curpos--] = cur;
+}
+
+
+bool Model::isMethodTotallyOrdered(int method){
+	map<int,unordered_set<int>> adj;
+	for (size_t i = 0; i < numOrderings[method]; i+=2)
+		adj[ordering[method][i]].insert(ordering[method][i+1]);
+
+	map<int,int> colour;
+	
+	methodTotalOrder[method] = new int[numSubTasks[method]];
+
+	int curPos = numSubTasks[method] - 1;
+	for (size_t i = 0; i < numSubTasks[method]; i++)
+		if (!colour[i]) methodTopSortDFS(i, adj, colour, curPos, methodTotalOrder[method]);
+
+	// check whether it is a total order
+	for (size_t i = 1; i < numSubTasks[method]; i++){
+		int a = methodTotalOrder[method][i-1];
+		int b = methodTotalOrder[method][i];
+		if (!adj[a].count(b)) return false;
+	}
+
+	return true;
+}
+
+
+void Model::computeTransitiveChangeOfMethodOrderings(bool closure, int i){
+	// transitive closure
+	vector<vector<bool>> trans (numSubTasks[i]);
+	vector<vector<bool>> transOrig (numSubTasks[i]);
+
+	for (int x = 0; x < numSubTasks[i]; x++)
+		for (int y = 0; y < numSubTasks[i]; y++){
+			trans[x].push_back(false);
+			if (!closure)
+				transOrig[x].push_back(false);
+		}
+	
+	for (int o = 0; o < numOrderings[i]; o+=2){
+		trans[ordering[i][o]][ordering[i][o+1]] = true;
+		if (!closure) transOrig[ordering[i][o]][ordering[i][o+1]] = true;
+	}
+
+	for (int k = 0; k < numSubTasks[i]; k++)
+		for (int x = 0; x < numSubTasks[i]; x++)
+			for (int y = 0; y < numSubTasks[i]; y++){
+				if (closure){
+					if (trans[x][k] && trans[k][y]) trans[x][y] = true;
+				} else {
+					if (transOrig[x][k] && transOrig[k][y]) trans[x][y] = false;
+				}
+			}
+
+
+    /////// the method is totally ordered iff every task has exactly one successor and one predecessor except for one task each
+    vector<int> ord;
+    int notOneSuccessor = 0;
+    bool notZeroOrOneSuccessor = false;
+    for (int x = 0; x < numSubTasks[i]; x++) {
+        int numSucc = 0;
+        for (int y = 0; y < numSubTasks[i]; y++)
+            if (trans[x][y])
+                numSucc++, ord.push_back(x), ord.push_back(y);
+        if (numSucc != 1) notOneSuccessor++;
+        if (numSucc > 1) notZeroOrOneSuccessor = true;
+    }
+
+	if (!closure) {
+    	int notOnePredecessor = 0;
+    	bool notZeroOrOnePredecessor = false;
+    	for (int y = 0; y < numSubTasks[i]; y++) {
+    	    int numPrec = 0;
+    	    for (int x = 0; x < numSubTasks[i]; x++)
+    	        if (trans[x][y])
+    	            numPrec++;
+    	    if (numPrec != 1) notOnePredecessor++;
+    	    if (numPrec > 1) notZeroOrOnePredecessor = true;
+    	}
+	
+    	if (notOneSuccessor > 1 || notOnePredecessor > 1) {
+    	    isTotallyOrdered = false;
+    	    if (notZeroOrOneSuccessor || decomposedTask[i] != initialTask) {
+    	        isUniquePaths = false;
+    	        if (notZeroOrOnePredecessor || decomposedTask[i] != initialTask)
+    	            isParallelSequences = false;
+    	    }
+    	}
+	}
+
+    ordering[i] = new int[ord.size()];
+    for (int x = 0; x < ord.size(); x++)
+        ordering[i][x] = ord[x];
+    numOrderings[i] = ord.size();
+}
+
+void Model::computeTransitiveClosureOfMethodOrderings(){
+	for (int i = 0; i < numMethods; i++)
+		computeTransitiveChangeOfMethodOrderings(true,i);
+}
+
+
+void Model::buildOrderingDatastructures(){
+	methodSubTasksPredecessors = new unordered_set<int>*[numMethods];
+	methodSubTasksSuccessors = new unordered_set<int>*[numMethods];
+	for (size_t m = 0; m < numMethods; m++){
+		// compute linearisation of the method
+		methodIsTotallyOrdered[m] = isMethodTotallyOrdered(m);
+			
+			
+		methodSubTasksPredecessors[m] = new unordered_set<int>[numSubTasks[m]];
+		methodSubTasksSuccessors[m] = new unordered_set<int>[numSubTasks[m]];
+		
+		for (int o = 0; o < numOrderings[m]; o+=2){
+			methodSubTasksSuccessors[m][ordering[m][o]].insert(ordering[m][o+1]);
+			methodSubTasksPredecessors[m][ordering[m][o+1]].insert(ordering[m][o]);
+		}
+	}
+}
+
 /* namespace progression */

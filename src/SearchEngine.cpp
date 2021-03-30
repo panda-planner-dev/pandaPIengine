@@ -21,6 +21,10 @@
 #include "Model.h"
 
 #include "interactivePlanner.h"
+#include "sat/sat_planner.h"
+#include "Invariants.h"
+
+#include "symbolic_search/automaton.h"
 
 #ifdef RCHEURISTIC
 #include "heuristics/rcHeuristics/hsAddFF.h"
@@ -169,10 +173,8 @@ int main(int argc, char *argv[]) {
 	htn->read(inputStream);
 	assert(htn->isHtnModel);
 	searchNode* tnI = htn->prepareTNi(htn);
-
+			
 	if (inputFilename != "-") ((ifstream*) inputStream)->close();
-
-
 
 #ifdef MAINTAINREACHABILITY
     htn->calcSCCs();
@@ -194,10 +196,7 @@ int main(int argc, char *argv[]) {
 	if (algo == INTERACTIVE){
 		cout << "Selected Planning Algorihtm: interactive";
 		interactivePlanner(htn,tnI);
-		return 0;
-	}
-
-	if (algo == PROGRESSION){
+	} else if (algo == PROGRESSION){
 		cout << "Selected Planning Algorihtm: progression search";
 	
 		int hLength = args_info.heuristic_given;
@@ -321,8 +320,16 @@ int main(int argc, char *argv[]) {
     	OneQueueWAStarFringe fringe(aStarType, aStarWeight, hLength);
 
     	search.search(htn, tnI, timeL, suboptimalSearch, heuristics, hLength, visi, fringe);
-
-
+	} else if (algo == SAT){
+		extract_invariants_from_parsed_model(htn);
+#ifdef RINTANEN_INVARIANTS
+#ifdef SAT_USEMUTEXES
+		compute_Rintanen_Invariants(htn);
+#endif
+#endif
+		solve_with_sat_planner(htn);
+	} else if (algo == BDD){
+		build_automaton(htn);
 	}
 
     delete htn;

@@ -13,6 +13,7 @@
 #include <vector>
 #include <set>
 #include <istream>
+#include <map>
 #include <forward_list>
 
 #include "ProgressionNetwork.h"
@@ -25,11 +26,6 @@
 using namespace std;
 
 namespace progression {
-
-#ifdef SAVESEARCHSPACE
-    extern ofstream* stateSpaceFile;
-#endif
-
 
     class Model {
     private:
@@ -107,6 +103,7 @@ namespace progression {
         int *firstIndex;
         int *lastIndex;
         string *varNames;
+	int* varOfStateBit;
 
         // additional strict mutexes
         int numStrictMutexes;
@@ -130,6 +127,9 @@ namespace progression {
         int **precLists;
         int **addLists;
         int **delLists;
+#ifdef RINTANEN_INVARIANTS
+	int** changedLists;
+#endif
 
         // dummy for CE
         int **conditionalAddLists;
@@ -137,19 +137,29 @@ namespace progression {
 
         int ***conditionalAddListsCondition;
         int ***conditionalDelListsCondition;
-#if (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
+#if RINTANEN_INVARIANTS == 1 || (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
         bool* s0Vector;
         bool** addVectors;
         bool** delVectors;
 #endif
+
         int numPrecLessActions;
         int *precLessActions;
+	
         int *precToActionSize;
         int **precToAction;
+
+	int* addToActionSize;
+	int** addToAction;
+	int* delToActionSize;
+	int** delToAction;
 
         int *numPrecs;
         int *numAdds;
         int *numDels;
+#ifdef RINTANEN_INVARIANTS
+	int* numChanged;
+#endif
 
         int *numConditionalAdds;
         int *numConditionalDels;
@@ -167,11 +177,13 @@ namespace progression {
         int numTasks;
         bool *isPrimitive;
         string *taskNames;
+	
+	int* emptyMethod;
 
         // initial task
         int initialTask;
 
-        //
+        // properties of the model
         bool isTotallyOrdered;
         bool isUniquePaths;
         bool isParallelSequences;
@@ -185,6 +197,14 @@ namespace progression {
         int *numFirstAbstractSubTasks;
         int **ordering; // this is a list of ints (p1,s2, p2,s2, ...) means that p1 is before s2, p2 before s2, ...
         int *numOrderings; // this is the length of the ARRAY, not the number of ordering constraints
+
+	// ordering structure used by the SAT planner
+	bool* methodIsTotallyOrdered;
+	int** methodTotalOrder;
+	unordered_set<int>** methodSubTasksPredecessors;
+	unordered_set<int>** methodSubTasksSuccessors;
+
+
         string *methodNames;
         int **methodsFirstTasks;
         int **methodSubtaskSuccNum;
@@ -267,14 +287,31 @@ namespace progression {
         int *sccGnumPred = nullptr;
         int **sccG = nullptr;
         int **sccGinverse = nullptr;
-
+	void constructSCCGraph();
         void calcSCCGraph();
+
+	int* sccTopOrder;
+	bool* sccIsAcyclic;
+	void analyseSCCcyclicity();
+	
 
         // reachability
         int *numReachable = nullptr;
         int **reachable = nullptr;
 
         void writeToPDDL(string dName, string pName);
+	bool isMethodTotallyOrdered(int method);
+	void computeTransitiveClosureOfMethodOrderings();
+	void buildOrderingDatastructures();
+
+
+// internal auxiliary methods
+private:
+	void topsortDFS(int i, int & curpos, bool * & topVisited);
+	void methodTopSortDFS(int cur, map<int,unordered_set<int>> & adj, map<int, int> & colour, int & curpos, int* order);
+	void computeTransitiveChangeOfMethodOrderings(bool closure, int method);
+
+
     };
 }
 #endif /* MODEL_H_ */
