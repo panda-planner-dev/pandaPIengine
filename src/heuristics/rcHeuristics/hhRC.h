@@ -19,48 +19,81 @@
 #include "hsFilter.h"
 
 namespace progression {
-
-class hhRC {
+#if false
+    template<class ClassicalHeuristic>
+class hhRC : public Heuristic{
 private:
 	/*set<int> s0set;
 	 set<int> gset;
 	 set<int> intSet;*/
 	noDelIntSet gset;
 	noDelIntSet intSet;
-#if STATEREP == SRCALC1
-	// todo: then parallelized, this var must be per core:
 	bucketSet s0set;
-	void collectState(solutionStep* sol, bucketSet& s0set);
-#elif STATEREP == SRCALC2
-	// todo: then parallelized, this var must be per core:
-	noDelIntSet s0set;
-	void collectState(solutionStep* sol, noDelIntSet& adds, noDelIntSet& dels);
-#elif STATEREP == SRCOPY
-	bucketSet s0set;
-#elif STATEREP == SRLIST
-	noDelIntSet s0set;
-#endif
-	void calcHtnGoalFacts(planStep *ps);
-	int t2tdr(int task);
-	int t2bur(int task);
+
+	void calcHtnGoalFacts(planStep *ps) {
+        // call for subtasks
+        for (int i = 0; i < ps->numSuccessors; i++) {
+            if (ps->successorList[i]->goalFacts == nullptr) {
+                calcHtnGoalFacts(ps->successorList[i]);
+            }
+        }
+
+        // calc goals for this step
+        intSet.clear();
+        for (int i = 0; i < ps->numSuccessors; i++) {
+            for (int j = 0; j < ps->successorList[i]->numGoalFacts; j++) {
+                intSet.insert(ps->successorList[i]->goalFacts[j]);
+            }
+        }
+        intSet.insert(ps->task);
+        ps->numGoalFacts = intSet.getSize();
+        ps->goalFacts = new int[ps->numGoalFacts];
+        int k = 0;
+        for (int t = intSet.getFirst(); t >= 0; t = intSet.getNext()) {
+            ps->goalFacts[k++] = t;
+        }
+	}
+
+
+/*
+ * The original state bits are followed by one bit per action that is set iff
+ * the action is reachable from the top. Then, there is one bit for each task
+ * indicating that task has been reached bottom-up.
+ */
+	int t2tdr(int task) {
+        return m->numStateBits + task;
+	}
+
+	int t2bur(int task) {
+        return m->numStateBits + m->numActions + task;
+	}
+
 	void setHeuristicValue(searchNode *n);
 public:
-#if (HEURISTIC == RCFF || HEURISTIC == RCADD)
-	hsAddFF* sasH;
-	hhRC(Model* htn, hsAddFF* sasH);
-#elif (HEURISTIC == RCLMC)
-	hsLmCut* sasH;
-	hhRC(Model* htn, hsLmCut* sasH);
-#else
-	hsFilter* sasH;
-	hhRC(Model* htn, hsFilter* sasH);
-#endif
-	const Model* m;
-	virtual ~hhRC();
-	void setHeuristicValue(searchNode *n, searchNode *parent, int action);
-	void setHeuristicValue(searchNode *n, searchNode *parent, int absTask, int method);
-};
+    ClassicalHeuristic* sasH;
 
+    hhRC(Model* htn, int index) : Heuristic(htn, index){
+        this->sasH = new ClassicalHeuristic;
+        m = htn;
+        intSet.init(sasH->m->numStateBits);
+        gset.init(sasH->m->numStateBits);
+        s0set.init(sasH->m->numStateBits);
+    }
+
+	const Model* m;
+	virtual ~hhRC() {
+        delete this->sasH;
+    }
+
+	void setHeuristicValue(searchNode *n, searchNode *parent, int action) override {
+
+	}
+
+	void setHeuristicValue(searchNode *n, searchNode *parent, int absTask, int method) override {
+
+	}
+};
+#endif
 } /* namespace progression */
 
 #endif /* HEURISTICS_HHRC_H_ */

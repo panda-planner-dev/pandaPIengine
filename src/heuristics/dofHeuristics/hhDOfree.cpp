@@ -321,7 +321,7 @@ hhDOfree::hhDOfree(Model *htn, searchNode *n, int index, IloNumVar::Type IntType
         delete[] tSP;
     }
     if (this->cLmcLms == cLmcLmsFull) {
-        hRC = new hhRC2<hsLmCut>(htn, 1, false); // todo: which index to use?
+        hRC = new hhRC2<hsLmCut>(htn, 0, estDISTANCE, false); // todo: which index to use?
     }
     if ((this->cAndOrLms == cAndOrLmsFull) || (this->cAndOrLms == cAndOrLmsOnlyTnI)) {
         causalLMs = new LmCausal(htn);
