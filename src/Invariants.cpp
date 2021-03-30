@@ -165,8 +165,10 @@ void extract_invariants_from_parsed_model(Model * htn){
 
 				if (invar == 1) continue; // cannot be mutex
 				if (invar == 0){
-					cout << "fact is statically false. This should have been detected in preprocessing ... I'm giving up." << endl;
-					exit(0);
+					cout << "Fact " << htn->factStrs[pred] << " (" << pred << ") is statically " << (iAccess < htn->numStateBits ? "false" : "true") << "." << endl;
+					cout << "This was shown using the SAS+ variable " << htn->varNames[var] << "." << endl;
+				   	cout << "This should have been detected in preprocessing ... I'm giving up." << endl;
+					//exit(0);
 				}
 				if (invar < 0 && binary_invariants[iAccess].count(-invar-1) == 0){
 					// so only invar is the only one that is not mutex with iAccess, thus we have a new invariant
