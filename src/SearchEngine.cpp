@@ -397,7 +397,7 @@ int main(int argc, char *argv[]) {
 
     int hLength = 1;
     Heuristic **heuristics = new Heuristic *[hLength];
-    heuristics[0] = new hhRC2<hsLmCut>(htn, 0, ctcINADMISSIBLE);
+    heuristics[0] = new hhRC2<hsLmCut>(htn, 0, estDISTANCE, true);
 
 //    hhRC2<hsAddFF> *hF2 = new hhRC2<hsAddFF>(htn, 1, ctcINADMISSIBLE);
 //    hF2->sasH->heuristic = sasAdd;

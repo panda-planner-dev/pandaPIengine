@@ -17,8 +17,7 @@
 #include "hsFilter.h"
 #include "RCModelFactory.h"
 
-enum innerHeuristic {FILTER, ADD, FF, LMCUT};
-enum eCorrectTaskCount {ctcNO, ctcADMISSIBLE, ctcINADMISSIBLE};
+enum eEstimate {estDISTANCE, estCOSTS};
 
 template<class ClassicalHeuristic>
 class hhRC2 : public Heuristic {
@@ -29,13 +28,14 @@ private:
     RCModelFactory* factory;
     const bool storeCuts = true;
     IntUtil iu;
-    const eCorrectTaskCount correctTaskCount = ctcINADMISSIBLE;
+    const bool correctTaskCount = true;
+    const eEstimate estimate = estDISTANCE;
 
 public:
     ClassicalHeuristic *sasH;
     list<LMCutLandmark *>* cuts = new list<LMCutLandmark *>();
 
-    hhRC2(Model* htnModel, int index, eCorrectTaskCount correctTaskCount) : correctTaskCount(correctTaskCount),
+    hhRC2(Model* htnModel, int index, eEstimate estimate, bool correctTaskCount) : estimate(estimate), correctTaskCount(correctTaskCount),
             Heuristic(htnModel, index){
 
         Model* heuristicModel;
@@ -168,15 +168,15 @@ public:
     }*/
 #endif
 
-        if (correctTaskCount != ctcNO) {
+        if (correctTaskCount) {
             if (hval != UNREACHABLE) {
                 for (int i = 0; i < n->numContainedTasks; i++) {
                     if (n->containedTaskCount[i] > 1) {
                         int task = n->containedTasks[i];
                         int count = n->containedTaskCount[i];
-                        if (correctTaskCount != ctcINADMISSIBLE) {
+                        if (estimate == estDISTANCE) {
                             hval += (htn->minImpliedDistance[task] * (count - 1));
-                        } else if (correctTaskCount != ctcADMISSIBLE) {
+                        } else if (estimate == estCOSTS) {
                             hval += (htn->minImpliedCosts[task] * (count - 1));
                         }
                     }
