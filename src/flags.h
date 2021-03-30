@@ -17,13 +17,6 @@ typedef int tHVal;
 #define FORBIDDEN -2
 
 // [heuristics]
-#define ZERO 0      // hVal is zero for every node
-#define RCFILTER 1  // relaxed composition heuristic with the filter heuristic
-#define RCFF 2      // relaxed composition heuristic with the FF heuristic
-#define RCADD 3     // relaxed composition heuristic with the add heuristic
-#define RCLMC 4     // relaxed composition heuristic with the LM-Cut heuristic
-#define DOFREEILP 5 // delete and ordering free heuristic (exact ilp calculation)
-#define DOFREELP 6  // delete and ordering free heuristic (approximate lp calculation)
 #define LMCLOCAL 7
 #define LMCANDOR 8
 #define LMCFD 9
@@ -38,9 +31,6 @@ typedef int tHVal;
 #define DFSEARCH 0
 #define BFSEARCH 1
 #define HEURISTICSEARCH 2
-
-// [algorithm]
-#define JAIR19 2         // processes abstract tasks first
 
 // *****************
 // * Configuration *

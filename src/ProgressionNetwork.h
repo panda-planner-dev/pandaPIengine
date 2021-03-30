@@ -65,10 +65,9 @@ struct planStep {
 	int* reachableT = nullptr;
 #endif
 
-#ifdef RCHEURISTIC
+    // todo: delete the following two values when RC is replaced by RC2
 	int numGoalFacts;
 	int* goalFacts = nullptr;
-#endif
 
 	bool operator==(const planStep &that) const;
 

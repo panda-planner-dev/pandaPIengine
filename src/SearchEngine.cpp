@@ -21,12 +21,6 @@
 #include "Debug.h"
 #include "Model.h"
 
-#ifdef RCHEURISTIC
-#include "heuristics/rcHeuristics/hsAddFF.h"
-#include "heuristics/rcHeuristics/hsLmCut.h"
-#include "heuristics/rcHeuristics/hsFilter.h"
-#endif
-
 #include "heuristics/rcHeuristics/hsAddFF.h"
 #include "heuristics/rcHeuristics/hsLmCut.h"
 #include "heuristics/rcHeuristics/hsFilter.h"
@@ -279,53 +273,8 @@ int main(int argc, char *argv[]) {
 	exit(17);*/
 
 /*
- * Create Search
- */
-//#if SEARCHTYPE == HEURISTICSEARCH
-//	PriorityQueueSearch search;
-//#endif
-
-/*
  * Create Heuristic
  */
-#if HEURISTIC == ZERO
-    //cout << "Heuristic: 0 for every node" << endl;
-    //search.hF = new hhZero(htn);
-#endif
-#ifdef RCHEURISTIC
-    cout << "Heuristic: RC encoding" << endl;
-    Model* heuristicModel;
-    cout << "Computing RC model ... " << endl;
-    RCModelFactory* factory = new RCModelFactory(htn);
-    heuristicModel = factory->getRCmodelSTRIPS();
-    delete factory;
-
-#if HEURISTIC == RCFF
-    search.hF = new hhRC(htn, new hsAddFF(heuristicModel));
-    search.hF->sasH->heuristic = sasFF;
-    cout << "- Inner heuristic: FF" << endl;
-#elif HEURISTIC == RCADD
-    search.hF = new hhRC(htn, new hsAddFF(heuristicModel));
-    search.hF->sasH->heuristic = sasAdd;
-    cout << "- Inner heuristic: Add" << endl;
-#elif HEURISTIC == RCLMC
-    hhRC hF(htn, new hsLmCut(heuristicModel));
-    cout << "- Inner heuristic: LM-Cut" << endl;
-#elif HEURISTIC == RCFILTER
-    search.hF = new hhRC(htn, new hsFilter(heuristicModel));
-    cout << "- Inner heuristic: Filter" << endl;
-#endif
-#endif
-#ifdef DOFREE
-#if HEURISTIC == DOFREEILP
-    // for collecting statistics
-    //hhStatisticsCollector hF = hhStatisticsCollector(htn, tnI, 4);
-
-    hhDOfree hF(htn, tnI, IloNumVar::Int, IloNumVar::Bool, ILPSETTING, ILPTDG, ILPPG, ILPANDORLMS, ILPLMCLMS, ILPNC, cAddExternalLmsNo);
-#elif HEURISTIC == DOFREELP
-    hhDOfree hF(htn, tnI, IloNumVar::Float, IloNumVar::Float, ILPSETTING, ILPTDG, ILPPG, ILPANDORLMS, ILPLMCLMS, ILPNC, cAddExternalLmsNo);
-#endif
-#endif
 #if (HEURISTIC == LMCLOCAL)
     search.hF = new hhLMCount(htn, tnI, 0);
     search.hF->prettyPrintLMs(htn, tnI);
@@ -344,9 +293,27 @@ int main(int argc, char *argv[]) {
     int timeL = 1800;
     cout << "Time limit: " << timeL << " seconds" << endl;
 
-    int hLength = 1;
+    int hLength = 5;
     Heuristic **heuristics = new Heuristic *[hLength];
     heuristics[0] = new hhRC2<hsLmCut>(htn, 0, estDISTANCE, true);
+
+    // old RC heuristic implementation
+    Model* heuristicModel;
+    cout << "Computing RC model ... " << endl;
+    RCModelFactory* factory = new RCModelFactory(htn);
+    heuristicModel = factory->getRCmodelSTRIPS();
+    delete factory;
+
+    auto oldRC = new hhRC<hsAddFF>(htn, heuristicModel, 1, estDISTANCE, false);
+    oldRC->sasH->heuristic = sasFF;
+    heuristics[1] = oldRC;
+
+    oldRC = new hhRC<hsAddFF>(htn, heuristicModel, 2, estDISTANCE, false);
+    oldRC->sasH->heuristic = sasAdd;
+    heuristics[2] = oldRC;
+
+    heuristics[3] = new hhRC<hsLmCut>(htn, heuristicModel, 2, estDISTANCE, false);
+    heuristics[4] = new hhRC<hsFilter>(htn, heuristicModel, 2, estDISTANCE, false);
 
 //    hhRC2<hsAddFF> *hF2 = new hhRC2<hsAddFF>(htn, 1, ctcINADMISSIBLE);
 //    hF2->sasH->heuristic = sasAdd;
