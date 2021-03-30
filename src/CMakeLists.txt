@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
-set(CMAKE_CXX_STANDARD 11)
-# set(CPLEX_SOURCE_DIR /home/dh/programme/ibm-cplex)
+set(CMAKE_CXX_STANDARD 17)
+set(CPLEX_SOURCE_DIR /home/gregor/Workspace/cplex)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 ### if no build type is set, it is "Release"
@@ -8,8 +8,9 @@ if (NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
 endif()
 
-
 project(pandaPIengine)
+
+find_program(GENGETOPT gengetopt)
 
 ## required for IBM's CPLEX in order to force it to use newer names for the std headers
 add_definitions(-DIL_STD)
@@ -28,10 +29,21 @@ add_subdirectory(search)
 add_subdirectory(heuristics)
 add_subdirectory(intDataStructures)
 
-file(GLOB main_SRC "*.h" "*.cpp")
+
+add_custom_command(
+	OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/cmdline.h ${CMAKE_CURRENT_SOURCE_DIR}/cmdline.c
+	COMMAND gengetopt --include-getopt --unamed-opts -i options.ggo
+	DEPENDS options.ggo
+	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+	COMMENT "Generating getopt parser code (cmdline.{h,c}) ..."
+	VERBATIM
+)
+
+
+file(GLOB main_SRC "*.h" "*.cpp" "cmdline.c")
  
 # create the executable
-add_executable (pandaPIengine ${main_SRC})
+add_executable (pandaPIengine ${main_SRC} "cmdline.c" "cmdline.h")
 target_compile_options(pandaPIengine PUBLIC ${compiler_flags})
 target_link_options(pandaPIengine PUBLIC ${linker_flags})
 

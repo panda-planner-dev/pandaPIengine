@@ -64,7 +64,7 @@ void OneQueueWAStarFringe::printTypeInfo(){
 				cout << "- Distance G is \"action costs\"" << endl; break;
 			case gValActionPathCosts:
 				cout << "- Distance G is \"action costs\" + \"number of decompositions\"" << endl; break;
-			case gValNone:  /* nothing to do */ break;
+			case gValNone:  /* cannot happen */ break;
 		}
 	}
 }
