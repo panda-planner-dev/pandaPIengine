@@ -229,7 +229,6 @@ void insert_invariant(Model * htn, unordered_set<int> * invariants, int a, int b
 
 
 bool filter_leafs_Rintanen(vector<PDT*> & leafs, Model * htn, unordered_set<int>* & after_leaf_invariants, int & additionalInvariants){
-#ifdef RINTANEN_INVARIANTS
 	//std::clock_t invariant_start = std::clock();
 	//cout << endl << "Computing invariants [Rintanen]" << endl;
 	
@@ -292,15 +291,12 @@ bool filter_leafs_Rintanen(vector<PDT*> & leafs, Model * htn, unordered_set<int>
 	additionalInvariants = v0.size();
 	cout << "Rintanen Pruning: removed " << prunedPrimitives << " of " << (prunedPrimitives + executablePrimitives) << endl;
 	return prunedPrimitives != 0;
-#else
-	return false;
-#endif
-
 }
 
 
 
-bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & capsule, MatchingData & matching, int depth){
+bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & capsule, MatchingData & matching, int depth,
+		bool block_compression, bool sat_mutexes, sat_pruning pruningMode){
 	std::clock_t beforePDT = std::clock();
 	pdt->expandPDTUpToLevel(depth,htn);
 	std::clock_t afterPDT = std::clock();
@@ -360,13 +356,14 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 		int pruningPhase = 1;
 		int round = 1;
 		int additionalInvariants = 0;
-		while(true){
-			//break;
+		while(pruningMode){
 			cout << color(Color::BLUE,"Pruning round ") << round++ << " Phase: " << pruningPhase << endl;
 			if (pruningPhase == 1){
-				if (!filter_leafs_ff(leafs, htn))
-					//pruningPhase++;
-					break;
+				if (!filter_leafs_ff(leafs, htn)){
+					if (pruningMode == pruningPhase)
+						break;
+					else pruningPhase++;
+				}
 			} else if (pruningPhase == 2){
 				if (!filter_leafs_Rintanen(leafs, htn, after_leaf_invariants, additionalInvariants))
 					break;
@@ -418,12 +415,9 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	cout << "Pruned clauses." << endl;	
 	//printMemory();
 
-#ifdef BLOCK_COMPRESSION
 	vector<vector<int>> blocks;
-#endif
 
-	if (htn->isTotallyOrdered){
-#ifdef BLOCK_COMPRESSION
+	if (htn->isTotallyOrdered && block_compression){
 		blocks = compute_block_compression(htn, leafs);
 		cout << "Block compression leads to " << blocks.size() << " timesteps." << endl;
 #ifndef NDEBUG
@@ -439,7 +433,6 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 				}
 			}
 		}
-#endif
 #endif
 	}
 	
@@ -460,14 +453,11 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 
 	vector<int> block_base_variables;
 
-#ifdef BLOCK_COMPRESSION
-	if (htn->isTotallyOrdered)
+	if (htn->isTotallyOrdered && block_compression)
 		generate_state_transition_formula(solver, capsule, vars, block_base_variables, blocks, htn);
 	else
 		generate_state_transition_formula(solver, capsule, vars, block_base_variables, htn);
-#else
-	generate_state_transition_formula(solver, capsule, vars, block_base_variables, htn);
-#endif
+	
 	int afterState = get_number_of_clauses();
 	cout << "State formula" << endl;
 
@@ -479,13 +469,13 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	cout << "Matching" << endl;
 	DEBUG(capsule.printVariables());
 
-#ifdef SAT_USEMUTEXES
-#ifdef BLOCK_COMPRESSION
-	generate_mutex_formula(solver, capsule, block_base_variables, blocks, after_leaf_invariants, htn);
-#else
-	generate_mutex_formula(solver, capsule, block_base_variables, after_leaf_invariants, htn);
-#endif
-#endif
+	if (sat_mutexes){
+		if (htn->isTotallyOrdered && block_compression)
+			generate_mutex_formula(solver, capsule, block_base_variables, blocks, after_leaf_invariants, htn);
+		else
+			generate_mutex_formula(solver, capsule, block_base_variables, after_leaf_invariants, htn);
+	}
+	
 	int afterMutex = get_number_of_clauses();
 
 	cout << color(Color::BLUE,"Formula: ") << (afterDecomp - beforeDecomp) << " decomposition " << (afterState - afterDecomp) << " state "  << (afterMutex - afterState) << " mutex" << endl;
@@ -682,7 +672,7 @@ void temp(Model * htn, PDT * pdt){
 }
 
 
-void solve_with_sat_planner_linear_bound_increase(Model * htn){
+void solve_with_sat_planner_linear_bound_increase(Model * htn, bool block_compression, bool sat_mutexes, sat_pruning pruningMode){
 	PDT* pdt = new PDT(htn);
 	//graph * dg = compute_disabling_graph(htn, true);
 	sat_capsule capsule;
@@ -696,7 +686,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 		int state = 20;
 
 		MatchingData matching;
-		if (createFormulaForDepth(solver,pdt,htn,capsule,matching,depth)){
+		if (createFormulaForDepth(solver,pdt,htn,capsule,matching,depth,block_compression,sat_mutexes, pruningMode)){
 			std::clock_t formula_end = std::clock();
 			double formula_time_in_ms = 1000.0 * (formula_end-formula_start) / CLOCKS_PER_SEC;
 			cout << "Formula has " << capsule.number_of_variables << " vars and " << get_number_of_clauses() << " clauses." << endl;
@@ -739,6 +729,9 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn){
 struct thread_returns{
 	Model * htn;
 	int depth;
+	bool block_compression;
+	bool sat_mutexes;
+	sat_pruning pruningMode;
 	PDT * pdt;
 	//graph * dg;
 	void* solver;
@@ -773,7 +766,7 @@ void* run_sat_planner_for_depth(void * param){
 	sat_capsule capsule;
 	cout << "Generating formula for depth " << ret->depth << endl;
 	MatchingData matching;
-	createFormulaForDepth(ret->solver,ret->pdt,ret->htn,capsule,matching,ret->depth);
+	createFormulaForDepth(ret->solver,ret->pdt,ret->htn,capsule,matching,ret->depth,ret->block_compression,ret->sat_mutexes, ret->pruningMode);
 	cout << "Formula has " << capsule.number_of_variables << " vars and " << get_number_of_clauses() << " clauses." << endl;
 	
 	cout << "Starting solver" << endl;
@@ -824,7 +817,7 @@ void sleep_until_solver_finished(const std::chrono::duration<Rep, Period>& sleep
 	current_done = false;
 }
 
-void solve_with_sat_planner_time_interleave(Model * htn){
+void solve_with_sat_planner_time_interleave(Model * htn, bool block_compression, bool sat_mutexes, sat_pruning pruningMode){
 	int maxRuns = 6;
 	current_done = false;
 	vector<bool> takenSignals (maxRuns);
@@ -889,6 +882,9 @@ void solve_with_sat_planner_time_interleave(Model * htn){
 				ret->depth = depth++;
 				ret->signal = firstFreeSignal;
 				ret->done = false;
+				ret->block_compression = block_compression;
+				ret->sat_mutexes = sat_mutexes;
+				ret->pruningMode = pruningMode;
 				runs.push_back(ret);
 				
 				//void *t1(void *);
@@ -924,7 +920,7 @@ void solve_with_sat_planner_time_interleave(Model * htn){
 
 
 
-void solve_with_sat_planner(Model * htn){
+void solve_with_sat_planner(Model * htn, bool block_compression, bool sat_mutexes, sat_pruning pruningMode){
 	// prepare helper data structured (used for SOG)
 	htn->calcSCCs();
 	htn->constructSCCGraph();
@@ -933,19 +929,30 @@ void solve_with_sat_planner(Model * htn){
 	
 	// start actual planner
 	cout << endl << endl;
-	cout << color(Color::YELLOW,"Starting SAT-based planner") << endl;
-	cout << "Using SAT solver: " << ipasir_signature() << endl << endl;
-	//htn->writeToPDDL("foo-d.hddl", "foo-p.hddl");
-
 	// start by determining whether this model is totally ordered
 	cout << "Instance is totally ordered: " << (htn->isTotallyOrdered?"yes":"no") << endl;
+	//htn->writeToPDDL("foo-d.hddl", "foo-p.hddl");
+	
+	cout << color(Color::YELLOW,"Starting SAT-based planner") << endl;
+	cout << "Using SAT solver: " << ipasir_signature() << endl;
+	cout << "Encode Mutexes:    " << (sat_mutexes?"yes":"no") << endl;
+	cout << "Block Compression: " << (block_compression?"yes":"no") << endl;
+	cout << "Pruning:           ";
+	switch (pruningMode){
+		case SAT_NONE: cout << "none" << endl; break;
+		case SAT_FF: cout << "ff" << endl; break;
+		case SAT_H2: cout << "h2" << endl; break;
+	}
+
+	cout << endl << endl;
+	
 	// compute transitive closures of all methods
 	htn->computeTransitiveClosureOfMethodOrderings();
 	htn->buildOrderingDatastructures();
 
 
-	//solve_with_sat_planner_time_interleave(htn);
-	solve_with_sat_planner_linear_bound_increase(htn);
+	//solve_with_sat_planner_time_interleave(htn, block_compression, sat_mutexes, pruningMode);
+	solve_with_sat_planner_linear_bound_increase(htn, block_compression, sat_mutexes, pruningMode);
 }
 
 

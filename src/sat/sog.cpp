@@ -498,15 +498,15 @@ SOG* optimiseSOG(vector<tuple<uint32_t,uint32_t,uint32_t>> & methods, Model* htn
         return htn->numSubTasks[get<0>(m1)] > htn->numSubTasks[get<0>(m2)];   
     });
 
-#ifndef NDEBUG
-#endif
 	int maxSize = 0;
 	for (size_t mID = 0; mID < methods.size(); mID++)
 		if (maxSize < htn->numSubTasks[get<0>(methods[mID])]) maxSize = htn->numSubTasks[get<0>(methods[mID])];
    	
+#ifndef NDEBUG
 	if (allMethodsAreTotallyOrdered) cout << "Running TO SOG optimiser";
 	else                             cout << "Running PO SOG optimiser";
 	cout << " with " << methods.size() << " methods with up to " << maxSize << " subtasks." << endl;
+#endif
 
 
 	if (allMethodsAreTotallyOrdered)

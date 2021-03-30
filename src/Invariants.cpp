@@ -188,8 +188,6 @@ void extract_invariants_from_parsed_model(Model * htn){
 }
 
 
-#ifdef RINTANEN_INVARIANTS
-
 void compute_Rintanen_initial_invariants(Model * htn,
 		vector<pair<int,int>> & v0,
 		bool * & toDelete,
@@ -510,5 +508,3 @@ void compute_Rintanen_Invariants(Model * htn){
 	for (auto [a,b] : v0)
 		insert_invariant(htn,a,b);
 }
-
-#endif

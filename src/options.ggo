@@ -32,4 +32,8 @@ option "gValue" g "g value (path,action,mixed,none) [default=path]" string value
 option "suboptimal" - "suboptimal search (early goal test and visited lists ignores costs) [default=off]" flag off
 
 
+section "SAT Planner Options"
+option "blockcompression" B "apply block compression [default=on]" flag on
+option "satmutexes" M "encode SAT mutexes [default=on]" flag on
+option "pruning" P "pruning mode (none,ff,h2) [default=ff]" string values="none","ff","h2" default="ff"
 

@@ -67,10 +67,6 @@ typedef int tHVal;
 #define RINTANEN_INVARIANTS 1
 
 
-//#define SAT_USEMUTEXES
-#define BLOCK_COMPRESSION
-
-
 #define TRACESOLUTION
 //#define SAVESEARCHSPACE
 

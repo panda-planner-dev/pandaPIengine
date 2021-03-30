@@ -327,13 +327,21 @@ int main(int argc, char *argv[]) {
 
     	search.search(htn, tnI, timeL, suboptimalSearch, heuristics, hLength, visi, fringe);
 	} else if (algo == SAT){
+		bool block_compression = args_info.blockcompression_flag;
+		bool sat_mutexes = args_info.satmutexes_flag;
+
+    	sat_pruning pruningMode = SAT_FF;
+    	if (string(args_info.pruning_arg) == "none") pruningMode = SAT_NONE;
+    	if (string(args_info.pruning_arg) == "ff") pruningMode = SAT_FF;
+    	if (string(args_info.pruning_arg) == "h2") pruningMode = SAT_H2;
+
 		extract_invariants_from_parsed_model(htn);
 #ifdef RINTANEN_INVARIANTS
-#ifdef SAT_USEMUTEXES
+		if (sat_mutexes)
 		compute_Rintanen_Invariants(htn);
 #endif
-#endif
-		solve_with_sat_planner(htn);
+
+		solve_with_sat_planner(htn, block_compression, sat_mutexes, pruningMode);
 	} else if (algo == BDD){
 		build_automaton(htn);
 	}
