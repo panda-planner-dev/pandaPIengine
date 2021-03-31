@@ -46,7 +46,9 @@
 #include "heuristics/rcHeuristics/RCModelFactory.h"
 #include "heuristics/landmarks/lmExtraction/LmFdConnector.h"
 #include "heuristics/landmarks/hhLMCount.h"
+#ifndef CMAKE_NO_ILP
 #include "heuristics/dofHeuristics/hhStatisticsCollector.h"
+#endif
 #include "VisitedList.h"
 
 #include "cmdline.h"
@@ -244,6 +246,7 @@ int main(int argc, char *argv[]) {
 					((hhRC2<hsAddFF>*)heuristics[i])->sasH->heuristic = sasFF;
 				}
 			} else if (hName == "dof"){
+#ifndef CMAKE_NO_ILP
 				string type_string = (args.count("type"))?args["type"]:args["arg1"];
 				IloNumVar::Type intType = IloNumVar::Int;
 				IloNumVar::Type boolType = IloNumVar::Bool;
@@ -295,6 +298,10 @@ int main(int argc, char *argv[]) {
 
 
 				heuristics[i] = new hhDOfree(htn,tnI,i,intType,boolType,mode,tdg,pg,andOrLM,lmclms,netchange,externalLM);
+#else
+				cout << "Planner compiled without CPLEX support" << endl;
+				return 1;
+#endif
 			} else {
 				cout << "Heuristic type \"" << hName << "\" is unknown." << endl;
 				return 1;
@@ -348,7 +355,11 @@ int main(int argc, char *argv[]) {
 		cout << "Planner compiled without SAT planner support" << endl;
 #endif
 	} else if (algo == BDD){
+#ifndef CMAKE_NO_BDD
 		build_automaton(htn);
+#else
+		cout << "Planner compiled without symbolic planner support" << endl;
+#endif
 	}
 
     delete htn;
