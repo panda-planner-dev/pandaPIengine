@@ -1,10 +1,14 @@
 cmake_minimum_required(VERSION 3.13)
 set(CMAKE_CXX_STANDARD 17)
-# set(CPLEX_SOURCE_DIR /home/gregor/Workspace/cplex)
-set(CPLEX_SOURCE_DIR /home/dh/Programme/CPLEX_Studio1210)
+
+set(CPLEX_SOURCE_DIR /home/gregor/Workspace/cplex)
+# set(CPLEX_SOURCE_DIR /home/dh/Programme/CPLEX_Studio1210)
+
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(SAT "Compile with the SAT planner" OFF)
+option(BDD "Compile with the Symbolic planner" OFF)
+##set(CPLEX_SOURCE_DIR /home/gregor/Workspace/cplex)
 
 
 ### if no build type is set, it is "Release"
@@ -24,12 +28,18 @@ if (CPLEX_SOURCE_DIR)
 	list(APPEND linker_flags "$<$<CONFIG:RELEASE>:-flto>")
 else (CPLEX_SOURCE_DIR)
 	list(APPEND linker_flags "$<$<CONFIG:RELEASE>:-flto;-static;-static-libgcc>")
+	list(APPEND compiler_flags -DCMAKE_NO_ILP)
 endif (CPLEX_SOURCE_DIR)
 
 if (SAT)
 else (SAT)
 	list(APPEND compiler_flags -DCMAKE_NO_SAT)
 endif(SAT)
+
+if (BDD)
+else (BDD)
+	list(APPEND compiler_flags -DCMAKE_NO_BDD)
+endif(BDD)
 
 
 
@@ -73,20 +83,21 @@ target_link_libraries(pandaPIengine PUBLIC hrc)
 target_link_libraries(pandaPIengine PUBLIC hlm)
 target_link_libraries(pandaPIengine PUBLIC intDataStructures)
 
-### Build Cudd
-ExternalProject_add(
-        libcudd
-        SOURCE_DIR ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/
-        CONFIGURE_COMMAND autoreconf ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/ &&  ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/configure --enable-obj --enable-silent-rules "CFLAGS=-O3" "CXXFLAGS=-std=c++0x -O3"
-        BUILD_COMMAND make
-        INSTALL_COMMAND ""
-        BUILD_IN_SOURCE 0
-)
-
-### Link Cudd
-add_dependencies(pandaPIengine libcudd)
-target_link_libraries(pandaPIengine PUBLIC ${CMAKE_BINARY_DIR}/libcudd-prefix/src/libcudd-build/cudd/.libs/libcudd.a)
-
+if (BDD)
+	### Build Cudd
+	ExternalProject_add(
+	        libcudd
+	        SOURCE_DIR ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/
+	        CONFIGURE_COMMAND autoreconf ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/ &&  ${CMAKE_SOURCE_DIR}/symbolic_search/cudd-3.0.0/configure --enable-obj --enable-silent-rules "CFLAGS=-O3" "CXXFLAGS=-std=c++0x -O3"
+	        BUILD_COMMAND make
+	        INSTALL_COMMAND ""
+	        BUILD_IN_SOURCE 0
+	)
+	
+	### Link Cudd
+	add_dependencies(pandaPIengine libcudd)
+	target_link_libraries(pandaPIengine PUBLIC ${CMAKE_BINARY_DIR}/libcudd-prefix/src/libcudd-build/cudd/.libs/libcudd.a)
+endif(BDD)
 
 # if the user has specified a cplex installation he surely wants to use it
 if (CPLEX_SOURCE_DIR)
@@ -99,6 +110,3 @@ if (SAT)
 	target_link_libraries(pandaPIengine PUBLIC sat)
 endif (SAT)
 
-### Link Cudd
-add_dependencies(pandaPIengine libcudd)
-target_link_libraries(pandaPIengine PUBLIC ${CMAKE_BINARY_DIR}/libcudd-prefix/src/libcudd-build/cudd/.libs/libcudd.a)
