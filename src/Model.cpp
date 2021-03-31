@@ -4655,6 +4655,7 @@ void Model::calcMinimalProgressionBound(bool to) {
     }
     sasfile << "end_goal" << endl;
     sasfile <<  endl;
+    delete[] gs;
 
     // operator section
     int a = this->numActionsTrans + numEmptyTasks;
@@ -4711,6 +4712,10 @@ void Model::calcMinimalProgressionBound(bool to) {
       }
       sasfile << this->actionCostsTrans[i] << endl;
       sasfile << "end_operator" << endl;
+      for (int j = 0; j < numP; j++){
+        delete[] precs[j];
+      }
+      delete[] precs;
     }
     for (int i = 0; i < numActionsTrans; i++) {
       if (invalidTransActions[i]){
@@ -4731,6 +4736,7 @@ void Model::calcMinimalProgressionBound(bool to) {
       int primA = 0;
       int * primPList = new int[numStateBits];
       int * primAList = new int[numStateBits];
+      bool inappliccable = false;
       if (primTasks){
         int * pNum = new int[2];
         int err = calculatePrecsAndAdds(pNum, primPList, primAList, primTaskString, convertMutexVars);
@@ -4739,13 +4745,22 @@ void Model::calcMinimalProgressionBound(bool to) {
         if (err < 0){
           cerr << endl << "tasks for Method:" << endl << tn << endl << "not applicable in this order: " << primTaskString << endl;
           cerr << "not printing method!" << endl;
-          return;
+          inappliccable = true;
+          delete[] primPList;
+          delete[] primAList;
         }
+        delete[] pNum;
       }
 
       sasfile << "begin_operator" << endl;
       sasfile << tn << endl;
-      
+      if (inappliccable){
+        sasfile << 0 << endl;
+        sasfile << 0 << endl;
+        sasfile << 1 << endl;
+        sasfile << "end_operator" << endl;
+        continue;
+      }
       // action
       int numP = this->numPrecsTrans[i] + primP;
       int** precs = new int*[numP];
@@ -4835,15 +4850,25 @@ void Model::calcMinimalProgressionBound(bool to) {
           sasfile << " " << cons[2 * k] << " " << cons[2 * k + 1];
         }
         sasfile << " " << var0 << " " << preco << " " << var1 << endl;
+        delete[] cons;
       }
 
       sasfile << this->actionCostsTrans[i] << endl;
       sasfile << "end_operator" << endl;
+      for (int j = 0; j < numP; j++){
+        delete[] precs[j];
+      }
+      delete[] precs;
+      delete[] primPList;
+      delete[] primAList;
     }
     // axiom section
     sasfile << 0 << endl;
     sasfile.close();
-
+    for (int i = 0; i < numStateBitsTrans; i++){
+      delete[] convertMutexVars[i];
+    }
+    delete[] convertMutexVars;
   }
   int Model::minProgressionBound(){
     int i = minImpliedPGB[initialTask];
@@ -4912,7 +4937,12 @@ void Model::calcMinimalProgressionBound(bool to) {
           }
         }
         else if (varChange[i][2 * j] != -1 && end != varChange[i][2 * j]){
-          cerr << endl << "variable: " << i << ", value old: " << end << ", value it should be: " << varChange[i][2 * j] << endl;
+          cerr << endl << "variable: " << i << ", value old: " << end << ", value should be: " << varChange[i][2 * j] << endl;
+          for (int j = 0; j < numVars; j++){
+            delete[] varChange[j];
+          }
+          delete[] varChange;
+          delete[] task;
           return -1;
         }
         if (varChange[i][2 * j + 1] != -1){
@@ -4928,6 +4958,11 @@ void Model::calcMinimalProgressionBound(bool to) {
         s[1]++;
       }
     }
+    for (int j = 0; j < numVars; j++){
+      delete[] varChange[j];
+    }
+    delete[] varChange;
+    delete[] task;
     return 0;
   }
   
