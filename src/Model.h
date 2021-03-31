@@ -210,8 +210,8 @@ namespace progression {
 			bool taskReachable(searchNode* tn, int t);
 #endif
 
-			int *minImpliedCosts;
-			int *minImpliedDistance;
+			int *minImpliedCosts = nullptr;
+			int *minImpliedDistance = nullptr;
 
 			void calcMinimalImpliedX();
 
