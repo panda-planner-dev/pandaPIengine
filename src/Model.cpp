@@ -83,11 +83,9 @@ namespace progression {
 		methodsFirstTasks = nullptr;
 		methodsLastTasks = nullptr;
 		methodSubtaskSuccNum = nullptr;
-#if RINTANEN_INVARIANTS || (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
 		addVectors = nullptr;
 		delVectors = nullptr;
 		s0Vector = nullptr;
-#endif
 
 		if (progressEffectLess) {
 			effectLess = new FlexIntStack();
@@ -146,15 +144,16 @@ newlyReachedMLMs = new noDelIntSet();
 		delete[] isPrimitive;
 		delete[] taskNames;
 		delete[] emptyMethod;
-#if RINTANEN_INVARIANTS == 1 || (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
-		for (int i = 0; i < numActions; i++) {
-			delete[] addVectors[i];
-			delete[] delVectors[i];
-		}
+
+		if(addVectors != nullptr) {
+            for (int i = 0; i < numActions; i++) {
+                delete[] addVectors[i];
+                delete[] delVectors[i];
+            }
+        }
 		delete[] addVectors;
 		delete[] delVectors;
 		delete[] s0Vector;
-#endif
 
 		if (!isHtnModel)
 			return;
@@ -611,14 +610,7 @@ newlyReachedMLMs = new noDelIntSet();
 #endif
 
 		searchNode *result = new searchNode;
-#if STATEREP == SRCOPY
 		result->state = n->state;
-#elif STATEREP == SRLIST
-		result->stateSize = n->stateSize;
-		result->state = new int[n->stateSize];
-		for (int i = 0; i < n->stateSize; i++)
-			result->state[i] = n->state[i];
-#endif
 		// prepare data structures
 		result->numPrimitive = n->numPrimitive + numFirstPrimSubTasks[method];
 		if (result->numPrimitive > 0) {
@@ -1011,7 +1003,6 @@ newlyReachedMLMs = new noDelIntSet();
 		// maintain state
 		planStep *progressed = n->unconstraintPrimitive[taskNo];
 		assert(isPrimitive[progressed->task]);
-#if STATEREP == SRCOPY
 		result->state = n->state;
 
 		for (int i = 0; i < numDels[progressed->task]; i++) {
@@ -1020,42 +1011,7 @@ newlyReachedMLMs = new noDelIntSet();
 		for (int i = 0; i < numAdds[progressed->task]; i++) {
 			result->state[addLists[progressed->task][i]] = true;
 		}
-#elif STATEREP == SRLIST
-		result->state = new int[n->stateSize + numAdds[progressed->task]];
-		int iNew = 0;
-		int iOld = 0;
-		int iAdd = 0;
-		int iDel = 0;
-		while (true) {
-			if (iOld >= n->stateSize && iAdd >= numAdds[progressed->task]) {
-				result->stateSize = iNew;
-				break;
-			} else if (iOld >= n->stateSize && iAdd < numAdds[progressed->task]) {
-				result->state[iNew] = addLists[progressed->task][iAdd]; // here, del is irrelevant
-				iNew++;
-				iAdd++;
-			} else if ((iOld < n->stateSize && iAdd >= numAdds[progressed->task])
-					|| (addLists[progressed->task][iAdd] > n->state[iOld])) {
-				while ((iDel < numDels[progressed->task])
-						&& (delLists[progressed->task][iDel] < n->state[iOld])) {
-					iDel++;
-				}
-				if ((iDel >= numDels[progressed->task])
-						|| (delLists[progressed->task][iDel] != n->state[iOld])) {
-					result->state[iNew] = n->state[iOld];
-					iNew++;
-				} // else, this bit has been deleted by the action
-				iOld++;
-			} else if (addLists[progressed->task][iAdd] < n->state[iOld]) {
-				// same case as above, but now I know that the indices are small enough
-				result->state[iNew] = addLists[progressed->task][iAdd];// here, del is irrelevant
-				iNew++;
-				iAdd++;
-			} else { // old state bit and add are equal
-				iOld++;
-			}
-		}
-#endif
+
 		assert(isApplicable(n, progressed->task));
 		// every successor of ps is a first task if and only if it is
 		// not a successor of any task in the firstTasks list.
@@ -1435,8 +1391,6 @@ newlyReachedMLMs = new noDelIntSet();
 		return result;
 	}
 
-#if STATEREP == SRCOPY
-
 	bool Model::isApplicable(searchNode *n, int action) const {
 		for (int i = 0; i < numPrecs[action]; i++) {
 			if (!n->state[precLists[action][i]])
@@ -1454,82 +1408,6 @@ newlyReachedMLMs = new noDelIntSet();
 		}
 		return true;
 	}
-
-#elif STATEREP == SRLIST
-
-	bool Model::isApplicable(searchNode *n, int action) const {
-		int precI = 0;
-		int stateI = 0;
-		while (true) {
-			if (precI == numPrecs[action])
-				return true;
-			if (stateI == n->stateSize)
-				return false;
-			if (precLists[action][precI] > n->state[stateI]) {
-				stateI++;
-			} else if (precLists[action][precI] == n->state[stateI]) {
-				precI++;
-				stateI++;
-			} else { // i.e. precLists[action][precI] < n->state[stateI]
-				return false;
-			}
-		}
-		return true;
-	}
-
-	bool Model::isGoal(searchNode *n) const {
-		if ((n->numAbstract > 0) || (n->numPrimitive > 0))
-			return false;
-		int gI = 0;
-		int stateI = 0;
-		while (gI < gSize) {
-			if (gList[gI] > n->state[stateI]) {
-				stateI++;
-			} else if (gList[gI] == n->state[stateI]) {
-				gI++;
-				stateI++;
-			} else { // i.e. gList[precI] < n->state[stateI]
-				return false;
-			}
-		}
-		return true;
-	}
-
-#elif (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
-
-	bool Model::stateFeatureHolds(int f, searchNode* n) const {
-		solutionStep* sol = n->solution;
-		while (sol->prev != nullptr) {
-			if (isPrimitive[sol->task]) {
-				if (addVectors[sol->task][f])
-					return true;
-				if (delVectors[sol->task][f])
-					return false;
-			}
-			sol = sol->prev;
-		}
-		return s0Vector[f];
-	}
-
-	bool Model::isApplicable(searchNode *n, int action) const {
-		for (int i = 0; i < numPrecs[action]; i++) {
-			if (!stateFeatureHolds(precLists[action][i], n))
-				return false;
-		}
-		return true;
-	}
-
-	bool Model::isGoal(searchNode *n) const {
-		if ((n->numAbstract > 0) || (n->numPrimitive > 0))
-			return false;
-		for (int i = 0; i < gSize; i++) {
-			if (!stateFeatureHolds(gList[i], n))
-				return false;
-		}
-		return true;
-	}
-
-#endif
 
 	void Model::updateReachability(searchNode *n) {
 		for (int i = 0; i < n->numAbstract; i++) {
@@ -2170,33 +2048,32 @@ newlyReachedMLMs = new noDelIntSet();
 		}
 	}
 
-#if RINTANEN_INVARIANTS == 1 || (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
-	void Model::generateVectorRepresentation() {
-		addVectors = new bool*[numActions];
-		delVectors = new bool*[numActions];
-		for (int i = 0; i < numActions; i++) {
-			addVectors[i] = new bool[numStateBits];
-			delVectors[i] = new bool[numStateBits];
-			for (int j = 0; j < numStateBits; j++) {
-				addVectors[i][j] = false;
-				delVectors[i][j] = false;
-			}
-			for (int j = 0; j < numAdds[i]; j++) {
-				addVectors[i][addLists[i][j]] = true;
-			}
-			for (int j = 0; j < numDels[i]; j++) {
-				delVectors[i][delLists[i][j]] = true;
-			}
-		}
-		s0Vector = new bool[numStateBits];
-		for (int i = 0; i < numStateBits; i++) {
-			s0Vector[i] = false;
-		}
-		for (int i = 0; i < s0Size; i++) {
-			s0Vector[s0List[i]] = true;
-		}
-	}
-#endif
+    void Model::generateVectorRepresentation() {
+        addVectors = new bool *[numActions];
+        delVectors = new bool *[numActions];
+        for (int i = 0; i < numActions; i++) {
+            addVectors[i] = new bool[numStateBits];
+            delVectors[i] = new bool[numStateBits];
+            for (int j = 0; j < numStateBits; j++) {
+                addVectors[i][j] = false;
+                delVectors[i][j] = false;
+            }
+            for (int j = 0; j < numAdds[i]; j++) {
+                addVectors[i][addLists[i][j]] = true;
+            }
+            for (int j = 0; j < numDels[i]; j++) {
+                delVectors[i][delLists[i][j]] = true;
+            }
+        }
+        s0Vector = new bool[numStateBits];
+        for (int i = 0; i < numStateBits; i++) {
+            s0Vector[i] = false;
+        }
+        for (int i = 0; i < s0Size; i++) {
+            s0Vector[s0List[i]] = true;
+        }
+    }
+
 
 	void Model::read(istream *inputStream) {
 		string line;
@@ -2207,9 +2084,9 @@ newlyReachedMLMs = new noDelIntSet();
 		if (isHtnModel) {
 			generateMethodRepresentation();
 		}
-#if RINTANEN_INVARIANTS == 1 || (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
-		generateVectorRepresentation();
-#endif
+        if(rintanenInvariants) {
+            generateVectorRepresentation();
+        }
 
 #if DLEVEL == 5
 		printActions();
@@ -2759,20 +2636,13 @@ newlyReachedMLMs = new noDelIntSet();
 	searchNode *Model::prepareTNi(const Model *htn) {
 		// prepare initial node
 		searchNode *tnI = new searchNode;
-#if STATEREP == SRCOPY
 		for (int i = 0; i < htn->numStateBits; i++) {
 			tnI->state.push_back(false);
 		}
 		for (int i = 0; i < htn->s0Size; i++) {
 			tnI->state[htn->s0List[i]] = true;
 		}
-#elif STATEREP == SRLIST
-		tnI->stateSize = htn->s0Size;
-		tnI->state = new int[htn->s0Size];
-		for (int i = 0; i < htn->s0Size; i++) {
-			tnI->state[i] = htn->s0List[i];
-		}
-#endif
+
 		tnI->numPrimitive = 0;
 		tnI->unconstraintPrimitive = nullptr;
 		tnI->numAbstract = 1;

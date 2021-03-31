@@ -26,19 +26,6 @@
 
 #include "symbolic_search/automaton.h"
 
-#ifdef RCHEURISTIC
-#include "heuristics/rcHeuristics/hsAddFF.h"
-#include "heuristics/rcHeuristics/hsLmCut.h"
-#include "heuristics/rcHeuristics/hsFilter.h"
-#endif
-#ifdef RCHEURISTIC2
-
-#include "heuristics/rcHeuristics/hsAddFF.h"
-#include "heuristics/rcHeuristics/hsLmCut.h"
-#include "heuristics/rcHeuristics/hsFilter.h"
-#include "heuristics/rcHeuristics/hhRC2.h"
-
-#endif
 
 #include "intDataStructures/IntPairHeap.h"
 #include "intDataStructures/bIntSet.h"

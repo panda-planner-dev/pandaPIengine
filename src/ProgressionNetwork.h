@@ -60,10 +60,8 @@ struct planStep {
 #endif
 	int numSuccessors;
 	planStep** successorList = nullptr;
-#ifdef MAINTAINREACHABILITY
 	int numReachableT;
 	int* reachableT = nullptr;
-#endif
 
     // todo: delete the following two values when RC is replaced by RC2
 	int numGoalFacts;
@@ -75,12 +73,7 @@ struct planStep {
 };
 
 struct searchNode {
-#if STATEREP == SRCOPY
 	vector<bool> state;
-#elif STATEREP == SRLIST
-	int* state = nullptr;
-	int stateSize;
-#endif
 	int numAbstract;
 	int numPrimitive;
 	planStep** unconstraintAbstract;

@@ -89,11 +89,11 @@ namespace progression {
 
 			int ***conditionalAddListsCondition;
 			int ***conditionalDelListsCondition;
-#if RINTANEN_INVARIANTS == 1 || (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
+
+			bool rintanenInvariants = false;
 			bool* s0Vector;
 			bool** addVectors;
 			bool** delVectors;
-#endif
 
 			int numPrecLessActions;
 			int *precLessActions;
@@ -183,10 +183,6 @@ namespace progression {
 			bool isApplicable(searchNode *n, int action) const;
 
 			bool isGoal(searchNode *n) const;
-
-#if (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
-			bool stateFeatureHolds(int f, searchNode* n) const;
-#endif
 
 			FlexIntStack *effectLess = nullptr;
 			int numEffLessProg = 0;
