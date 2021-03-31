@@ -26,7 +26,7 @@ groupoption "interactive" I "interactive search" group="planningAlgorithm"
 
 section "Progression Search Options"
 
-option "heuristic" H "specify a heuristic [default=rc(ff)]" string multiple default="rc(ff)"
+option "heuristic" H "specify a heuristic [default=rc(ff)]" string multiple default="rc2(ff)"
 option "astarweight" w "weight of the heuristic for A* [default=1]" int default="1"
 option "gValue" g "g value (path,action,mixed,none) [default=path]" string values="path","action","mixed","none" default="path"
 option "suboptimal" - "suboptimal search (early goal test and visited lists ignores costs) [default=off]" flag off
