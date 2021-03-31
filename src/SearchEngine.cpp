@@ -204,7 +204,11 @@ int main(int argc, char *argv[]) {
 	
 		int hLength = args_info.heuristic_given;
 		cout << "Parsing heuristics ..." << endl;
-		cout << "Number of heuristics: " << hLength << endl;
+		cout << "Number of specified heuristics: " << hLength << endl;
+		if (hLength == 0){
+			cout << "No heuristics given, setting default ... " << endl;
+			hLength = 1;
+		}
     	Heuristic **heuristics = new Heuristic *[hLength];
 		for (int i = 0; i < hLength; i++){
 			auto [hName, args] = parse_heuristic_with_arguments_from_braced_expression(args_info.heuristic_arg[i]);
