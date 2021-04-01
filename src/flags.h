@@ -31,6 +31,9 @@ typedef int tHVal;
 // * Configuration *
 // *****************
 
+// don't perform tests
+#define NTEST
+
 // select a state representation
 #define STATEREP SRCOPY // choose from [state-representation]
 
