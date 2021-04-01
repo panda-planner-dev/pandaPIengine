@@ -5,6 +5,47 @@
 #include <unordered_map>
 
 
+
+struct hash_table{
+	int buckets;
+	void** table;
+	hash_table(): buckets(1024*1024) {
+		table = (void**) calloc(buckets, sizeof(void*));
+		for (int i = 0; i < buckets; i++) table[i] = nullptr;
+	}
+	void* & get(int x){return table[x % buckets];}
+};
+
+struct sequence_trie {
+	uint64_t payload;
+	uint64_t * value;
+	uint16_t blocks;
+	uint8_t myFirstBlock;
+	uint8_t ignoreBitsFirst;
+	uint8_t ignoreBitsLast;
+	
+	sequence_trie * zero;
+	sequence_trie * one;
+
+	sequence_trie(const vector<uint64_t> & sequence, int paddingBits, uint64_t * & p);
+	void test_and_insert(const vector<uint64_t> & sequence, int paddingBits, uint64_t* & p);
+	
+	~sequence_trie();
+	void print_tree(int indent);
+	void print_node(int indent);
+private:
+	void split_me_at(int block, int bit);
+	// constructors only used internally
+	sequence_trie();
+	sequence_trie(const vector<uint64_t> & sequence, int startingBlock, int startingBit, int paddingBits, uint64_t* & p);
+	void check_integrity();
+};
+
+
+
+
+
+
 typedef	tuple<vector<uint64_t>
 #ifdef POVISI_HASH	
 		,int
@@ -105,12 +146,16 @@ private:
 	bool useTotalOrderMode;
 	bool useSequencesMode;
 
+
+	hash_table stateTable;	
+
+
+
+
+
+
 #if (TOVISI == TOVISI_SEQ)
-#ifndef SAVESEARCHSPACE 
 	map<vector<uint64_t>, set<vector<int>>> visited;
-#else
-	map<vector<uint64_t>, map<vector<int>,int>> visited;
-#endif
 #elif (TOVISI == TOVISI_PRIM)
 	map<vector<uint64_t>, unordered_set<int>> visited;
 #elif (TOVISI == TOVISI_PRIM_EXACT)

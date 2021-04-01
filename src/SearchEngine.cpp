@@ -112,9 +112,13 @@ enum planningAlgorithm{
 	PROGRESSION,SAT,BDD,INTERACTIVE
 };
 
+void test();
+void speed_test();
 
 
 int main(int argc, char *argv[]) {
+	speed_test();
+	return 42;
 #ifndef NDEBUG
     cout
             << "You have compiled the search engine without setting the NDEBUG flag. This will make it slow and should only be done for debug."
