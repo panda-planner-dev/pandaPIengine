@@ -8,7 +8,7 @@
 using namespace std;
 
 struct compressed_sequence_trie {
-	uint64_t payload;
+	void* payload;
 	uint64_t * value;
 	uint16_t blocks;
 	uint16_t myFirstBlock;
@@ -18,8 +18,8 @@ struct compressed_sequence_trie {
 	compressed_sequence_trie * zero;
 	compressed_sequence_trie * one;
 
-	compressed_sequence_trie(const vector<uint64_t> & sequence, int paddingBits, uint64_t * & p);
-	void insert(const vector<uint64_t> & sequence, int paddingBits, uint64_t* & p);
+	compressed_sequence_trie(const vector<uint64_t> & sequence, int paddingBits, void* * & p);
+	void insert(const vector<uint64_t> & sequence, int paddingBits, void** & p);
 	
 	~compressed_sequence_trie();
 	void print_tree(int indent);
@@ -28,7 +28,7 @@ private:
 	void split_me_at(int block, int bit);
 	// constructors only used internally
 	compressed_sequence_trie();
-	compressed_sequence_trie(const vector<uint64_t> & sequence, int startingBlock, int startingBit, int paddingBits, uint64_t* & p);
+	compressed_sequence_trie(const vector<uint64_t> & sequence, int startingBlock, int startingBit, int paddingBits, void** & p);
 	void check_integrity();
 };
 

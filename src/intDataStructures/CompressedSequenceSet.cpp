@@ -1,5 +1,6 @@
 #include "CompressedSequenceSet.h"
 #include "SequenceSetCommon.h"
+#include "HashTable.h"
 #include <bitset>
 #include <iostream>
 #include <iomanip>
@@ -39,7 +40,7 @@ void compressed_sequence_trie::print_tree(int indent){
 }
 
 compressed_sequence_trie::compressed_sequence_trie(){
-	payload = 0;
+	payload = nullptr;
 	blocks = 0;
 	ignoreBitsFirst = 0;
 	ignoreBitsLast = 0;
@@ -54,7 +55,7 @@ compressed_sequence_trie::~compressed_sequence_trie(){
 	delete one;
 }
 
-compressed_sequence_trie::compressed_sequence_trie(const vector<uint64_t> & sequence, int paddingBits, uint64_t* & p) : compressed_sequence_trie(){
+compressed_sequence_trie::compressed_sequence_trie(const vector<uint64_t> & sequence, int paddingBits, void** & p) : compressed_sequence_trie(){
 	blocks = sequence.size();
 	p = &payload;
 	myFirstBlock = 0;
@@ -68,7 +69,7 @@ compressed_sequence_trie::compressed_sequence_trie(const vector<uint64_t> & sequ
 }
 
 
-compressed_sequence_trie::compressed_sequence_trie(const vector<uint64_t> & sequence, int startingBlock, int startingBit, int paddingBits, uint64_t* & p) : compressed_sequence_trie(){
+compressed_sequence_trie::compressed_sequence_trie(const vector<uint64_t> & sequence, int startingBlock, int startingBit, int paddingBits, void** & p) : compressed_sequence_trie(){
 	blocks = sequence.size() - startingBlock;
 	p = &payload;
 	myFirstBlock = 0;
@@ -133,7 +134,7 @@ void compressed_sequence_trie::split_me_at(int block, int bit){
 }
 
 
-void compressed_sequence_trie::insert(const vector<uint64_t> & sequence, int paddingBits, uint64_t* & p){
+void compressed_sequence_trie::insert(const vector<uint64_t> & sequence, int paddingBits, void** & p){
 	// all of the padding bits must actually be zero, else the testing of the difference breaks
 	assert((sequence.back() & ~bitmask_ignore_last(paddingBits)) == 0);
 
@@ -323,23 +324,11 @@ struct hash<pair<vector<uint64_t>,int>> {
 }
 
 
-struct hash_table{
-	int buckets;
-	void** table;
-	hash_table(): buckets(1024*1024) {
-		table = (void**) calloc(buckets, sizeof(void*));
-		for (int i = 0; i < buckets; i++) table[i] = nullptr;
-	}
-	void* & get(unsigned int x){return table[x % buckets];}
-};
-
-
-
 
 void speed_test(){
 	cout << "SIZE " << sizeof(compressed_sequence_trie) << endl;
 
-	int numbers = 5 * 1000 * 1000;
+	int numbers = 3 * 1000 * 1000;
 	int lenMax = 40;
 
 	setDebugMode(false);
@@ -367,7 +356,8 @@ void speed_test(){
 	srand(42);
 
 	printMemory();
-	hash_table tab;
+	hash_table tab (10 * 1000 * 1000);
+	printMemory();
 	std::clock_t beforeTrie = std::clock();
 	for (int j = 0 ; j < numbers; j++){
 		vector<uint64_t> vec;
@@ -379,16 +369,16 @@ void speed_test(){
 		vec.push_back((uint64_t(rand()) * uint64_t(rand())) & bitmask_ignore_last(padding));
 
 		size_t h = hash<vector<uint64_t>>{}(vec);
-		compressed_sequence_trie * t = (compressed_sequence_trie*) tab.get(h);
+		compressed_sequence_trie ** t = (compressed_sequence_trie**) tab.get(h);
 
-		uint64_t *pay;
-		if (!t)
-			t = new compressed_sequence_trie(vec,padding,pay);
+		void* *pay;
+		if (!*t)
+			*t = new compressed_sequence_trie(vec,padding,pay);
 		else {
-			t->insert(vec,padding,pay);
+			(*t)->insert(vec,padding,pay);
 		}
 		
-		*pay = j+1;
+		*(uint64_t*)pay = j+1;
 	}
 	
 	std::clock_t afterTrie = std::clock();
@@ -419,7 +409,7 @@ void test(){
 		DEBUG(cout << endl << endl << endl);
 		cout << "pushing #" << j << " "; for (uint64_t v : vec) cout << v << ","; cout << " pad: " << padding; 
 
-		uint64_t *pay;
+		void* *pay;
 		if (!t)
 			t = new compressed_sequence_trie(vec,padding,pay);
 		else {
@@ -432,18 +422,18 @@ void test(){
 		if (data.count(make_pair(vec,padding)) == 0)
 			assert(*pay == 0);
 		else
-			assert(*pay == data[make_pair(vec,padding)]);
+			assert(*(uint64_t*)pay == data[make_pair(vec,padding)]);
 	
-		*pay = j + 1;
-		data[make_pair(vec,padding)] = *pay;
+		*(uint64_t*)pay = j + 1;
+		data[make_pair(vec,padding)] = *(uint64_t*)pay;
 
 		// check integrity of the tree in every step
 		for (auto [key,value] : data){
-			uint64_t *pay = nullptr;
+			void* *pay = nullptr;
 			auto [vec,padding] = key;
 			t->insert(vec,padding,pay);
 			DEBUG(cout << "checking "; for (uint64_t v : vec) cout << v << ","; cout << " pad: " << padding << " @ " << pay << endl);
-			assert(*pay == value);
+			assert(*(uint64_t*)pay == value);
 		}
 	}
 

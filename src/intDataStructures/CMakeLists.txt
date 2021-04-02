@@ -7,6 +7,7 @@ add_library(intDataStructures bIntSet.cpp bIntSet.h
         IntUtil.cpp IntUtil.h
         noDelIntSet.cpp noDelIntSet.h
         StringUtil.cpp StringUtil.h
+		HashTable.cpp HashTable.h
 		SequenceSet.cpp SequenceSet.h
 		CompressedSequenceSet.cpp CompressedSequenceSet.h
 		SequenceSetCommon.h

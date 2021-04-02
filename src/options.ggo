@@ -14,7 +14,8 @@ section "General Options"
 
 option "debug" d "activate debug mode" optional
 option "seed" S "specify the random seed [default=42]" int default="42"
-option "timelimit" T "specify timelimit in seconds [default=1800]" int default="1800"
+option "timelimit" t "specify timelimit in seconds [default=1800]" int default="1800"
+option "noPlanOutput" N "don't output the plan [default=print plan]" flag off
 
 section "Planner Selection" sectiondesc="default=progression"
 
@@ -31,8 +32,14 @@ option "astarweight" w "weight of the heuristic for A* [default=1]" int default=
 option "gValue" g "g value (path,action,mixed,none) [default=path]" string values="path","action","mixed","none" default="path"
 option "suboptimal" - "suboptimal search (early goal test and visited lists ignores costs) [default=off]" flag off
 
+section "Visited List Options"
+
+option "noVisitedList" V "disable visited lists [default=with lists]" flag off
+option "taskHash" T "disable task hashing [default=with task hash]" flag on
+option "topologicalOrdering" O "disable visited checking with task sequences, this makes totally-ordered visited lists incomplete [default=with order]" flag on
 
 section "SAT Planner Options"
+
 option "blockcompression" B "apply block compression [default=on]" flag on
 option "satmutexes" M "encode SAT mutexes [default=on]" flag on
 option "pruning" P "pruning mode (none,ff,h2) [default=ff]" string values="none","ff","h2" default="ff"

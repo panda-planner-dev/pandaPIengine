@@ -264,7 +264,7 @@ void stat(sequence_trie * t, int & nodes, int & fill){
 
 // only for testing purposes, thus non clean imports ...
 void printMemory();
-vector<uint64_t> state2Int(vector<bool> &state);
+
 
 void sequence_trie_speed_test(){
 	cout << "SIZE " << sizeof(sequence_trie) << endl;

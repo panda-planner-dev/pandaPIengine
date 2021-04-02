@@ -55,10 +55,6 @@ typedef int tHVal;
 #define TOVISI_PRIM_EXACT 3
 #define TOVISI TOVISI_PRIM_EXACT
 
-//#define NOVISI
-
-
-
 #define POVISI_EXACT
 #define POVISI_HASH
 #define POVISI_LAYERS

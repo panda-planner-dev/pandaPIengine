@@ -1,5 +1,6 @@
 #include "VisitedList.h"
 #include "Debug.h"
+#include "Util.h"
 #include "../Model.h"
 #include <cassert>
 #include <chrono>
@@ -10,28 +11,39 @@
 #include <list>
 #include <bitset>
 #include "../intDataStructures/IntPairHeap.h"
+#include "../intDataStructures/CompressedSequenceSet.h"
+
+const uint64_t max32BitP = 2147483647;
+const uint64_t tenMillionP = 16777213; // largest prime smaller than 16*1024*1014
+const uint64_t oneMillionP = 1048573; // largest prime smaller than 1024*1014
+const uint64_t tenThousandP = 16381; // largest prime smaller than 1024*16
+const uint64_t tenThousandthP = 104729; // the 10.000th prime number
 
 
-vector<uint64_t> state2Int(vector<bool> &state) {
+pair<vector<uint64_t>,int> state2Int(vector<bool> &state) {
     int pos = 0;
     uint64_t cur = 0;
     vector<uint64_t> vec;
     for (bool b : state) {
-        if (pos == 64) {
-            vec.push_back(cur);
-            pos = 0;
-            cur = 0;
-        }
-
         if (b)
             cur |= uint64_t(1) << pos;
 
         pos++;
+
+		if (pos == 64) {
+            vec.push_back(cur);
+            pos = 0;
+            cur = 0;
+        }
     }
 
-    if (pos) vec.push_back(cur);
+	int padding = 0;
+    if (pos) {
+		vec.push_back(cur);
+		padding = 64 - pos;
+	}
 
-    return vec;
+    return {vec,padding};
 }
 
 
@@ -49,18 +61,45 @@ uint64_t hash_state(const vector<uint64_t> & v) {
 
 
 
-VisitedList::VisitedList(Model *m) {
+VisitedList::VisitedList(Model *m, bool _noVisitedCheck, bool _taskHash, bool _topologicalOrdering) {
     this->htn = m;
-    this->useTotalOrderMode = this->htn->isTotallyOrdered;
+	this->noVisitedCheck = _noVisitedCheck;
+
+	// auto detect properties of the problem
+	this->useTotalOrderMode = this->htn->isTotallyOrdered;
     this->useSequencesMode = this->htn->isParallelSequences;
-    this->canDeleteProcessedNodes = this->useTotalOrderMode || this->useSequencesMode;
-#ifdef NOVISI
-    this->canDeleteProcessedNodes = true;
-#endif
+    this->canDeleteProcessedNodes = this->noVisitedCheck || this->useTotalOrderMode || this->useSequencesMode;
+
+	this->taskHash = _taskHash;
+	this->topologicalOrdering = _topologicalOrdering;
+
+
+	this->hashingP = tenMillionP; 
+	this->stateTable = new hash_table(hashingP);
+	this->bitsNeededPerTask = sizeof(int)*8 -  __builtin_clz(m->numTasks - 1);
+
+	if (_noVisitedCheck)
+    	this->canDeleteProcessedNodes = true;
 #ifndef POVISI_EXACT
     this->canDeleteProcessedNodes = true;
 #endif
-    cout << "- Visited list allows deletion of search nodes: " << ((this->canDeleteProcessedNodes) ? "true" : "false")
+
+	cout << "Visited List configured" << endl;
+	if (this->noVisitedCheck)
+		cout << "- disabled" << endl;
+	else {
+		cout << "- hashs to use: state";
+		if (this->taskHash) cout << " task";
+		cout << endl;
+	
+		cout << "- memory information:";
+		if (this->topologicalOrdering) cout << " topological ordering";
+		cout << endl;
+		
+		if ((this->useTotalOrderMode || this->useSequencesMode) && !this->topologicalOrdering)
+			cout << "- ATTENTION: pruning is " << color(RED,"INCOMPLETE") << endl;
+	}
+	cout << "- Visited list allows deletion of search nodes: " << ((this->canDeleteProcessedNodes) ? "true" : "false")
          << endl;
 }
 
@@ -254,73 +293,109 @@ vector<int> *VisitedList::topSort(searchNode *n) {
     return res;
 }
 
-int VisitedList::getHash(vector<int> *seq) {
-    const int bigP = 2147483647;
-    long hash = 0;
+uint32_t VisitedList::getHash(vector<int> *seq) {
+    const uint64_t bigP = max32BitP;
+    uint64_t hash = 0;
     for (int i = 0; i < seq->size(); i++) {
         hash *= htn->numTasks;
         hash += seq->at(i);
         hash %= bigP;
     }
     hash += INT32_MIN;
-    return (int) hash;
+    return (uint32_t) hash;
 }
 
-bool insertVisi2(searchNode *n) {
-    return true;
-}
-
-bool VisitedList::insertVisi(searchNode *n) {
-#ifdef NOVISI
-    return true;
-#endif
 
 
-    //vector<int> *traversal = topSort(n);
-    //int hash2 = getHash(traversal);
-
-
-
-
-    //set<planStep*> psp; map<planStep*,int> prec;
-    //for (int a = 0; a < n->numAbstract; a++) dfsdfs(n->unconstraintAbstract[a], psp, prec);
-    //for (int a = 0; a < n->numPrimitive; a++) dfsdfs(n->unconstraintPrimitive[a], psp, prec);
-    //vector<int> seq;
-
-    //while (psp.size()){
-    //	for (planStep * ps : psp)
-    //		if (prec[ps] == 0){
-    //			seq.push_back(ps->task);
-    //			psp.erase(ps);
-    //			for (int ns = 0; ns < ps->numSuccessors; ns++)
-    //				prec[ps->successorList[ns]]--;
-    //			break;
-    //		}
-    //}
-
-
-    //return true;
-
-    attemptedInsertions++;
-    std::clock_t before = std::clock();
-    vector<uint64_t> ss = state2Int(n->state);
-
-#if (TOVISI == TOVISI_PRIM) || (TOVISI == TOVISI_PRIM_EXACT)
-    long lhash = 1;
+// computes the task count hash
+// completely ignores order of tasks, but still considers how often specific types of tasks occur
+size_t VisitedList::taskCountHash(searchNode * n){
+	uint64_t lhash = 1;
     for (int i = 0; i < n->numContainedTasks; i++) {
-        int numTasks = this->htn->numTasks;
-        int task = n->containedTasks[i];
-        int count = n->containedTaskCount[i];
-        //cout << task << " " << count << endl;
-        for (int j = 0; j < count; j++) {
-            int p_index = j * numTasks + task;
-            int p = getPrime(p_index);
-            //icout << "p: " << p << endl;
+        uint64_t numTasks = this->htn->numTasks;
+        uint64_t task = n->containedTasks[i];
+        uint64_t count = n->containedTaskCount[i];
+        DEBUG(cout << task << " " << count << endl);
+        for (unsigned int j = 0; j < count; j++) {
+            unsigned int p_index = j * numTasks + task;
+            unsigned int p = getPrime(p_index);
+            DEBUG(cout << "p: " << p << endl);
             lhash = lhash * p;
-            lhash = lhash % 104729;
+            lhash = lhash % tenThousandthP;
         }
     }
-    int hash = (int) lhash;
+    return lhash;
+}
+
+
+
+bool VisitedList::insertVisi(searchNode *n) {
+    if (noVisitedCheck) return true;
+
+    std::clock_t before = std::clock();
+    attemptedInsertions++;
+
+	// 1. STEP
+	// compute the exact information
+	vector<bool> exactBitString = n->state;
+	// add everything we choose to append to the bitstring
+
+	if (topologicalOrdering){
+		vector<int> seq;
+		if (useTotalOrderMode){
+        	if (n->numPrimitive) to_dfs(n->unconstraintPrimitive[0], seq);
+        	if (n->numAbstract) to_dfs(n->unconstraintAbstract[0], seq);
+		} else {
+			assert(false); // XXX idea of ICAPS reviewer
+		}
+
+		for (int task : seq)
+			for (int bit = 0; bit < bitsNeededPerTask; bit++)
+				exactBitString.push_back(task & (1 << bit));
+	}
+
+
+
+	// state access
+    auto [vector,padding] = state2Int(exactBitString);
+
+	// 2. STEP
+	// compute the hashs
+	uint64_t hash = hash_state(state2Int(n->state).first); // TODO double computation ...
+	if (taskHash)
+		hash = hash ^ taskCountHash(n);
+
+	// ACCESS Phase
+	// access the hash hable
+	compressed_sequence_trie ** stateEntry = (compressed_sequence_trie**) stateTable->get(hash);
+	void ** payload;
+	if (!*stateEntry)
+		*stateEntry = new compressed_sequence_trie(vector,padding,payload);
+	else {
+		(*stateEntry)->insert(vector,padding,payload);
+	}
+
+	// 1. CASE
+	// problem is totally ordered -- then we can use the total order mode
+	if (useTotalOrderMode) {
+		// check if node was new
+		DEBUG(cout << "HASH     : " << hash << endl);
+		DEBUG(cout << "READ     : " << *payload << endl);
+		bool returnValue = *payload == nullptr;
+		*payload = (void*) 1; // now the hash is known
+		
+		std::clock_t after = std::clock();
+        this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
+		if (returnValue) uniqueInsertions++;
+		return returnValue;
+	}
+
+
+	return false;
+
+/*
+
+#if (TOVISI == TOVISI_PRIM) || (TOVISI == TOVISI_PRIM_EXACT)
 #endif
 
 
@@ -506,4 +581,5 @@ bool VisitedList::insertVisi(searchNode *n) {
         this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
         return true;
     }
+*/
 }
