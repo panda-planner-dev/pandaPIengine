@@ -49,9 +49,7 @@ planStep::~planStep() {
 		}
 	}
 	delete[] successorList;
-#ifdef MAINTAINREACHABILITY
 	delete[] reachableT;
-#endif
 #ifdef RCHEURISTIC
 	delete[] goalFacts;
 #endif
@@ -105,9 +103,6 @@ searchNode::~searchNode() {
 	delete[] containedTasks;
 	delete[] containedTaskCount;
 
-#if STATEREP == SRLIST
-	delete[] state;
-#endif
 }
 
 

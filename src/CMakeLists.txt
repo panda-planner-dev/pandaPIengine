@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.13)
 set(CMAKE_CXX_STANDARD 17)
+
+set(CPLEX_SOURCE_DIR /home/gregor/Workspace/cplex)
+# set(CPLEX_SOURCE_DIR /home/dh/Programme/CPLEX_Studio1210)
+
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(SAT "Compile with the SAT planner" ON)

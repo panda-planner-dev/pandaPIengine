@@ -21,22 +21,10 @@ typedef int tHVal;
 #define LMCANDOR 8
 #define LMCFD 9
 
-// [state-representation]
-#define SRCOPY 0  // copy bit vector that represents state
-#define SRCALC1 1 // calculate state based on current plan
-#define SRCALC2 2 // calculate state based on current plan
-#define SRLIST 3  // maintain int list with bits currently set
 
-// *****************
-// * Configuration *
-// *****************
 
 // don't perform tests
 #define NTEST
-
-// select a state representation
-#define STATEREP SRCOPY // choose from [state-representation]
-
 
 // the following options are preliminary and not part of final version -> can be kept as compiler flags until they are finished
 //#define ONEMODMETH // todo: this was always buggy, but the case is compiled away anyway
@@ -45,29 +33,15 @@ typedef int tHVal;
 //#define TRACKLMSFULL
 //#define TRACKLMS
 
+// todo switch new implementation second
+//RCHEURISTIC
 
 
-
-//#define TREATSCCS // prevent disconnected components
-#define INITSCCS
-
-#define DOFTASKREACHABILITY // store the hierarchical task reachability in the ILP to make  it easier to solve
-//#define CHECKAFTER 50 // nodes after which the timelimit is checked
-//#define MAINTAINREACHABILITY
-//#define ALLTASKS // it is needed for all tasks
-
+// The following are used by  the members of the search class. Since I do not consider them a parameter frequently
+// changed by the users, I am fine with keeping them here, to be changed only in special circumstances.
 #define CHECKAFTER 5000 // nodes after which the timelimit is checked
-#define MAINTAINREACHABILITY
-#define ONLYACTIONS // it is only needed for actions
-#ifndef OPTIMIZEUNTILTIMELIMIT
-#define OPTIMIZEUNTILTIMELIMIT false
-#endif
+#define OPTIMIZEUNTILTIMELIMIT false // search for more than one solution
 
-#ifndef CHECKAFTER
-#define CHECKAFTER 5000 // nodes after which the timelimit is checked
-#endif
-
-#define RINTANEN_INVARIANTS 1
 
 
 #define TRACESOLUTION
