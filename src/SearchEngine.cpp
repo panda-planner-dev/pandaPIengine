@@ -117,6 +117,7 @@ void speed_test();
 
 
 int main(int argc, char *argv[]) {
+	//test();
 	speed_test();
 	return 42;
 #ifndef NDEBUG

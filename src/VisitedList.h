@@ -16,33 +16,6 @@ struct hash_table{
 	void* & get(int x){return table[x % buckets];}
 };
 
-struct sequence_trie {
-	uint64_t payload;
-	uint64_t * value;
-	uint16_t blocks;
-	uint8_t myFirstBlock;
-	uint8_t ignoreBitsFirst;
-	uint8_t ignoreBitsLast;
-	
-	sequence_trie * zero;
-	sequence_trie * one;
-
-	sequence_trie(const vector<uint64_t> & sequence, int paddingBits, uint64_t * & p);
-	void test_and_insert(const vector<uint64_t> & sequence, int paddingBits, uint64_t* & p);
-	
-	~sequence_trie();
-	void print_tree(int indent);
-	void print_node(int indent);
-private:
-	void split_me_at(int block, int bit);
-	// constructors only used internally
-	sequence_trie();
-	sequence_trie(const vector<uint64_t> & sequence, int startingBlock, int startingBit, int paddingBits, uint64_t* & p);
-	void check_integrity();
-};
-
-
-
 
 
 
