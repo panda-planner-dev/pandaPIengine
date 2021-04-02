@@ -45,15 +45,7 @@ typedef int tHVal;
 
 
 #define TRACESOLUTION
-//#define SAVESEARCHSPACE
 
-
-
-//#define VISITEDONLYSTATISTICS
-#define TOVISI_SEQ  1
-#define TOVISI_PRIM 2
-#define TOVISI_PRIM_EXACT 3
-#define TOVISI TOVISI_PRIM_EXACT
 
 #define POVISI_EXACT
 #define POVISI_HASH
