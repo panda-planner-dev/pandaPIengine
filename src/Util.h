@@ -26,5 +26,6 @@ enum Color
  */
 std::string color (Color color, std::string text);
 
+void printMemory();
 
 #endif
