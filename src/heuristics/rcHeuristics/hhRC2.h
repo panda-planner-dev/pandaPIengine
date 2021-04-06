@@ -61,9 +61,10 @@ public:
                 cout
                         << "- the option \"store cuts\" of the RC heuristic can only be used with the inner heuristic LM-Cut. It will be disabled."
                         << endl;
-            } else {
-                htnModel->calcMinimalImpliedX();
-            }
+			}
+		}
+		if (correctTaskCount) {
+			htnModel->calcMinimalImpliedX();
         }
     }
 
@@ -195,7 +196,8 @@ public:
                     if (n->containedTaskCount[i] > 1) {
                         int task = n->containedTasks[i];
                         int count = n->containedTaskCount[i];
-                        if (estimate == estDISTANCE) {
+                        assert(task < htn->numTasks);
+						if (estimate == estDISTANCE) {
                             hval += (htn->minImpliedDistance[task] * (count - 1));
                         } else if (estimate == estCOSTS) {
                             hval += (htn->minImpliedCosts[task] * (count - 1));

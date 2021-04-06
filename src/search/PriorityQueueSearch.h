@@ -28,7 +28,7 @@ public:
 	virtual ~PriorityQueueSearch();
 
 template<class VisitedList, class Fringe>
-	void search(Model* htn, searchNode *tnI, int timeLimit, bool suboptimalSearch, Heuristic** hF, int hLength, VisitedList & visitedList, Fringe & fringe){
+	void search(Model* htn, searchNode *tnI, int timeLimit, bool suboptimalSearch, bool printSolution, Heuristic** hF, int hLength, VisitedList & visitedList, Fringe & fringe){
 		timeval tp;
 		gettimeofday(&tp, NULL);
 		long startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
@@ -75,6 +75,7 @@ template<class VisitedList, class Fringe>
 				delete n;
 				continue;	
 			}
+			//assert(!visitedList.insertVisi(n));
 			
 			if (!suboptimalSearch && htn->isGoal(n)) {
 				// A non-early goal test makes only sense in an optimal planning setting.
@@ -103,6 +104,7 @@ template<class VisitedList, class Fringe>
 						delete n2;
 						continue;	
 					}
+					//assert(!visitedList.insertVisi(n2));
 	
 
 					// compute the heuristic
@@ -148,6 +150,7 @@ template<class VisitedList, class Fringe>
 						delete n2;
 						continue;	
 					}
+					//assert(!visitedList.insertVisi(n2));
 	
 					// compute the heuristic
 					n2->heuristicValue = new int[hLength];
@@ -236,7 +239,7 @@ template<class VisitedList, class Fringe>
 			cout << "- Status: Solved" << endl;
 			cout << "- Found solution of length " << sLength << endl;
 			cout << "- Total costs of actions: " << tnSol->actionCosts << endl;
-			cout << sol << endl;
+			if (printSolution) cout << sol << endl;
 #ifdef TRACKLMSFULL
 			assert(tnSol->lookForT->size == 0);
 			assert(tnSol->lookForM->size == 0);

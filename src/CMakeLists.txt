@@ -1,10 +1,14 @@
 cmake_minimum_required(VERSION 3.13)
 set(CMAKE_CXX_STANDARD 17)
+
 set(CPLEX_SOURCE_DIR /home/gregor/Workspace/cplex)
+# set(CPLEX_SOURCE_DIR /home/dh/Programme/CPLEX_Studio1210)
+
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-option(SAT "Compile with the SAT planner" OFF)
+option(SAT "Compile with the SAT planner" ON)
 option(BDD "Compile with the Symbolic planner" OFF)
+##set(CPLEX_SOURCE_DIR /home/gregor/Workspace/cplex)
 
 
 ### if no build type is set, it is "Release"
@@ -21,9 +25,11 @@ add_definitions(-DIL_STD)
 list(APPEND compiler_flags -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -pedantic "$<$<CONFIG:DEBUG>:-Og;-ggdb3;-lpthread>" "$<$<CONFIG:RELEASE>:-O2;-lpthread>")
 
 if (CPLEX_SOURCE_DIR)
-	list(APPEND linker_flags "$<$<CONFIG:RELEASE>:-flto>")
+	list(APPEND linker_flags "$<$<CONFIG:DEBUG>:-lpthread;-g>" "$<$<CONFIG:RELEASE>:-flto;-lpthread>")
 else (CPLEX_SOURCE_DIR)
-	list(APPEND linker_flags "$<$<CONFIG:RELEASE>:-flto;-static;-static-libgcc>")
+	#list(APPEND linker_flags "$<$<CONFIG:DEBUG>:-lpthread>" "$<$<CONFIG:RELEASE>:-flto;-lpthread;-static;-static-libgcc>")
+	list(APPEND linker_flags "$<$<CONFIG:DEBUG>:-lpthread;-g>" "$<$<CONFIG:RELEASE>:-flto;-lpthread>")
+	list(APPEND compiler_flags -DCMAKE_NO_ILP)
 endif (CPLEX_SOURCE_DIR)
 
 if (SAT)
@@ -105,6 +111,3 @@ if (SAT)
 	target_link_libraries(pandaPIengine PUBLIC sat)
 endif (SAT)
 
-### Link Cudd
-add_dependencies(pandaPIengine libcudd)
-target_link_libraries(pandaPIengine PUBLIC ${CMAKE_BINARY_DIR}/libcudd-prefix/src/libcudd-build/cudd/.libs/libcudd.a)

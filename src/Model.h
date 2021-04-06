@@ -89,11 +89,11 @@ namespace progression {
 
 			int ***conditionalAddListsCondition;
 			int ***conditionalDelListsCondition;
-#if RINTANEN_INVARIANTS == 1 || (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
+
+			bool rintanenInvariants = false;
 			bool* s0Vector;
 			bool** addVectors;
 			bool** delVectors;
-#endif
 
 			int numPrecLessActions;
 			int *precLessActions;
@@ -184,10 +184,6 @@ namespace progression {
 
 			bool isGoal(searchNode *n) const;
 
-#if (STATEREP == SRCALC1) || (STATEREP == SRCALC2)
-			bool stateFeatureHolds(int f, searchNode* n) const;
-#endif
-
 			FlexIntStack *effectLess = nullptr;
 			int numEffLessProg = 0;
 #ifdef ONEMODMETH
@@ -210,8 +206,8 @@ namespace progression {
 			bool taskReachable(searchNode* tn, int t);
 #endif
 
-			int *minImpliedCosts;
-			int *minImpliedDistance;
+			int *minImpliedCosts = nullptr;
+			int *minImpliedDistance = nullptr;
 
 			void calcMinimalImpliedX();
 

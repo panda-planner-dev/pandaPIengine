@@ -26,19 +26,6 @@
 
 #include "symbolic_search/automaton.h"
 
-#ifdef RCHEURISTIC
-#include "heuristics/rcHeuristics/hsAddFF.h"
-#include "heuristics/rcHeuristics/hsLmCut.h"
-#include "heuristics/rcHeuristics/hsFilter.h"
-#endif
-#ifdef RCHEURISTIC2
-
-#include "heuristics/rcHeuristics/hsAddFF.h"
-#include "heuristics/rcHeuristics/hsLmCut.h"
-#include "heuristics/rcHeuristics/hsFilter.h"
-#include "heuristics/rcHeuristics/hhRC2.h"
-
-#endif
 
 #include "intDataStructures/IntPairHeap.h"
 #include "intDataStructures/bIntSet.h"
@@ -46,9 +33,9 @@
 #include "heuristics/rcHeuristics/RCModelFactory.h"
 #include "heuristics/landmarks/lmExtraction/LmFdConnector.h"
 #include "heuristics/landmarks/hhLMCount.h"
-
+#ifndef CMAKE_NO_ILP
 #include "heuristics/dofHeuristics/hhStatisticsCollector.h"
-
+#endif
 #include "VisitedList.h"
 
 #include "cmdline.h"
@@ -113,8 +100,11 @@ enum planningAlgorithm{
 };
 
 
+void speed_test();
 
 int main(int argc, char *argv[]) {
+	//speed_test();
+	//return 42;
 #ifndef NDEBUG
     cout
             << "You have compiled the search engine without setting the NDEBUG flag. This will make it slow and should only be done for debug."
@@ -168,11 +158,15 @@ int main(int argc, char *argv[]) {
 
 	//
 
+	bool useTaskHash = true;
+
+
 
     /* Read model */
     // todo: the correct value of maintainTaskRechability depends on the heuristic
     eMaintainTaskReachability reachability = mtrALL;
-    Model* htn = new Model(false, reachability, true, true);
+	bool trackContainedTasks = useTaskHash;
+    Model* htn = new Model(trackContainedTasks, reachability, true, true);
 	htn->filename = inputFilename;
 	htn->read(inputStream);
 	assert(htn->isHtnModel);
@@ -206,7 +200,11 @@ int main(int argc, char *argv[]) {
 	
 		int hLength = args_info.heuristic_given;
 		cout << "Parsing heuristics ..." << endl;
-		cout << "Number of heuristics: " << hLength << endl;
+		cout << "Number of specified heuristics: " << hLength << endl;
+		if (hLength == 0){
+			cout << "No heuristics given, setting default ... " << endl;
+			hLength = 1;
+		}
     	Heuristic **heuristics = new Heuristic *[hLength];
 		for (int i = 0; i < hLength; i++){
 			auto [hName, args] = parse_heuristic_with_arguments_from_braced_expression(args_info.heuristic_arg[i]);
@@ -242,6 +240,7 @@ int main(int argc, char *argv[]) {
 					((hhRC2<hsAddFF>*)heuristics[i])->sasH->heuristic = sasFF;
 				}
 			} else if (hName == "dof"){
+#ifndef CMAKE_NO_ILP
 				string type_string = (args.count("type"))?args["type"]:args["arg1"];
 				IloNumVar::Type intType = IloNumVar::Int;
 				IloNumVar::Type boolType = IloNumVar::Bool;
@@ -293,6 +292,10 @@ int main(int argc, char *argv[]) {
 
 
 				heuristics[i] = new hhDOfree(htn,tnI,i,intType,boolType,mode,tdg,pg,andOrLM,lmclms,netchange,externalLM);
+#else
+				cout << "Planner compiled without CPLEX support" << endl;
+				return 1;
+#endif
 			} else {
 				cout << "Heuristic type \"" << hName << "\" is unknown." << endl;
 				return 1;
@@ -322,12 +325,19 @@ int main(int argc, char *argv[]) {
 		cout << " - weight: " << aStarWeight << endl;
 		cout << " - suboptimal: " << (suboptimalSearch?"true":"false") << endl;
 
+		
+		bool noVisitedList = args_info.noVisitedList_flag;
+		bool taskHash = args_info.taskHash_flag;
+		bool topologicalOrdering = args_info.topologicalOrdering_flag;
 
-    	VisitedList visi(htn);
+    	
+		VisitedList visi(htn,noVisitedList, taskHash, topologicalOrdering);
     	PriorityQueueSearch search;
     	OneQueueWAStarFringe fringe(aStarType, aStarWeight, hLength);
 
-    	search.search(htn, tnI, timeL, suboptimalSearch, heuristics, hLength, visi, fringe);
+
+		bool printPlan = !args_info.noPlanOutput_flag;
+    	search.search(htn, tnI, timeL, suboptimalSearch, printPlan, heuristics, hLength, visi, fringe);
 	} else if (algo == SAT){
 #ifndef CMAKE_NO_SAT
 		bool block_compression = args_info.blockcompression_flag;
