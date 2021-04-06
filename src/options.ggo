@@ -2,8 +2,8 @@ package "pandaPIengine"
 version "0.1"
 purpose "A versatile HTN planning"
 usage "./pandaPIengine [OPTIONS] input.sas"
-description "<description>"
-versiontext "<versiontext>"
+#description "<description>"
+#versiontext "<versiontext>"
 
 args "--string-parser -u"
 
@@ -13,8 +13,8 @@ args "--string-parser -u"
 section "General Options"
 
 option "debug" d "activate debug mode" optional
-option "seed" S "specify the random seed [default=42]" int default="42"
-option "timelimit" t "specify timelimit in seconds [default=1800]" int default="1800"
+option "seed" S "specify the random seed" int default="42"
+option "timelimit" t "specify timelimit in seconds" int default="1800"
 option "noPlanOutput" N "don't output the plan [default=print plan]" flag off
 
 section "Planner Selection" sectiondesc="default=progression"
@@ -27,10 +27,10 @@ groupoption "interactive" I "interactive search" group="planningAlgorithm"
 
 section "Progression Search Options"
 
-option "heuristic" H "specify a heuristic [default=rc(ff)]" string multiple default="rc2(ff)"
-option "astarweight" w "weight of the heuristic for A* [default=1]" int default="1"
-option "gValue" g "g value (path,action,mixed,none) [default=path]" string values="path","action","mixed","none" default="path"
-option "suboptimal" - "suboptimal search (early goal test and visited lists ignores costs) [default=off]" flag off
+option "heuristic" H "specify a heuristic" string multiple default="rc2(ff)"
+option "astarweight" w "weight of the heuristic for A*" int default="1"
+option "gValue" g "g value" string values="path","action","mixed","none" default="path"
+option "suboptimal" - "suboptimal search (early goal test and visited lists ignores costs)" flag off
 
 section "Visited List Options"
 
@@ -40,7 +40,7 @@ option "topologicalOrdering" O "disable visited checking with task sequences, th
 
 section "SAT Planner Options"
 
-option "blockcompression" B "apply block compression [default=on]" flag on
-option "satmutexes" M "encode SAT mutexes [default=on]" flag on
-option "pruning" P "pruning mode (none,ff,h2) [default=ff]" string values="none","ff","h2" default="ff"
+option "blockcompression" B "apply block" flag on
+option "satmutexes" M "encode SAT mutexes" flag on
+option "pruning" P "pruning mode" string values="none","ff","h2" default="ff"
 
