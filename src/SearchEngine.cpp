@@ -46,7 +46,9 @@
 #include "heuristics/rcHeuristics/RCModelFactory.h"
 #include "heuristics/landmarks/lmExtraction/LmFdConnector.h"
 #include "heuristics/landmarks/hhLMCount.h"
+
 #include "heuristics/dofHeuristics/hhStatisticsCollector.h"
+
 #include "VisitedList.h"
 
 #include "cmdline.h"
@@ -344,7 +346,11 @@ int main(int argc, char *argv[]) {
 		cout << "Planner compiled without SAT planner support" << endl;
 #endif
 	} else if (algo == BDD){
+#ifndef CMAKE_NO_BDD
 		build_automaton(htn);
+#else
+		cout << "Planner compiled without symbolic planner support" << endl;
+#endif
 	}
 
     delete htn;
