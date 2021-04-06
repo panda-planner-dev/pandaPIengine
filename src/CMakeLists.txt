@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.13)
 set(CMAKE_CXX_STANDARD 17)
 
-set(CPLEX_SOURCE_DIR /home/gregor/Workspace/cplex)
+# set(CPLEX_SOURCE_DIR /home/gregor/Workspace/cplex)
 # set(CPLEX_SOURCE_DIR /home/dh/Programme/CPLEX_Studio1210)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-option(SAT "Compile with the SAT planner" ON)
+option(SAT "Compile with the SAT planner" OFF)
 option(BDD "Compile with the Symbolic planner" OFF)
 ##set(CPLEX_SOURCE_DIR /home/gregor/Workspace/cplex)
 
@@ -82,7 +82,6 @@ target_link_libraries(pandaPIengine PUBLIC symbolic_search)
 target_link_libraries(pandaPIengine PUBLIC heuristics)
 target_link_libraries(pandaPIengine PUBLIC hrc)
 target_link_libraries(pandaPIengine PUBLIC hlm)
-target_link_libraries(pandaPIengine PUBLIC intDataStructures)
 
 if (BDD)
 	### Build Cudd
@@ -111,3 +110,5 @@ if (SAT)
 	target_link_libraries(pandaPIengine PUBLIC sat)
 endif (SAT)
 
+## must be added *after* SAT due to the use of the printMemory function, which is currently defined in the SAT module ... this is probably not a good idea.
+target_link_libraries(pandaPIengine PUBLIC intDataStructures)
