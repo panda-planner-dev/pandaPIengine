@@ -176,7 +176,7 @@ int main(int argc, char *argv[]) {
         htn->updateReachability(tnI);
     }
 
-
+//    Heuristic *hLMC = new hhLMCount(htn, 0, tnI, lmfFD);
 
 	planningAlgorithm algo = PROGRESSION;
 	if (args_info.progression_given) algo = PROGRESSION;

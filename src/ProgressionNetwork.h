@@ -19,6 +19,7 @@
 #include "heuristics/landmarks/lmDataStructures/landmark.h"
 #include "heuristics/landmarks/lmDataStructures/lookUpTab.h"
 #include "flags.h"
+//#include "heuristics/HeuristicPayload.h"
 
 using namespace std;
 
@@ -85,6 +86,8 @@ struct searchNode {
 	int modificationDepth;
 	int mixedModificationDepth;
 	int actionCosts = 0;
+
+//    HeuristicPayload** hPL = nullptr;
 
 	solutionStep* solution;
 

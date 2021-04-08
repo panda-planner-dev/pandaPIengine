@@ -103,6 +103,7 @@ searchNode::~searchNode() {
 	delete[] containedTasks;
 	delete[] containedTaskCount;
 
+	// todo: need to destroy heuristic payload. To do so, I need to know the number of heuristics used
 }
 
 
