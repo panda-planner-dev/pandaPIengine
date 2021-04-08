@@ -100,8 +100,11 @@ enum planningAlgorithm{
 };
 
 
+void speed_test();
 
 int main(int argc, char *argv[]) {
+	//speed_test();
+	//return 42;
 #ifndef NDEBUG
     cout
             << "You have compiled the search engine without setting the NDEBUG flag. This will make it slow and should only be done for debug."
@@ -155,11 +158,15 @@ int main(int argc, char *argv[]) {
 
 	//
 
+	bool useTaskHash = true;
+
+
 
     /* Read model */
     // todo: the correct value of maintainTaskRechability depends on the heuristic
     eMaintainTaskReachability reachability = mtrALL;
-    Model* htn = new Model(false, reachability, true, true);
+	bool trackContainedTasks = useTaskHash;
+    Model* htn = new Model(trackContainedTasks, reachability, true, true);
 	htn->filename = inputFilename;
 	htn->read(inputStream);
 	assert(htn->isHtnModel);
@@ -318,12 +325,19 @@ int main(int argc, char *argv[]) {
 		cout << " - weight: " << aStarWeight << endl;
 		cout << " - suboptimal: " << (suboptimalSearch?"true":"false") << endl;
 
+		
+		bool noVisitedList = args_info.noVisitedList_flag;
+		bool taskHash = args_info.taskHash_flag;
+		bool topologicalOrdering = args_info.topologicalOrdering_flag;
 
-    	VisitedList visi(htn);
+    	
+		VisitedList visi(htn,noVisitedList, taskHash, topologicalOrdering);
     	PriorityQueueSearch search;
     	OneQueueWAStarFringe fringe(aStarType, aStarWeight, hLength);
 
-    	search.search(htn, tnI, timeL, suboptimalSearch, heuristics, hLength, visi, fringe);
+
+		bool printPlan = !args_info.noPlanOutput_flag;
+    	search.search(htn, tnI, timeL, suboptimalSearch, printPlan, heuristics, hLength, visi, fringe);
 	} else if (algo == SAT){
 #ifndef CMAKE_NO_SAT
 		bool block_compression = args_info.blockcompression_flag;

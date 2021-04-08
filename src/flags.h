@@ -22,6 +22,10 @@ typedef int tHVal;
 #define LMCFD 9
 
 
+
+// don't perform tests
+#define NTEST
+
 // the following options are preliminary and not part of final version -> can be kept as compiler flags until they are finished
 //#define ONEMODMETH // todo: this was always buggy, but the case is compiled away anyway
 
@@ -41,18 +45,6 @@ typedef int tHVal;
 
 
 #define TRACESOLUTION
-//#define SAVESEARCHSPACE
-
-
-
-//#define VISITEDONLYSTATISTICS
-#define TOVISI_SEQ  1
-#define TOVISI_PRIM 2
-#define TOVISI_PRIM_EXACT 3
-#define TOVISI TOVISI_PRIM_EXACT
-
-//#define NOVISI
-
 
 
 #define POVISI_EXACT

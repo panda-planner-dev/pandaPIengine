@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 set(CMAKE_CXX_STANDARD 17)
 
-set(CPLEX_SOURCE_DIR /home/gregor/Workspace/cplex)
+# set(CPLEX_SOURCE_DIR /home/gregor/Workspace/cplex)
 # set(CPLEX_SOURCE_DIR /home/dh/Programme/CPLEX_Studio1210)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -25,9 +25,10 @@ add_definitions(-DIL_STD)
 list(APPEND compiler_flags -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare -pedantic "$<$<CONFIG:DEBUG>:-Og;-ggdb3;-lpthread>" "$<$<CONFIG:RELEASE>:-O2;-lpthread>")
 
 if (CPLEX_SOURCE_DIR)
-	list(APPEND linker_flags "$<$<CONFIG:RELEASE>:-flto>")
+	list(APPEND linker_flags "$<$<CONFIG:DEBUG>:-lpthread;-g>" "$<$<CONFIG:RELEASE>:-flto;-lpthread>")
 else (CPLEX_SOURCE_DIR)
-	list(APPEND linker_flags "$<$<CONFIG:RELEASE>:-flto;-static;-static-libgcc>")
+	#list(APPEND linker_flags "$<$<CONFIG:DEBUG>:-lpthread>" "$<$<CONFIG:RELEASE>:-flto;-lpthread;-static;-static-libgcc>")
+	list(APPEND linker_flags "$<$<CONFIG:DEBUG>:-lpthread;-g>" "$<$<CONFIG:RELEASE>:-flto;-lpthread>")
 	list(APPEND compiler_flags -DCMAKE_NO_ILP)
 endif (CPLEX_SOURCE_DIR)
 
@@ -81,7 +82,6 @@ target_link_libraries(pandaPIengine PUBLIC symbolic_search)
 target_link_libraries(pandaPIengine PUBLIC heuristics)
 target_link_libraries(pandaPIengine PUBLIC hrc)
 target_link_libraries(pandaPIengine PUBLIC hlm)
-target_link_libraries(pandaPIengine PUBLIC intDataStructures)
 
 if (BDD)
 	### Build Cudd
@@ -110,3 +110,5 @@ if (SAT)
 	target_link_libraries(pandaPIengine PUBLIC sat)
 endif (SAT)
 
+## must be added *after* SAT due to the use of the printMemory function, which is currently defined in the SAT module ... this is probably not a good idea.
+target_link_libraries(pandaPIengine PUBLIC intDataStructures)

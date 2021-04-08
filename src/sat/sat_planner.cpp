@@ -20,57 +20,6 @@
 #include "stdio.h"
 #include "string.h"
 
-int parseLine(char* line){
-    // This assumes that a digit will be found and the line ends in " Kb".
-    int i = strlen(line);
-    const char* p = line;
-    while (*p <'0' || *p > '9') p++;
-    line[i-3] = '\0';
-    i = atoi(p);
-    return i;
-}
-
-int getValue(){ //Note: this value is in KB!
-    FILE* file = fopen("/proc/self/status", "r");
-    int result = -1;
-    char line[128];
-
-    while (fgets(line, 128, file) != NULL){
-        if (strncmp(line, "VmSize:", 7) == 0){
-            result = parseLine(line);
-            break;
-        }
-    }
-    fclose(file);
-    return result;
-}
-
-int getValue2(){ //Note: this value is in KB!
-    FILE* file = fopen("/proc/self/status", "r");
-    int result = -1;
-    char line[128];
-
-    while (fgets(line, 128, file) != NULL){
-        if (strncmp(line, "VmRSS:", 6) == 0){
-            result = parseLine(line);
-            break;
-        }
-    }
-    fclose(file);
-    return result;
-}
-
-
-
-int last;
-
-void printMemory(){
-	//cout << getValue() << " " << getValue2() << endl;
-	int now = getValue();
-	cout << "\t\t\t\t\t\t\t\t\t\t\t\t\t" << color(Color::BLUE,"+MEM ") << setw(6) << (now - last) << " total: " << setw(6) << now/1024 <<  endl;
-	last = now;
-}
-
 
 void printSolution(void * solver, Model * htn, PDT* pdt, MatchingData & matching){
 	vector<PDT*> leafs;

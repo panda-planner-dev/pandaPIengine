@@ -3,6 +3,8 @@
 
 #include "../ProgressionNetwork.h"
 #include <unordered_map>
+#include "../intDataStructures/HashTable.h"
+
 
 
 typedef	tuple<vector<uint64_t>
@@ -87,7 +89,7 @@ struct hash<po_hash_tuple> {
 }
 
 struct VisitedList{
-	VisitedList(Model * m);
+	VisitedList(Model * m, bool _noVisitedCheck, bool _taskHash, bool _topologicalOrdering);
 	
 	// insert the node into the visited list
 	// @returns true if the node was *new* and false, if the node was already contained in the visited list
@@ -102,15 +104,24 @@ struct VisitedList{
 
 private:
 	Model * htn;
+	// automatically determined configuration
 	bool useTotalOrderMode;
 	bool useSequencesMode;
+	int bitsNeededPerTask;
+	// configuration given by the user
+	bool noVisitedCheck;
+	bool taskHash;
+	bool topologicalOrdering;
+
+	uint64_t hashingP;
+
+	hash_table * stateTable;
+
+	size_t taskCountHash(searchNode * n);
+
 
 #if (TOVISI == TOVISI_SEQ)
-#ifndef SAVESEARCHSPACE 
 	map<vector<uint64_t>, set<vector<int>>> visited;
-#else
-	map<vector<uint64_t>, map<vector<int>,int>> visited;
-#endif
 #elif (TOVISI == TOVISI_PRIM)
 	map<vector<uint64_t>, unordered_set<int>> visited;
 #elif (TOVISI == TOVISI_PRIM_EXACT)
@@ -143,7 +154,7 @@ private:
 
     vector<int> *topSort(searchNode *n);
 
-    int getHash(vector<int> *pVector);
+    uint32_t getHash(vector<int> *pVector);
 };
 
 
