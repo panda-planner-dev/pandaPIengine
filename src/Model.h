@@ -214,6 +214,8 @@ public:
 	// s0 strips translation
 	int* s0ListTrans;
 	int s0SizeTrans;
+	int* gListTrans;
+	int gSizeTrans;
 
 	// task definitions
 	int numTasks;
@@ -330,6 +332,7 @@ public:
 	void sasPlus();
 	void tohtnToStrips(int pgb);
 	void htnToCond(int pgb);
+	void htnPS(int numSeq, int* pgbList);
 	void htnToStrips(int pgb);
 	void betterhtnToStrips(int pgb);
 	int bin(int n, int k);
@@ -341,7 +344,7 @@ public:
 	void printActionsToFile(string file);
 	void printStateBitsToFile(string file);
 	void reorderTasks();
-
+	bool parallelSequences();
   int calculatePrecsAndAdds(int* s, int* p, int* a, string tasks, int** conv);
 
   void checkFastDownwardPlan(string domain, string plan);

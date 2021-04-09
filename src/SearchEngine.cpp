@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
           showUsage = true;
           break;
         }
-        if (problemType > 2){
+        if (problemType > 3){
           cerr << "--problem: invalid option: " << problemType << endl;
           showUsage = true;
           break;
@@ -153,6 +153,9 @@ int main(int argc, char *argv[]) {
 		cout << "  2:" << endl;
 		cout << "    input is any htn problem" << endl;
 		cout << "    output uses only strips operators" << endl;
+		cout << "  3:" << endl;
+		cout << "    input is a htn problem with parallel sequences" << endl;
+		cout << "    output uses only strips operators" << endl;
 		cout << "--pgb <int>: set the starting progressionbound" << endl;
 		cout << "  default: automatic" << endl;
 		cout << "--maxpgb <int>: set the maximal progressionbound" << endl;
@@ -201,12 +204,27 @@ int main(int argc, char *argv[]) {
   currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
   cout << " (" << (currentT - startT) << " ms)" << endl;
 
-  if (pgb < 1){
+  if (problemType == 3 && !htn->parallelSequences()){
+    problemType = 2;
+  }
+  if (pgb < 1 || problemType == 3){
     htn->calcMinimalProgressionBound((problemType == 0));
     pgb = htn->minProgressionBound();
   }
   if (maxpgb < pgb){
     maxpgb = htn->maxProgressionBound();
+  }
+  int topMethod = 0;
+  int parallel = 0;
+  if (problemType == 3){
+    topMethod = htn->taskToMethods[htn->initialTask][0];
+    parallel = htn->numSubTasks[topMethod];
+  }
+  int* pgbList = new int[parallel];
+  if (problemType == 3){
+    for (int i = 0; i < parallel; i++){
+      pgbList[i] = htn->minImpliedPGB[htn->subTasks[topMethod][0]];
+    }
   }
   cerr << "- starting search:" << endl;
   cerr << "- starting Progressionbound = " << pgb << endl;
@@ -233,11 +251,19 @@ int main(int argc, char *argv[]) {
       cerr << "HTN to strips with conditional effects";
       htn->htnToCond(pgb);
     }
-    else{
+    else if (problemType == 2){
       cerr << "HTN to strips";
       htn->htnToStrips(pgb);
     }
-    
+    else if (problemType == 3){
+      cerr << "HTN with parallel total order sequences";
+      htn->htnPS(parallel, pgbList);
+    }
+    else {
+      cerr << "not a valid problem Type" << endl;
+      delete[] pgbList;
+      return 0;
+    }
     gettimeofday(&tp, NULL);
     currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
     cout << " (" << (currentT - startT) << " ms)" << endl;
@@ -269,14 +295,21 @@ int main(int argc, char *argv[]) {
       break;
     }
     else if (error_code == 3072){
+      if (problemType == 3){
+        for (int i = 0; i < parallel; i++){
+          pgbList[i] += pgbsteps;
+        }
+      }
       pgb += pgbsteps;
       cerr << "- new progressionbound: " << pgb << endl;
     }
     else {
       cerr << "- error code: " << error_code << endl;
+      delete[] pgbList;
       return 0;
     }
   }
+  delete[] pgbList;
   string infile = "sas_plan";
   string outfile = planfile;
   htn->planToHddl(infile, outfile);
