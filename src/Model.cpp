@@ -3614,7 +3614,7 @@ void Model::calcMinimalProgressionBound(bool to) {
 
   }
 
-  void Model::htnToCond(int pgb) {
+  int Model::htnToCond(int pgb) {
     // number of translated variables
     int n = pgb * (pgb - 1);
     numVarsTrans = numVars + pgb * 2 + n;
@@ -3714,6 +3714,9 @@ void Model::calcMinimalProgressionBound(bool to) {
       int m = bin(pgb - 1, numSubTasks[i - 1] - 1);
       if (m < 1){
         m = 1;
+      }
+      if (m == INT_MAX){
+        return -1;
       }
       methodIndexes[i] = methodIndexes[i - 1] + m;
     }
@@ -3959,9 +3962,10 @@ void Model::calcMinimalProgressionBound(bool to) {
         }
       }
     }
+    return 0;
   }
    
-  void Model::htnToStrips(int pgb) {
+  int Model::htnToStrips(int pgb) {
     // number of translated variables
     int n = pgb * (pgb - 1);
     numVarsTrans = numVars + 2 * pgb + n;
@@ -4092,6 +4096,9 @@ void Model::calcMinimalProgressionBound(bool to) {
       int m = bin(pgb - 1, numSubTasks[i - 1] - off);
       if (m < 1){
         m = 1;
+      }
+      if (m == INT_MAX){
+        return -1;
       }
       if (numSubTasks[i - 1] <= 1){
         m = 1;
@@ -4325,7 +4332,9 @@ void Model::calcMinimalProgressionBound(bool to) {
         numInvalidTransActions++;
       }
     }
+    return 0;
   }
+
   void Model::combination(int* array, int n, int k, int i){
     for (int j = 0; j < k; j++){
       array[j] = j;
@@ -4350,17 +4359,20 @@ void Model::calcMinimalProgressionBound(bool to) {
   }
   
   int Model::bin(int n, int k){
-   int b = 1;
+   long b = 1;
    if (n < 0 || k < 0 || k > n){
      return -1;
    }
    if (k == 0 || k == n){
-     return (b);
+     return 1;
    }
    for (int i = 1; i <= k; i++){
       b = b * (n - i + 1) / i;
    }
-   return (b);
+   if (b > INT_MAX){
+     return INT_MAX;
+   }
+   return int(b);
   }
  
   int Model::power(int n, int p){

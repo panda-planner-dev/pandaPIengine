@@ -249,11 +249,21 @@ int main(int argc, char *argv[]) {
     }
     else if (problemType == 1){
       cerr << "HTN to strips with conditional effects";
-      htn->htnToCond(pgb);
+      int b = htn->htnToCond(pgb);
+      if (b == -1){
+        cerr << endl << "problem too big to solve" << endl;;
+        delete[] pgbList;
+        return 0;
+      }
     }
     else if (problemType == 2){
       cerr << "HTN to strips";
-      htn->htnToStrips(pgb);
+      int b = htn->htnToStrips(pgb);
+      if (b == -1){
+        cerr << endl << "problem too big to solve" << endl;;
+        delete[] pgbList;
+        return 0;
+      }
     }
     else if (problemType == 3){
       cerr << "HTN with parallel total order sequences";

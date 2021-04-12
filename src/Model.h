@@ -331,10 +331,9 @@ public:
 	// translation to strips
 	void sasPlus();
 	void tohtnToStrips(int pgb);
-	void htnToCond(int pgb);
+	int htnToCond(int pgb);
 	void htnPS(int numSeq, int* pgbList);
-	void htnToStrips(int pgb);
-	void betterhtnToStrips(int pgb);
+	int htnToStrips(int pgb);
 	int bin(int n, int k);
 	int power(int n, int p);
 	int minProgressionBound();
