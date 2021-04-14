@@ -1891,6 +1891,10 @@ newlyReachedMLMs = new noDelIntSet();
 
 			// transitive reduction and determination of properties
 			computeTransitiveChangeOfMethodOrderings(false,i);
+			if (!isTotallyOrdered){
+				cout << methodNames[i] << endl;
+				exit(0);
+			}
 
 #ifndef NDEBUG
 			assert((numOrderings[i] % 2) == 0);
@@ -2917,29 +2921,34 @@ newlyReachedMLMs = new noDelIntSet();
 	void Model::computeTransitiveChangeOfMethodOrderings(bool closure, int i){
 		// transitive closure
 		vector<vector<bool>> trans (numSubTasks[i]);
-		vector<vector<bool>> transOrig (numSubTasks[i]);
 
 		for (int x = 0; x < numSubTasks[i]; x++)
-			for (int y = 0; y < numSubTasks[i]; y++){
+			for (int y = 0; y < numSubTasks[i]; y++)
 				trans[x].push_back(false);
-				if (!closure)
-					transOrig[x].push_back(false);
-			}
 
-		for (int o = 0; o < numOrderings[i]; o+=2){
+		for (int o = 0; o < numOrderings[i]; o+=2)
 			trans[ordering[i][o]][ordering[i][o+1]] = true;
-			if (!closure) transOrig[ordering[i][o]][ordering[i][o+1]] = true;
-		}
 
 		for (int k = 0; k < numSubTasks[i]; k++)
 			for (int x = 0; x < numSubTasks[i]; x++)
-				for (int y = 0; y < numSubTasks[i]; y++){
-					if (closure){
+				for (int y = 0; y < numSubTasks[i]; y++)
 						if (trans[x][k] && trans[k][y]) trans[x][y] = true;
-					} else {
-						if (transOrig[x][k] && transOrig[k][y]) trans[x][y] = false;
-					}
-				}
+
+		if (!closure){
+			vector<vector<bool>> transRed (numSubTasks[i]);
+	
+			for (int x = 0; x < numSubTasks[i]; x++)
+				for (int y = 0; y < numSubTasks[i]; y++)
+					transRed[x].push_back(trans[x][y]);
+	
+			for (int k = 0; k < numSubTasks[i]; k++)
+				for (int x = 0; x < numSubTasks[i]; x++)
+					for (int y = 0; y < numSubTasks[i]; y++)
+							if (trans[x][k] && trans[k][y]) transRed[x][y] = false;
+
+
+			trans = transRed;
+		}
 
 
 		/////// the method is totally ordered iff every task has exactly one successor and one predecessor except for one task each
@@ -2984,8 +2993,9 @@ newlyReachedMLMs = new noDelIntSet();
 	}
 
 	void Model::computeTransitiveClosureOfMethodOrderings(){
-		for (int i = 0; i < numMethods; i++)
+		for (int i = 0; i < numMethods; i++){
 			computeTransitiveChangeOfMethodOrderings(true,i);
+		}
 	}
 
 
