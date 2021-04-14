@@ -1727,27 +1727,9 @@ newlyReachedMLMs = new noDelIntSet();
 		delete[] precToActionTemp;
 
 		// add to action
-		set<int> *addToActionTemp = new set<int>[numStateBits];
-		for (int i = 0; i < numActions; i++) {
-			for (int j = 0; j < numAdds[i]; j++) {
-				int f = addLists[i][j];
-				addToActionTemp[f].insert(i);
-			}
-		}
-		addToActionSize = new int[numStateBits];
-		addToAction = new int*[numStateBits];
+        calcAddToActionMapping();
 
-		for (int i = 0; i < numStateBits; i++) {
-			addToActionSize[i] = addToActionTemp[i].size();
-			addToAction[i] = new int[addToActionSize[i]];
-			int cur = 0;
-			for (int ac : addToActionTemp[i]) {
-				addToAction[i][cur++] = ac;
-			}
-		}
-		delete[] addToActionTemp;
-
-		// del to action
+        // del to action
 		set<int> * delToActionTemp = new set<int>[numStateBits];
 		for (int i = 0; i < numActions; i++) {
 			for (int j = 0; j < numDels[i]; j++) {
@@ -1814,7 +1796,29 @@ newlyReachedMLMs = new noDelIntSet();
 		}
 	}
 
-	void Model::readHierarchical(istream &domainFile) {
+    void Model::calcAddToActionMapping() {
+        set<int> *addToActionTemp = new set<int>[numStateBits];
+        for (int i = 0; i < numActions; i++) {
+            for (int j = 0; j < numAdds[i]; j++) {
+                int f = addLists[i][j];
+                addToActionTemp[f].insert(i);
+            }
+        }
+        addToActionSize = new int[numStateBits];
+        addToAction = new int*[numStateBits];
+
+        for (int i = 0; i < numStateBits; i++) {
+            addToActionSize[i] = addToActionTemp[i].size();
+            addToAction[i] = new int[addToActionSize[i]];
+            int cur = 0;
+            for (int ac : addToActionTemp[i]) {
+                addToAction[i][cur++] = ac;
+            }
+        }
+        delete[] addToActionTemp;
+    }
+
+    void Model::readHierarchical(istream &domainFile) {
 		stringstream *sStream;
 		string line;
 		// tasks

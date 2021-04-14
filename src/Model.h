@@ -249,7 +249,9 @@ namespace progression {
 			void calcSCCs();
 
 
-		private:
+        void calcAddToActionMapping();
+
+    private:
 			bool first = true;
 
 			IntUtil iu;
@@ -307,6 +309,6 @@ namespace progression {
 			void computeTransitiveChangeOfMethodOrderings(bool closure, int method);
 
 
-	};
+    };
 }
 #endif /* MODEL_H_ */
