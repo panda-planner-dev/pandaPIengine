@@ -1891,10 +1891,6 @@ newlyReachedMLMs = new noDelIntSet();
 
 			// transitive reduction and determination of properties
 			computeTransitiveChangeOfMethodOrderings(false,i);
-			if (!isTotallyOrdered){
-				cout << methodNames[i] << endl;
-				exit(0);
-			}
 
 #ifndef NDEBUG
 			assert((numOrderings[i] % 2) == 0);
