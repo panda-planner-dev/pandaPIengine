@@ -56,12 +56,7 @@ uint64_t hash_state(const vector<uint64_t> & v) {
 }
 
 
-
-
-
-
-
-VisitedList::VisitedList(Model *m, bool _noVisitedCheck, bool _taskHash, bool _topologicalOrdering) {
+VisitedList::VisitedList(Model *m, bool _noVisitedCheck, bool _taskHash, bool _topologicalOrdering, bool _orderPairs, bool _layers) {
     this->htn = m;
 	this->noVisitedCheck = _noVisitedCheck;
 
@@ -72,6 +67,8 @@ VisitedList::VisitedList(Model *m, bool _noVisitedCheck, bool _taskHash, bool _t
 
 	this->taskHash = _taskHash;
 	this->topologicalOrdering = _topologicalOrdering;
+	this->orderPairs = _orderPairs;
+	this->layers = _layers;
 
 
 	this->hashingP = tenMillionP; 
@@ -104,6 +101,8 @@ VisitedList::VisitedList(Model *m, bool _noVisitedCheck, bool _taskHash, bool _t
 	
 		cout << "- memory information:";
 		if (this->topologicalOrdering) cout << " topological ordering";
+		if (this->orderPairs && ! (this->useTotalOrderMode || this->useSequencesMode)) cout << " order-pairs";
+		if (this->layers && ! (this->useTotalOrderMode || this->useSequencesMode)) cout << " layer";
 		cout << endl;
 		
 		

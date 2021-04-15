@@ -47,13 +47,6 @@ typedef int tHVal;
 #define TRACESOLUTION
 
 
-#define POVISI_EXACT
-#define POVISI_HASH
-#define POVISI_LAYERS
-#define POVISI_ORDERPAIRS
-
-
-
 // if we write the state space to file, we need to disable pretty much all optimisations ...
 #ifdef SAVESEARCHSPACE
 #undef OPTIMIZEUNTILTIMELIMIT
