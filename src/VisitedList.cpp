@@ -503,7 +503,7 @@ bool VisitedList::insertVisi(searchNode *n) {
 			if (result) {
 				std::clock_t after = std::clock();
 				this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
-				return true;
+				return false;
 			}
             if ((*nodes)->size() > 0) subHashCollision++;
             (*nodes)->push_back(n);
@@ -511,7 +511,7 @@ bool VisitedList::insertVisi(searchNode *n) {
 		
 		std::clock_t after = std::clock();
 		this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
-		return false;
+		return true;
 	
 	}
 }
