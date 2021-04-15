@@ -168,6 +168,7 @@ int main(int argc, char *argv[]) {
 	bool trackContainedTasks = useTaskHash;
     Model* htn = new Model(trackContainedTasks, reachability, true, true);
 	htn->filename = inputFilename;
+	if (args_info.satmutexes_flag) htn->rintanenInvariants = true;
 	htn->read(inputStream);
 	assert(htn->isHtnModel);
 	searchNode* tnI = htn->prepareTNi(htn);
