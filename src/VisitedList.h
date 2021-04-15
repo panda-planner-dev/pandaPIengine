@@ -6,6 +6,11 @@
 #include "../intDataStructures/HashTable.h"
 
 
+// XXX magic number, restricts number of copies of a task per task net to 255, thereafter the hash becomes incorrect
+// 3 -> up to three bits for (number-1), max is 8, thus whole number is max 225
+const int number_of_bits_for_task_count = 3;
+const int max_task_count = (1 << (1 << number_of_bits_for_task_count)) - 1;
+
 
 typedef	tuple<vector<uint64_t>
 #ifdef POVISI_HASH	
@@ -112,6 +117,8 @@ private:
 	bool noVisitedCheck;
 	bool taskHash;
 	bool topologicalOrdering;
+	bool orderPairs;
+	bool layers;
 
 	uint64_t hashingP;
 
@@ -152,7 +159,7 @@ private:
 	> po_occ;
 
 
-    vector<int> *topSort(searchNode *n);
+    vector<int> topSort(searchNode *n);
 
     uint32_t getHash(vector<int> *pVector);
 };

@@ -76,7 +76,10 @@ VisitedList::VisitedList(Model *m, bool _noVisitedCheck, bool _taskHash, bool _t
 
 	this->hashingP = tenMillionP; 
 	this->stateTable = new hash_table(hashingP);
-	this->bitsNeededPerTask = sizeof(int)*8 -  __builtin_clz(m->numTasks - 1);
+	if (!useSequencesMode)
+		this->bitsNeededPerTask = sizeof(int)*8 -  __builtin_clz(m->numTasks - 1);
+	else
+		this->bitsNeededPerTask = sizeof(int)*8 -  __builtin_clz(m->numTasks); // one more ID is needed to separate parallel sequences
 
 	if (_noVisitedCheck)
     	this->canDeleteProcessedNodes = true;
@@ -88,6 +91,13 @@ VisitedList::VisitedList(Model *m, bool _noVisitedCheck, bool _taskHash, bool _t
 	if (this->noVisitedCheck)
 		cout << "- disabled" << endl;
 	else {
+		if (this->useTotalOrderMode)
+			cout << "- mode: total order" << endl;
+		else if (this->useSequencesMode)
+			cout << "- mode: parallel sequences order" << endl;
+		else
+			cout << "- mode: partial order" << endl;
+		
 		cout << "- hashs to use: state";
 		if (this->taskHash) cout << " task";
 		cout << endl;
@@ -95,6 +105,7 @@ VisitedList::VisitedList(Model *m, bool _noVisitedCheck, bool _taskHash, bool _t
 		cout << "- memory information:";
 		if (this->topologicalOrdering) cout << " topological ordering";
 		cout << endl;
+		
 		
 		if ((this->useTotalOrderMode || this->useSequencesMode) && !this->topologicalOrdering)
 			cout << "- ATTENTION: pruning is " << color(RED,"INCOMPLETE") << endl;
@@ -105,7 +116,7 @@ VisitedList::VisitedList(Model *m, bool _noVisitedCheck, bool _taskHash, bool _t
 
 
 
-void dfsdfs(planStep *s, int depth, set<planStep *> &psp, unordered_set<pair<int, int>> &orderpairs,
+void dfsdfs(planStep *s, int depth, set<planStep *> &psp, set<pair<int, int>> &orderpairs,
             vector<set<planStep *>> &layer) {
     if (psp.count(s)) return;
     psp.insert(s);
@@ -119,7 +130,6 @@ void dfsdfs(planStep *s, int depth, set<planStep *> &psp, unordered_set<pair<int
 
 
 void to_dfs(planStep *s, vector<int> &seq) {
-    //cout << s->numSuccessors << endl;
     assert(s->numSuccessors <= 1);
     seq.push_back(s->task);
     if (s->numSuccessors == 0) return;
@@ -240,8 +250,8 @@ bool matching(searchNode *one, searchNode *other) {
     return result;
 }
 
-vector<int> *VisitedList::topSort(searchNode *n) {
-    vector<int> *res = new vector<int>;
+vector<int> VisitedList::topSort(searchNode *n) {
+    vector<int> res;
     IntPairHeap<int> unconstrained(50);
     map<int, set<int>> successors;
     map<int, set<int>> predecessors;
@@ -281,7 +291,7 @@ vector<int> *VisitedList::topSort(searchNode *n) {
         int task = unconstrained.topKey();
         int id = unconstrained.topVal();
         unconstrained.pop();
-        res->push_back(task);
+        res.push_back(task);
         set<int> &succs = successors[id];
         for (int succ : succs) {
             predecessors[succ].erase(id);
@@ -345,188 +355,8 @@ bool VisitedList::insertVisi(searchNode *n) {
 		if (useTotalOrderMode){
         	if (n->numPrimitive) to_dfs(n->unconstraintPrimitive[0], seq);
         	if (n->numAbstract) to_dfs(n->unconstraintAbstract[0], seq);
-		} else {
-			assert(false); // XXX idea of ICAPS reviewer
-		}
-
-		for (int task : seq)
-			for (int bit = 0; bit < bitsNeededPerTask; bit++)
-				exactBitString.push_back(task & (1 << bit));
-	}
-
-
-
-	// state access
-    auto [vector,padding] = state2Int(exactBitString);
-
-	// 2. STEP
-	// compute the hashs
-	uint64_t hash = hash_state(state2Int(n->state).first); // TODO double computation ...
-	if (taskHash)
-		hash = hash ^ taskCountHash(n);
-
-	// ACCESS Phase
-	// access the hash hable
-	compressed_sequence_trie ** stateEntry = (compressed_sequence_trie**) stateTable->get(hash);
-	void ** payload;
-	if (!*stateEntry)
-		*stateEntry = new compressed_sequence_trie(vector,padding,payload);
-	else {
-		(*stateEntry)->insert(vector,padding,payload);
-	}
-
-	// 1. CASE
-	// problem is totally ordered -- then we can use the total order mode
-	if (useTotalOrderMode) {
-		// check if node was new
-		DEBUG(cout << "HASH     : " << hash << endl);
-		DEBUG(cout << "READ     : " << *payload << endl);
-		bool returnValue = *payload == nullptr;
-		*payload = (void*) 1; // now the hash is known
-		
-		std::clock_t after = std::clock();
-        this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
-		if (returnValue) uniqueInsertions++;
-		return returnValue;
-	}
-
-
-	return false;
-
-/*
-
-#if (TOVISI == TOVISI_PRIM) || (TOVISI == TOVISI_PRIM_EXACT)
-#endif
-
-
-    if (useTotalOrderMode) {
-#if (TOVISI == TOVISI_SEQ) || (TOVISI == TOVISI_PRIM_EXACT)
-        vector<int> seq;
-        if (n->numPrimitive) to_dfs(n->unconstraintPrimitive[0], seq);
-        if (n->numAbstract) to_dfs(n->unconstraintAbstract[0], seq);
-#endif
-
-#if (TOVISI == TOVISI_SEQ)
-        auto it = visited[ss].find(seq);
-#elif (TOVISI == TOVISI_PRIM) || (TOVISI == TOVISI_PRIM_EXACT)
-        auto it = visited[ss].find(hash);
-#endif
-
-#if (TOVISI == TOVISI_SEQ) || (TOVISI == TOVISI_PRIM)
-        if (it != visited[ss].end()) {
-#elif (TOVISI == TOVISI_PRIM_EXACT)
-        if (it != visited[ss].end() && it->second.count(seq)) {
-#endif
-            std::clock_t after = std::clock();
-            this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
-#ifndef    VISITEDONLYSTATISTICS
-            return false;
-#else
-            return true;
-#endif
-        }
-
-
-#if (TOVISI == TOVISI_SEQ)
-        visited[ss].insert(it,seq);
-#elif (TOVISI == TOVISI_PRIM)
-        visited[ss].insert(it,hash);
-#elif (TOVISI == TOVISI_PRIM_EXACT)
-        if (visited[ss][hash].size() > 0) subHashCollision++;
-        visited[ss][hash].insert(seq);
-#endif
-
-        uniqueInsertions++;
-
-        std::clock_t after = std::clock();
-        this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
-        return true;
-    } else {
-        po_hash_tuple access;
-
-        // state
-        get<0>(access) = ss;
-
-
-#if defined(POVISI_ORDERPAIRS) || defined(POVISI_LAYERS)
-        set<planStep *> psp;
-        vector<set<planStep *>> initial_Layers;
-        unordered_set<pair<int, int>> pairs;
-        for (int a = 0; a < n->numAbstract; a++) dfsdfs(n->unconstraintAbstract[a], 0, psp, pairs, initial_Layers);
-        for (int a = 0; a < n->numPrimitive; a++) dfsdfs(n->unconstraintPrimitive[a], 0, psp, pairs, initial_Layers);
-#endif
-
-#ifdef POVISI_LAYERS
-        psp.clear();
-        vector<set<planStep *>> layers(initial_Layers.size());
-        for (int d = 0; d < initial_Layers.size(); d++) {
-            for (auto ps : initial_Layers[d])
-                if (!psp.count(ps)) {
-                    psp.insert(ps);
-                    layers[d].insert(ps);
-                }
-        }
-
-        vector<unordered_map<int, int>> layerCounts(initial_Layers.size());
-        for (int d = 0; d < layers.size(); d++)
-            for (auto ps : layers[d])
-                layerCounts[d][ps->task]++;
-#endif
-
-#define POS1 1
-#ifdef POVISI_HASH
-        get<POS1>(access) = hash;
-#define POS2 (POS1+1)
-#else
-#define POS2 POS1
-#endif
-
-
-#ifdef POVISI_LAYERS
-        get<POS2>(access) = layerCounts;
-#define POS3 (POS2+1)
-#else
-#define POS3 POS2
-#endif
-
-
-#ifdef POVISI_ORDERPAIRS
-        get<POS3>(access) = pairs;
-#define POS4 (POS3+1)
-#else
-#define POS4 POS3
-#endif
-
-        //cout << "Node:" << endl;
-        //for (auto [a,b] : pairs) cout << setw(3) << a << " " << setw(3) << b << endl;
-        //for (auto [d,pss] : layers){
-        //	cout << "Layer: " << d;
-        //	for (auto ps : pss) cout << " " << ps;
-        //	cout << endl;
-        //}
-
-        ////////////////////////////////
-        // approximate test
-#ifndef POVISI_EXACT
-        if (po_occ.count(access)){
-            std::clock_t after = std::clock();
-            this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
-#ifndef	VISITEDONLYSTATISTICS
-            return false;
-#else
-            return true;
-#endif
-        }
-        // insert into the visited list as this one is new
-        po_occ.insert(access);
-#endif
-
-        ////////////////////////////////
-        // exact test
-#ifdef POVISI_EXACT
-        if (useSequencesMode) {
-            // get sequences
-            vector<vector<int>> sequences;
+		} if (useSequencesMode) {
+			vector<vector<int>> sequences;
             for (int a = 0; a < n->numAbstract; a++) {
                 vector<int> seq;
                 to_dfs(n->unconstraintAbstract[a], seq);
@@ -539,47 +369,150 @@ bool VisitedList::insertVisi(searchNode *n) {
             }
             // sort them to be unique
             sort(sequences.begin(), sequences.end());
+			bool first = true;
+			for (vector<int> & sub : sequences){
+				if (!first) seq.push_back(htn->numTasks);
+				for (int & s : sub) seq.push_back(s);
+				first = false;
+			}
+		} else {
+			seq = topSort(n);
+		}
 
-            auto &dups = po_seq_occ[access];
-            if (dups.count(sequences)) {
-                std::clock_t after = std::clock();
-                this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
-#ifndef    VISITEDONLYSTATISTICS
-                return false;
-#else
-                return true;
-#endif
-            }
+		for (int task : seq)
+			for (int bit = 0; bit < bitsNeededPerTask; bit++)
+				exactBitString.push_back(task & (1 << bit));
+	}
 
-            // insert into the visited list as this one is new
-            if (dups.size() > 0) subHashCollision++;
-            dups.insert(sequences);
-        } else {
-            auto &dups = po_occ[access];
-            for (searchNode *other : dups) {
-                bool result = matching(n, other);
-                if (result) {
-                    std::clock_t after = std::clock();
-                    this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
-#ifndef    VISITEDONLYSTATISTICS
-                    return false;
-#else
-                    return true;
-#endif
-                }
-            }
+	// only do this if we have a truly partially ordered instance
+	if (!(useSequencesMode || useTotalOrderMode) && (orderPairs || layers)){
+        set<planStep *> psp;
+        vector<set<planStep *>> initial_Layers;
+		set<pair<int, int>> pairs;
+		// extract layering information
+		for (int a = 0; a < n->numAbstract; a++)
+			dfsdfs(n->unconstraintAbstract[a], 0, psp, pairs, initial_Layers);
+        for (int a = 0; a < n->numPrimitive; a++)
+			dfsdfs(n->unconstraintPrimitive[a], 0, psp, pairs, initial_Layers);
 
-            // insert into the visited list as this one is new
-            if (dups.size() > 0) subHashCollision++;
-            dups.push_back(n);
-        }
-#endif
+		// order pair hash if desired
+		if (orderPairs){
+			// write sorted pairs into list
+			for (auto & [a,b] : pairs){
+				for (int bit = 0; bit < bitsNeededPerTask; bit++)
+					exactBitString.push_back(a & (1 << bit));
+				for (int bit = 0; bit < bitsNeededPerTask; bit++)
+					exactBitString.push_back(b & (1 << bit));
+			}
+			// add separator
+			for (int bit = 0; bit < bitsNeededPerTask; bit++)
+				exactBitString.push_back(htn->numTasks & (1 << bit));
+		}
 
+		// layer struture
+		if (layers){
+        	psp.clear();
+        	vector<set<planStep *>> layers(initial_Layers.size());
+        	for (int d = 0; d < initial_Layers.size(); d++) {
+        	    for (auto ps : initial_Layers[d])
+        	        if (!psp.count(ps)) {
+        	            psp.insert(ps);
+        	            layers[d].insert(ps);
+        	        }
+        	}
 
-        uniqueInsertions++;
-        std::clock_t after = std::clock();
+        	vector<map<int, int>> layerCounts(initial_Layers.size());
+        	for (int d = 0; d < layers.size(); d++){
+        	    for (auto ps : layers[d])
+        	        layerCounts[d][ps->task]++;
+
+			}
+
+			bool first = true;
+			for (map<int,int> & m : layerCounts){
+				// push a separator
+				if (!first)
+					for (int bit = 0; bit < bitsNeededPerTask; bit++)
+						exactBitString.push_back(htn->numTasks & (1 << bit));
+				first = false;
+
+				for (auto & [task, count] : m){
+					// push the task
+					for (int bit = 0; bit < bitsNeededPerTask; bit++)
+						exactBitString.push_back(task & (1 << bit));
+				
+					int number = count;
+					if (number > max_task_count)
+						number = max_task_count;
+					
+					// determine length of number in bits
+					int bits = (sizeof(int)*8 -  __builtin_clz(number)) - 1; // number will never be 0
+					
+					// push the lenght of the number
+					for (int bit = 0; bit < number_of_bits_for_task_count; bit++)
+						exactBitString.push_back(bits & (1 << bit));
+					// puth the actual number
+					for (int bit = 0; bit < bits; bit++)
+						exactBitString.push_back(number & (1 << bit));
+				}
+			}
+			// XXX if we ever add a hash after the layer hash, we must push *two* htn->numTasks in order to ensure a clean boundary
+		}
+
+	}
+
+	// state access
+    auto [accessVector,padding] = state2Int(exactBitString);
+
+	// 2. STEP
+	// compute the hashs
+	uint64_t hash = hash_state(state2Int(n->state).first); // TODO double computation ...
+	if (taskHash)
+		hash = hash ^ taskCountHash(n);
+
+	// ACCESS Phase
+	// access the hash hable
+	compressed_sequence_trie ** stateEntry = (compressed_sequence_trie**) stateTable->get(hash);
+	void ** payload;
+	if (!*stateEntry)
+		*stateEntry = new compressed_sequence_trie(accessVector,padding,payload);
+	else {
+		(*stateEntry)->insert(accessVector,padding,payload);
+	}
+	
+	DEBUG(cout << "HASH     : " << hash << endl);
+	DEBUG(cout << "READ     : " << *payload << endl);
+
+	// 1. CASE
+	// problem is totally ordered -- then we can use the total order mode
+	if (useTotalOrderMode || useSequencesMode) {
+		// check if node was new
+		bool returnValue = *payload == nullptr;
+		*payload = (void*) 1; // now the hash is known
+		
+		std::clock_t after = std::clock();
         this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
-        return true;
-    }
-*/
+		if (returnValue) uniqueInsertions++;
+		return returnValue;
+	} else {
+		vector<searchNode*> ** nodes = (vector<searchNode*> **) payload;
+		if (*nodes == nullptr)
+			*nodes = new vector<searchNode*>;
+            
+		for (searchNode *other : **nodes) {
+			bool result = matching(n, other);
+			if (result) {
+				std::clock_t after = std::clock();
+				this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
+				return true;
+			}
+            if ((*nodes)->size() > 0) subHashCollision++;
+            (*nodes)->push_back(n);
+		}
+		
+		std::clock_t after = std::clock();
+		this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
+		return false;
+	
+	}
 }
