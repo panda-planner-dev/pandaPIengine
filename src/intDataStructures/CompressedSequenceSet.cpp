@@ -301,9 +301,6 @@ void stat(compressed_sequence_trie * t, int & nodes, int & fill){
 
 // only for testing purposes, thus non clean imports ...
 void printMemory();
-#ifdef CMAKE_NO_SAT
-void printMemory(){}
-#endif
 
 namespace std {
 
