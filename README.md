@@ -1,4 +1,12 @@
+# More Background Information
+
+We've put together a website with the history of all planning systems of the PANDA family, links to all relevant software projects, and further background information including pointers explaining the techniques deployed by the respective systems.
+
+- You find it on https://panda-planner-dev.github.io/
+- or, as a forward, on http://panda.hierarchical-task.net
+
 ## pandaPIengine
+
 pandaPIengine is a versatile HTN planning engine. To use the engine, you first need to parse and ground the planning problem. The capabilities are provided by other components: the [pandaPIparser](https://github.com/panda-planner-dev/pandaPIparser) and [pandaPIgrounder](https://github.com/panda-planner-dev/pandaPIgrounder)
 
 ### Compiling pandaPIengine
