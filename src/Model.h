@@ -332,6 +332,7 @@ public:
 	void sasPlus();
 	void tohtnToStrips(int pgb);
 	int htnToCond(int pgb);
+	int htnToCondSorted(int pgb);
 	void htnPS(int numSeq, int* pgbList);
 	int htnToStrips(int pgb);
 	int bin(int n, int k);

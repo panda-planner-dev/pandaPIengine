@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
           showUsage = true;
           break;
         }
-        if (problemType > 3){
+        if (problemType > 4){
           cerr << "--problem: invalid option: " << problemType << endl;
           showUsage = true;
           break;
@@ -162,6 +162,9 @@ int main(int argc, char *argv[]) {
 		cout << "  3:" << endl;
 		cout << "    input is a htn problem with parallel sequences" << endl;
 		cout << "    output uses only strips operators" << endl;
+		cout << "  4:" << endl;
+		cout << "    input is any htn problem" << endl;
+		cout << "    implements sorted queue with conditional effects" << endl;
 		cout << "--pgb <int>: set the starting progressionbound" << endl;
 		cout << "  default: automatic" << endl;
 		cout << "--maxpgb <int>: set the maximal progressionbound" << endl;
@@ -274,6 +277,15 @@ int main(int argc, char *argv[]) {
     else if (problemType == 3){
       cerr << "HTN with parallel total order sequences";
       htn->htnPS(parallel, pgbList);
+    }
+    else if (problemType == 4){
+      cerr << "HTN to strips with conditional effects and sorted queue";
+      int b = htn->htnToCondSorted(pgb);
+      if (b == -1){
+        cerr << endl << "problem too big to solve" << endl;;
+        delete[] pgbList;
+        return 0;
+      }
     }
     else {
       cerr << "not a valid problem Type" << endl;
