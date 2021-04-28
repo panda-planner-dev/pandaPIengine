@@ -3968,13 +3968,14 @@ void Model::calcMinimalProgressionBound(bool to) {
   int Model::htnToCondSorted(int pgb) {
     // number of translated variables
     int n = pgb * (pgb - 1) / 2;
-    numVarsTrans = numVars + pgb * 2 + n;
+    numVarsTrans = numVars + pgb * 3 + n;
 
     // indizes for variables
     firstVarIndex = 0;
     firstTaskIndex = numVars;
     firstConstraintIndex = numVars + pgb;
     firstStackIndex = firstConstraintIndex + n;
+    int firstMoveIndex = firstStackIndex + pgb;
     numInvalidTransActions = 0;
 
     // indizes for names
@@ -3999,6 +4000,10 @@ void Model::calcMinimalProgressionBound(bool to) {
     for (int i = 0; i < pgb; i++){
       firstIndexTrans[firstStackIndex + i] = lastIndexTrans[firstStackIndex + i - 1] + 1;
       lastIndexTrans[firstStackIndex + i] = firstIndexTrans[firstStackIndex + i] + 1;
+    }
+    for (int i = 0; i < pgb; i++){
+      firstIndexTrans[firstMoveIndex + i] = lastIndexTrans[firstMoveIndex + i - 1] + 1;
+      lastIndexTrans[firstMoveIndex + i] = firstIndexTrans[firstMoveIndex + i] + 1;
     }
 
     varNamesTrans = new string[numVarsTrans];
@@ -4041,6 +4046,10 @@ void Model::calcMinimalProgressionBound(bool to) {
       factStrsTrans[firstIndexTrans[i + firstStackIndex] + 1] = string("+occupied[head")+ to_string(i) + ']';
     }
     
+    for (int i = 0; i < pgb; i++){
+      factStrsTrans[firstIndexTrans[i + firstMoveIndex]] = string("+immovable[head")+ to_string(i) + ']';
+      factStrsTrans[firstIndexTrans[i + firstMoveIndex] + 1] = string("+movable[head")+ to_string(i) + ']';
+    }
     // Initial state
     s0SizeTrans = numVarsTrans-firstTaskIndex;
     s0ListTrans = new int[s0SizeTrans];
@@ -4126,7 +4135,10 @@ void Model::calcMinimalProgressionBound(bool to) {
     index = methodTaskIndex;
     for (int i = 0; i < numTasks; i++) {
       for (int j = 0; j < (pgb - 1); j++){
-        numConditionalEffectsTrans[index] = pgb - 2;
+        numConditionalEffectsTrans[index] = pgb;
+        if (j > 0){
+          numConditionalEffectsTrans[index] = pgb + 2;
+        }
         effectConditionsTrans[index] = new int*[numConditionalEffectsTrans[index]];
         numEffectConditionsTrans[index] = new int[numConditionalEffectsTrans[index]];
         effectsTrans[index] = new int[numConditionalEffectsTrans[index]];
@@ -4266,8 +4278,8 @@ void Model::calcMinimalProgressionBound(bool to) {
     index = methodTaskIndex;
     for (int i = 0; i < numTasks; i++) {
       for (int j = 1; j < pgb; j++){
-        numAddsTrans[index] = 4 + pgb - 2;
-        numPrecsTrans[index] = 4;
+        numAddsTrans[index] = 5 + pgb - 2;
+        numPrecsTrans[index] = 4 + pgb - 2;
         
         precListsTrans[index] = new int[numPrecsTrans[index]];
         addListsTrans[index] = new int[numAddsTrans[index]];
@@ -4281,10 +4293,17 @@ void Model::calcMinimalProgressionBound(bool to) {
         addListsTrans[index][1] = firstIndexTrans[firstStackIndex + j];
         addListsTrans[index][2] = firstIndexTrans[firstTaskIndex + j - 1] + 1 + i;
         addListsTrans[index][3] = firstIndexTrans[firstStackIndex + j - 1] + 1;
+        addListsTrans[index][4] = firstIndexTrans[firstMoveIndex + j];
         
         for (int l = 0; l < pgb - 2; l++){
+          if (l < j){
+            precListsTrans[index][4 + l] = firstIndexTrans[firstMoveIndex + l];
+          }
+          else {
+            precListsTrans[index][4 + l] = firstIndexTrans[firstMoveIndex + l + 1];
+          }
           if (l < j - 1){
-            addListsTrans[index][4 + l] = firstIndexTrans[firstConstraintIndex + j * (j - 1) / 2 + l];
+            addListsTrans[index][5 + l] = firstIndexTrans[firstConstraintIndex + j * (j - 1) / 2 + l];
             effectConditionsTrans[index][l][0] = firstIndexTrans[firstConstraintIndex + j * (j - 1) / 2 + l] + 1;
             effectsTrans[index][l] = firstIndexTrans[firstConstraintIndex + (j - 1) * (j - 2) / 2 + l] + 1;
           }
@@ -4294,6 +4313,14 @@ void Model::calcMinimalProgressionBound(bool to) {
             effectsTrans[index][l] = firstIndexTrans[firstConstraintIndex + (l + 2) * (l - 1) / 2 + j - 1] + 1;
           }
         }
+        // ensure new immovability
+        if (j > 1){
+          effectConditionsTrans[index][pgb - 2][0] = firstIndexTrans[firstStackIndex + j - 2];
+          effectsTrans[index][pgb - 2] = firstIndexTrans[firstMoveIndex + j - 1] + 1;
+          effectConditionsTrans[index][pgb - 1][0] = firstIndexTrans[firstStackIndex + j - 2] + 1;
+          effectsTrans[index][pgb - 1] = firstIndexTrans[firstMoveIndex + j - 1];
+        }
+        
         index++;
       }
     }
