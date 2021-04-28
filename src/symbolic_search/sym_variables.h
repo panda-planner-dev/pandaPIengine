@@ -186,6 +186,8 @@ public:
     return bdd.CountMinterm(numBDDVars);
   }
 
+  std::vector<std::vector<int>> getStatesFrom(const BDD &bdd) const;
+
 
 private:
   // Auxiliar function helping to create precondition and effect BDDs
@@ -213,6 +215,7 @@ private:
   }
 
   inline int getNumBDDVars() const { return numBDDVars; }
+  std::vector<int> getStateFrom(const BDD &bdd) const;
 };
 } // namespace symbolic
 

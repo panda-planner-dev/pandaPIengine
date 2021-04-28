@@ -237,6 +237,7 @@ std::deque<BDD> checkStack(
 		state = nextBDD;
 		currentVertex = targetVertex;
 	}
+	// intersect with goal states XYZ
 
 	// possible start states remain in v
 	BDD possibleStartState = state.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsEff);
@@ -1035,6 +1036,23 @@ void extract(int curCost, int curDepth, int curTask, int curTo,
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 //================================================== planning algorithm
 
 void build_automaton(Model * htn){
@@ -1155,7 +1173,9 @@ void build_automaton(Model * htn){
 	};
 
 
+	BDD allGoalStates = sym_vars.zeroBDD();
 
+	std::clock_t overall_start = std::clock();
 	std::clock_t layer_start = std::clock();
 	int lastCost;
 	int lastDepth;
@@ -1303,8 +1323,13 @@ void build_automaton(Model * htn){
 								double search_time_in_ms = 1000.0 * (search_end-preparation_end) / CLOCKS_PER_SEC;
 								std::cout << "Search time: " << fixed << search_time_in_ms << "ms " << fixed << search_time_in_ms / 1000 << "s " << fixed << search_time_in_ms / 60000 << "min" << std::endl << std::endl;
 								
-								extract(currentCost, currentDepthInAbstract, task, to, nextState * goal, htn->emptyMethod[task], htn, sym_vars);
-								return;
+								BDD goalStates = nextState * goal;
+								goalStates.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux);
+
+								allGoalStates = allGoalStates + goalStates;
+
+								//extract(currentCost, currentDepthInAbstract, task, to, nextState * goal, htn->emptyMethod[task], htn, sym_vars);
+								//return;
 							} else {
 								std::cout << "Goal not reached!" << std::endl;
 							}
@@ -1556,7 +1581,26 @@ void build_automaton(Model * htn){
 			// transition to primitive layer
 			auto findIt = prim_q.find(currentCost);
 			findIt++;
-			if (findIt == prim_q.end() && ++abst_q.find(currentCost) == abst_q.end()){
+			cout << "Number of Goal states: " << (long long)(sym_vars.numStates(allGoalStates)) << endl;
+			std::clock_t current = std::clock();
+			double overall_time_in_ms = 1000.0 * (current-overall_start) / CLOCKS_PER_SEC;
+			
+			if (overall_time_in_ms >= 60 * 60 * 1000 || (findIt == prim_q.end() && ++abst_q.find(currentCost) == abst_q.end())){
+				//sym_vars.bdd_to_dot(allGoalStates, "allGoals.dot");
+				vector<vector<int>> states = sym_vars.getStatesFrom(allGoalStates);
+				map<int,int> count;
+				for (vector<int> state : states) for (int val : state) count[val]++;
+
+				for (vector<int> state : sym_vars.getStatesFrom(allGoalStates)){
+					std::cout << color(BLUE,"State:") << endl;
+					for (int val : state){
+						if (count[val] == states.size()) continue;
+						//std::cout << "\t" << val << "/" << htn->numStateBits << endl;
+						std::cout << "\t" << htn->factStrs[val] << endl;
+					}
+					std::cout << std::endl << std::endl;
+				}
+
 				std::cout << color(RED,"Problem is unsolvable") << std::endl;
 				exit(0);
 			}
