@@ -4249,7 +4249,7 @@ void Model::calcMinimalProgressionBound(bool to) {
             addListsTrans[index][l + numSubTasks[i]] = firstIndexTrans[firstStackIndex + pgb - 1 - l] + 1;
             for (int m = 0; m < j; m++){
               effectConditionsTrans[index][l * j + m][0] = firstIndexTrans[firstConstraintIndex + j * (j - 1) / 2 + m] + 1;
-              effectsTrans[index][l * j + m] = firstIndexTrans[firstConstraintIndex + l * (l - 1) / 2 + m] + 1;
+              effectsTrans[index][l * j + m] = firstIndexTrans[firstConstraintIndex + (pgb - l - 1) * (pgb - l - 2) / 2 + m] + 1;
             }
           }
           for (int l = 0; l < numOrderings[i] / 2; l++){
@@ -4259,13 +4259,13 @@ void Model::calcMinimalProgressionBound(bool to) {
               first = j;
             }
             else {
-              first = pgb - numSubTasks[i] - 1 + first;
+              first = pgb - numSubTasks[i] + first + 1;
             }
             if (second < 0){
               second = j;
             }
             else {
-              second = pgb - numSubTasks[i] - 1 + second;
+              second = pgb - numSubTasks[i] + second + 1;
             }
             effectConditionsTrans[index][j * (numSubTasks[i] - 1) + l][0] = firstIndexTrans[firstConstraintIndex + first * (first - 1) / 2 + second];
             effectsTrans[index][j * (numSubTasks[i] - 1) + l] = firstIndexTrans[firstConstraintIndex + first * (first - 1) / 2 + second] + 1;
@@ -4308,9 +4308,9 @@ void Model::calcMinimalProgressionBound(bool to) {
             effectsTrans[index][l] = firstIndexTrans[firstConstraintIndex + (j - 1) * (j - 2) / 2 + l] + 1;
           }
           else {
-            addListsTrans[index][4 + l] = firstIndexTrans[firstConstraintIndex + (l + 2) * (l - 1) / 2 + j];
-            effectConditionsTrans[index][l][0] = firstIndexTrans[firstConstraintIndex + (l + 2) * (l - 1) / 2 + j] + 1;
-            effectsTrans[index][l] = firstIndexTrans[firstConstraintIndex + (l + 2) * (l - 1) / 2 + j - 1] + 1;
+            addListsTrans[index][5 + l] = firstIndexTrans[firstConstraintIndex + (l + 2) * (l + 1) / 2 + j];
+            effectConditionsTrans[index][l][0] = firstIndexTrans[firstConstraintIndex + (l + 2) * (l + 1) / 2 + j] + 1;
+            effectsTrans[index][l] = firstIndexTrans[firstConstraintIndex + (l + 2) * (l + 1) / 2 + j - 1] + 1;
           }
         }
         // ensure new immovability
@@ -4351,7 +4351,7 @@ void Model::calcMinimalProgressionBound(bool to) {
             if (l < numSubTasks[i] - 1){
               actionNamesTrans[index] += ",";
             }
-            actionNamesTrans[index] += to_string(pgb - 1 - l);
+            actionNamesTrans[index] += to_string(pgb - numSubTasks[i] + 1 + l);
           }
           actionNamesTrans[index] += "]): ";
           actionNamesTrans[index] += methodNames[i];
