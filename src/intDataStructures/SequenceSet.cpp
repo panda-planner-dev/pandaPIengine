@@ -10,6 +10,41 @@
 #include <map>
 
 
+const int cellsPerBlock = 65536;
+int nextCell = cellsPerBlock - 1;
+
+vector<sequence_trie*> memory_blocks;
+
+
+sequence_trie* alloc(uint16_t & block, uint16_t & inside){
+	if (nextCell == cellsPerBlock - 1){
+		nextCell = 0;
+		memory_blocks.push_back((sequence_trie*) malloc(sizeof(sequence_trie) * cellsPerBlock));
+		if (memory_blocks.size() == 1) nextCell++; // 0 should not be a valid address ...
+	}
+
+	sequence_trie* ret = memory_blocks.back() + nextCell;
+	inside = nextCell;
+	block = memory_blocks.size() - 1;
+	nextCell++;
+
+	return ret;
+}
+
+inline sequence_trie* getCell(uint16_t block, uint16_t inside){
+	return memory_blocks[block] + inside;
+}
+
+sequence_trie* sequence_trie::getZero(){
+	return getCell(zeroBlock,zeroInside);
+}
+
+sequence_trie* sequence_trie::getOne(){
+	return getCell(oneBlock,oneInside);
+}
+
+
+
 void sequence_trie::print_node(int indent){
 	for(int i = 0; i < indent; i++) cout << " ";
 	cout << "block position " << myBlock << "; ignore first " << int(ignoreBitsFirst) << "; ignore last " << int(ignoreBitsLast) << "; payload " << payload << endl;
@@ -24,15 +59,15 @@ void sequence_trie::print_node(int indent){
 
 void sequence_trie::print_tree(int indent){
 	print_node(indent);
-	if (one){
+	if (oneBlock || oneInside){
 		for(int i = 0; i < indent; i++) cout << " ";
 		cout << "child one";
-		one->print_tree(indent+2);
+		getOne()->print_tree(indent+2);
 	}
-	if (zero){
+	if (zeroBlock || zeroInside){
 		for(int i = 0; i < indent; i++) cout << " ";
 		cout << "child zero";
-		zero->print_tree(indent+2);
+		getZero()->print_tree(indent+2);
 	}
 }
 
@@ -42,19 +77,21 @@ sequence_trie::sequence_trie(){
 	ignoreBitsFirst = 0;
 	ignoreBitsLast = 0;
 	myBlock = 0;
-	zero = nullptr;
-	one = nullptr;
+	zeroBlock = 0;
+	zeroInside = 0;
+	oneBlock = 0;
+	oneInside = 0;
 }
 
 sequence_trie::~sequence_trie(){
-	delete zero;
-	delete one;
+	//delete zero;
+	//delete one;
 }
 
-sequence_trie::sequence_trie(const vector<uint64_t> & sequence, int paddingBits, uint64_t* & p) :
+sequence_trie::sequence_trie(const vector<uint64_t> & sequence, int paddingBits, payloadType* & p) :
 	sequence_trie(sequence, 0, 0, paddingBits, p){}
 
-sequence_trie::sequence_trie(const vector<uint64_t> & sequence, int startingBlock, int startingBit, int paddingBits, uint64_t* & p) : sequence_trie(){
+sequence_trie::sequence_trie(const vector<uint64_t> & sequence, int startingBlock, int startingBit, int paddingBits, payloadType* & p) : sequence_trie(){
 	assert((sequence.back() & ~bitmask_ignore_last(paddingBits)) == 0);
 	p = &payload;
 	myBlock = startingBlock;
@@ -63,10 +100,13 @@ sequence_trie::sequence_trie(const vector<uint64_t> & sequence, int startingBloc
 	if (sequence.size() - 1 == myBlock){
 		ignoreBitsLast = paddingBits;
 	} else {
-		if (sequence[myBlock+1] & bitmask_bit(0))
-			one = new sequence_trie(sequence,startingBlock+1,0,paddingBits,p);
-		else
-			zero = new sequence_trie(sequence,startingBlock+1,0,paddingBits,p);
+		if (sequence[myBlock+1] & bitmask_bit(0)){
+			sequence_trie * one = alloc(oneBlock,oneInside);
+			new (one) sequence_trie(sequence,startingBlock+1,0,paddingBits,p);
+		} else {
+			sequence_trie * zero = alloc(zeroBlock,zeroInside);
+			new (zero) sequence_trie(sequence,startingBlock+1,0,paddingBits,p);
+		}
 	}
 	TEST(check_integrity());
 }
@@ -74,7 +114,9 @@ sequence_trie::sequence_trie(const vector<uint64_t> & sequence, int startingBloc
 void sequence_trie::split_me_at(int bit){
 	DEBUG(cout << "Starting split @ bit " << bit << endl);
 	
-	sequence_trie * child = new sequence_trie();
+	uint16_t block, inside;
+	sequence_trie * child = alloc(block,inside);
+   	new (child) sequence_trie();
 	// child gets all blocks from (inclusive) block to blocks
 	child->myBlock = myBlock;
 	// remove the bits before bit from the child's first block
@@ -86,15 +128,23 @@ void sequence_trie::split_me_at(int bit){
 	
 	child->payload = payload;
 	payload = 0; // reset my own payload to zero
-	child->zero = zero;
-	child->one = one;
+	child->zeroBlock = zeroBlock;
+	child->zeroInside = zeroInside;
+	child->oneBlock =  oneBlock;
+	child->oneInside = oneInside;
 	
 	// the child is now my child
-	one = zero = nullptr;
-	if (child->value & bitmask_bit(bit))
-		one = child;
-	else
-		zero = child;
+	zeroBlock = 0;
+	zeroInside = 0;
+	oneBlock = 0;
+	oneInside = 0;
+	if (child->value & bitmask_bit(bit)){
+		oneBlock = block;
+		oneInside = inside;
+	} else {
+		zeroBlock = block;
+		zeroInside = inside;
+	}
 
 	// curb myself
 	ignoreBitsLast = 64 - bit;
@@ -109,7 +159,7 @@ void sequence_trie::split_me_at(int bit){
 }
 
 
-void sequence_trie::insert(const vector<uint64_t> & sequence, int paddingBits, uint64_t* & p){
+void sequence_trie::insert(const vector<uint64_t> & sequence, int paddingBits, payloadType* & p){
 	// all of the padding bits must actually be zero, else the testing of the difference breaks
 	assert((sequence.back() & ~bitmask_ignore_last(paddingBits)) == 0);
 
@@ -146,15 +196,19 @@ void sequence_trie::insert(const vector<uint64_t> & sequence, int paddingBits, u
 				// continue with child
 				uint64_t next_bit_value = sequence.back() & bitmask_bit(64 - ignoreBitsLast);
 				if (next_bit_value){
-					if (one)
-						one->insert(sequence, paddingBits, p);
-					else
-						one = new sequence_trie(sequence, myBlock, 64 - ignoreBitsLast, paddingBits, p);
+					if (oneBlock || oneInside)
+						getOne()->insert(sequence, paddingBits, p);
+					else{
+						sequence_trie * one = alloc(oneBlock,oneInside);
+						new (one) sequence_trie(sequence, myBlock, 64 - ignoreBitsLast, paddingBits, p);
+					}
 				} else {
-					if (zero)
-						zero->insert(sequence, paddingBits, p);
-					else
-						zero = new sequence_trie(sequence, myBlock, 64 - ignoreBitsLast, paddingBits, p);
+					if (zeroBlock || zeroInside)
+						getZero()->insert(sequence, paddingBits, p);
+					else {
+						sequence_trie * zero = alloc(zeroBlock,zeroInside);
+						new (zero) sequence_trie(sequence, myBlock, 64 - ignoreBitsLast, paddingBits, p);
+					}
 				}
 				TEST(check_integrity());
 				return;
@@ -180,21 +234,23 @@ void sequence_trie::insert(const vector<uint64_t> & sequence, int paddingBits, u
 
 			if (next_bit_value){
 				DEBUG(cout << "\tNext bit is one." << endl);
-				if (one){
+				if (oneBlock || oneInside){
 					DEBUG(cout << "\tInsert." << endl);
-					one->insert(sequence, paddingBits, p);
+					getOne()->insert(sequence, paddingBits, p);
 				} else {
 					DEBUG(cout << "\tCreate." << endl);
-					one = new sequence_trie(sequence, nextBlock, next_bit, paddingBits, p);
+					sequence_trie * one = alloc(oneBlock,oneInside);
+					new (one) sequence_trie(sequence, nextBlock, next_bit, paddingBits, p);
 				}
 			} else {
 				DEBUG(cout << "\tNext bit is zero." << endl);
-				if (zero) {
+				if (zeroBlock || zeroInside) {
 					DEBUG(cout << "\tInsert." << endl);
-					zero->insert(sequence, paddingBits, p);
+					getZero()->insert(sequence, paddingBits, p);
 				} else {
 					DEBUG(cout << "\tCreate." << endl);
-					zero = new sequence_trie(sequence, nextBlock, next_bit, paddingBits, p);
+					sequence_trie * zero = alloc(zeroBlock,zeroInside);
+					new (zero) sequence_trie(sequence, nextBlock, next_bit, paddingBits, p);
 				}
 			}
 			TEST(check_integrity());
@@ -226,10 +282,13 @@ void sequence_trie::insert(const vector<uint64_t> & sequence, int paddingBits, u
 	// split me	
 	split_me_at(splitBit);
 
-	if (sequence[myBlock] & bitmask_bit(splitBit))
-		one = new sequence_trie(sequence, myBlock, splitBit, paddingBits, p);
-	else
-		zero = new sequence_trie(sequence, myBlock, splitBit, paddingBits, p);
+	if (sequence[myBlock] & bitmask_bit(splitBit)){
+		sequence_trie * one = alloc(oneBlock,oneInside);
+		new (one) sequence_trie(sequence, myBlock, splitBit, paddingBits, p);
+	} else {
+		sequence_trie * zero = alloc(zeroBlock,zeroInside);
+		new (zero) sequence_trie(sequence, myBlock, splitBit, paddingBits, p);
+	}
 
 	TEST(check_integrity());
 	// split
@@ -247,8 +306,8 @@ void sequence_trie::check_integrity(){
 	assert((value & ~bitmask_ignore_first(ignoreBitsFirst)) == 0);
 	assert((value & ~bitmask_ignore_last(ignoreBitsLast)) == 0);
 
-	if (one) one->check_integrity();
-	if (zero) zero->check_integrity();
+	if (oneBlock || oneInside) getOne()->check_integrity();
+	if (zeroBlock || zeroInside) getZero()->check_integrity();
 }
 
 
@@ -257,8 +316,8 @@ void stat(sequence_trie * t, int & nodes, int & fill){
 	int b = t->ignoreBitsLast;
 	nodes++;
 	fill += 64 - a - b;
-	if (t->zero) stat(t->zero, nodes, fill);
-	if (t->one ) stat(t->one , nodes, fill);
+	if (t->zeroBlock || t->zeroInside) stat(t->getZero(), nodes, fill);
+	if (t->oneBlock  || t->oneInside ) stat(t->getOne() , nodes, fill);
 }
 
 
@@ -270,17 +329,20 @@ void sequence_trie_speed_test(){
 	cout << "SIZE " << sizeof(sequence_trie) << endl;
 	cout << "SIZE " << sizeof(pair<vector<uint64_t>,int>) << endl;
 
-	int numbers = 3 * 1000 * 1000;
-	int lenMax = 10;
+	int numbers = 5 * 1000 * 1000;
+	int lenMax = 40;
 
 	setDebugMode(false);
 
 	srand(42);
+	printMemory();
 	std::clock_t beforeMap = std::clock();
 	map<pair<vector<uint64_t>,int>,int> data;
+	int ds = 0;
 	for (int j = 0 ; j < numbers; j++){
 		vector<uint64_t> vec;
 		int len = rand() % lenMax;
+		ds += len*8;
 		for (int i = 0; i < len; i++)
 			vec.push_back(uint64_t(rand()) * uint64_t(rand()));
 		int padding = rand() % 64;
@@ -292,39 +354,44 @@ void sequence_trie_speed_test(){
 	std::clock_t afterMap = std::clock();
 	double map_time = 1000.0 * (afterMap - beforeMap) / CLOCKS_PER_SEC;
 	cout << "Map took: " << setprecision(3) << fixed << map_time << " ms" << endl;
-
+	cout << "\tsize of data " << ds << endl;
 	srand(42);
 
 	printMemory();
 	sequence_trie * t = nullptr; 
+	ds = 0;
 	std::clock_t beforeTrie = std::clock();
 	for (int j = 0 ; j < numbers; j++){
 		vector<uint64_t> vec;
 		int len = rand() % lenMax;
+		ds += len*8;
 		for (int i = 0; i < len; i++)
 			vec.push_back(uint64_t(rand()) * uint64_t(rand()));
 		int padding = rand() % 64;
 		vec.push_back((uint64_t(rand()) * uint64_t(rand())) & bitmask_ignore_last(padding));
 
 		//cout << "Do " << j << "/" << numbers << endl;
-		uint64_t *pay;
+		payloadType *pay;
 		if (!t)
 			t = new sequence_trie(vec,padding,pay);
 		else {
 			t->insert(vec,padding,pay);
 		}
 		
-		*pay = j+1;
+		*pay = (j+1) % 60000;
 	}
 	
 	std::clock_t afterTrie = std::clock();
 	double trie_time = 1000.0 * (afterTrie - beforeTrie) / CLOCKS_PER_SEC;
 	cout << "Trie took: " << setprecision(3) << fixed << trie_time << " ms" << endl;
+	cout << "\tsize of data " << ds << endl;
+	srand(42);
 	printMemory();
 
 	int n = 0, f = 0;
 	stat(t,n,f);
 	cout << "N " << n << " F " << f << " " << (double(f) / n) << endl;
+	delete t;
 }
 
 void sequence_trie_test(){
@@ -347,7 +414,7 @@ void sequence_trie_test(){
 		cout << "pushing #" << j;
 		DEBUG(cout << " "; for (uint64_t v : vec) cout << v << ","; cout << " pad: " << padding;);
 
-		uint64_t *pay;
+		payloadType *pay;
 		if (!t)
 			t = new sequence_trie(vec,padding,pay);
 		else {
@@ -367,7 +434,7 @@ void sequence_trie_test(){
 
 		// check integrity of the tree in every step
 		for (auto [key,value] : data){
-			uint64_t *pay = nullptr;
+			payloadType *pay = nullptr;
 			auto [vec,padding] = key;
 			t->insert(vec,padding,pay);
 			DEBUG(cout << "checking "; for (uint64_t v : vec) cout << v << ","; cout << " pad: " << padding << " @ " << pay << endl);
