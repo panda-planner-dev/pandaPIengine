@@ -196,10 +196,10 @@ namespace progression {
                              << " cur h " << setw(4) << n->heuristicValue[0]
                              << " mod.depth " << setw(4) << n->modificationDepth
                              << " inserts " << setw(9) << visitedList.attemptedInsertions
-                             << " duplicates " << setw(9)
-                             << visitedList.attemptedInsertions - visitedList.uniqueInsertions
+                             << " dups " << setw(9) << visitedList.attemptedInsertions - visitedList.uniqueInsertions
                              << " size " << setw(9) << visitedList.uniqueInsertions
                              << " hash fail " << setw(6) << visitedList.subHashCollision
+							 << " hash buckets " << setw(6) << visitedList.attemptedInsertions - visitedList.subHashCollision	
                              << endl;
                         lastOutput = currentT;
                     }
@@ -222,6 +222,7 @@ namespace progression {
             cout << "- Visited list pruned " << visitedList.attemptedInsertions - visitedList.uniqueInsertions << endl;
             cout << "- Visited list contains " << visitedList.uniqueInsertions << endl;
             cout << "- Visited list hash collisions " << visitedList.subHashCollision << endl;
+			cout << "- Visited list used hash buckets " << visitedList.attemptedInsertions - visitedList.subHashCollision << endl;
             cout << "- Generated "
                  << (numSearchNodes + htn->numOneModActions + htn->numOneModMethods + htn->numEffLessProg)
                  << " search nodes" << endl;

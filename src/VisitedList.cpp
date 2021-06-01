@@ -477,6 +477,7 @@ bool VisitedList::insertVisi(searchNode *n) {
 		*stateEntry = new compressed_sequence_trie(accessVector,padding,payload);
 	else {
 		(*stateEntry)->insert(accessVector,padding,payload);
+		subHashCollision++;
 	}
 	
 	DEBUG(cout << "HASH     : " << hash << endl);
@@ -512,6 +513,5 @@ bool VisitedList::insertVisi(searchNode *n) {
 		std::clock_t after = std::clock();
 		this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
 		return true;
-	
 	}
 }
