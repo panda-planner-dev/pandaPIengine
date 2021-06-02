@@ -370,7 +370,7 @@ bool VisitedList::insertVisi(searchNode *n) {
 
 	vector<int> sequenceForHashing;
 
-	if (topologicalOrdering){
+	if (topologicalOrdering || sequenceHash){
 		if (useTotalOrderMode){
         	if (n->numPrimitive) to_dfs(n->unconstraintPrimitive[0], sequenceForHashing);
         	if (n->numAbstract) to_dfs(n->unconstraintAbstract[0], sequenceForHashing);
@@ -398,9 +398,10 @@ bool VisitedList::insertVisi(searchNode *n) {
 			sequenceForHashing = topSort(n);
 		}
 
-		for (int task : sequenceForHashing)
-			for (int bit = 0; bit < bitsNeededPerTask; bit++)
-				exactBitString.push_back(task & (1 << bit));
+		if (topologicalOrdering)
+			for (int task : sequenceForHashing)
+				for (int bit = 0; bit < bitsNeededPerTask; bit++)
+					exactBitString.push_back(task & (1 << bit));
 	}
 
 	// only do this if we have a truly partially ordered instance
