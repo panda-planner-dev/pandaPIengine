@@ -36,9 +36,11 @@ section "Visited List Options"
 
 option "noVisitedList" V "disable visited lists [default=with lists]" flag off
 option "taskHash" T "disable task hashing [default=with task hash]" flag on
+option "taskSequenceHash" Q "disable task sequence hashing [default=with task sequence hash]" flag on
 option "topologicalOrdering" O "disable visited checking with task sequences, this makes totally-ordered visited lists incomplete [default=with order]" flag on
 option "noLayers" - "disable layer hashing [default=with layer hash]" flag on
 option "noOrderPairs" - "disable order pairs hashing [default=with order pairs hash]" flag on
+option "noParallelSequences" - "disable optimisation for parallel sequences [default=with optimisation]" flag on
 
 section "SAT Planner Options"
 

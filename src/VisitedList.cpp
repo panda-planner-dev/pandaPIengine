@@ -20,6 +20,9 @@ const uint64_t tenThousandP = 16381; // largest prime smaller than 1024*16
 const uint64_t tenThousandthP = 104729; // the 10.000th prime number
 
 
+//#define DEBUG(x) do {  x; } while (0)
+
+
 pair<vector<uint64_t>,int> state2Int(vector<bool> &state) {
     int pos = 0;
     uint64_t cur = 0;
@@ -56,16 +59,17 @@ uint64_t hash_state(const vector<uint64_t> & v) {
 }
 
 
-VisitedList::VisitedList(Model *m, bool _noVisitedCheck, bool _taskHash, bool _topologicalOrdering, bool _orderPairs, bool _layers) {
+VisitedList::VisitedList(Model *m, bool _noVisitedCheck, bool _taskHash, bool _taskSequenceHash, bool _topologicalOrdering, bool _orderPairs, bool _layers, bool _allowedToUseParallelSequences) {
     this->htn = m;
 	this->noVisitedCheck = _noVisitedCheck;
 
 	// auto detect properties of the problem
 	this->useTotalOrderMode = this->htn->isTotallyOrdered;
-    this->useSequencesMode = this->htn->isParallelSequences;
+    this->useSequencesMode = _allowedToUseParallelSequences && this->htn->isParallelSequences;
     this->canDeleteProcessedNodes = this->noVisitedCheck || this->useTotalOrderMode || this->useSequencesMode;
 
 	this->taskHash = _taskHash;
+	this->sequenceHash = _taskSequenceHash;
 	this->topologicalOrdering = _topologicalOrdering;
 	this->orderPairs = _orderPairs;
 	this->layers = _layers;
@@ -77,12 +81,6 @@ VisitedList::VisitedList(Model *m, bool _noVisitedCheck, bool _taskHash, bool _t
 		this->bitsNeededPerTask = sizeof(int)*8 -  __builtin_clz(m->numTasks - 1);
 	else
 		this->bitsNeededPerTask = sizeof(int)*8 -  __builtin_clz(m->numTasks); // one more ID is needed to separate parallel sequences
-
-	if (_noVisitedCheck)
-    	this->canDeleteProcessedNodes = true;
-#ifndef POVISI_EXACT
-    this->canDeleteProcessedNodes = true;
-#endif
 
 	cout << "Visited List configured" << endl;
 	if (this->noVisitedCheck)
@@ -97,6 +95,7 @@ VisitedList::VisitedList(Model *m, bool _noVisitedCheck, bool _taskHash, bool _t
 		
 		cout << "- hashs to use: state";
 		if (this->taskHash) cout << " task";
+		if (this->sequenceHash) cout << " task-sequence";
 		cout << endl;
 	
 		cout << "- memory information:";
@@ -162,18 +161,24 @@ bool matchingGenerate(
     planStep *psOne = *oneNextTasks[task].begin();
     oneNextTasks[task].erase(psOne);
 
+	DEBUG(cout << "One Task " << task << endl);
+
     // possible partners
     for (planStep *psOther : otherNextTasks[task]) {
-        if (mapping.count(psOne) && mapping[psOne] != psOther) continue;
+		DEBUG(cout << "\tOne Task " << task << endl);
+		DEBUG(cout << "\tPartner " << psOther << " " << psOther->task << endl);
+        
+		if (mapping.count(psOne) && mapping[psOne] != psOther) continue;
         if (backmapping.count(psOther) && backmapping[psOther] != psOne) continue;
+		DEBUG(cout << "\tOK" << endl);
 
         bool subRes = true;
         map<planStep *, planStep *> subMapping = mapping;
         map<planStep *, planStep *> subBackmapping = backmapping;
 
         if (!mapping.count(psOne)) { // don't check again if we already did it
-            mapping[psOne] = psOther;
-            backmapping[psOther] = psOne;
+            subMapping[psOne] = psOther;
+            subBackmapping[psOther] = psOne;
 
             // run the DFS below this pair
             subRes = matchingDFS(one, other, psOne, psOther, subMapping, subBackmapping);
@@ -185,7 +190,7 @@ bool matchingGenerate(
             subOtherNextTasks[task].erase(psOther);
 
             // continue the extraction with the next task
-            if (matchingGenerate(one, other, subMapping, subBackmapping, oneNextTasks, otherNextTasks, tasks))
+            if (matchingGenerate(one, other, subMapping, subBackmapping, oneNextTasks, subOtherNextTasks, tasks))
                 return true;
         }
     }
@@ -195,7 +200,7 @@ bool matchingGenerate(
 
 bool matchingDFS(searchNode *one, searchNode *other, planStep *oneStep, planStep *otherStep,
                  map<planStep *, planStep *> mapping, map<planStep *, planStep *> backmapping) {
-    if (oneStep->numSuccessors != otherStep->numSuccessors) return false; // is not possible
+	if (oneStep->numSuccessors != otherStep->numSuccessors) return false; // is not possible
     if (oneStep->numSuccessors == 0) return true; // no successors, matching OK
 
 
@@ -204,15 +209,19 @@ bool matchingDFS(searchNode *one, searchNode *other, planStep *oneStep, planStep
     map<int, set<planStep *>> otherNextTasks;
     unordered_set<int> tasks;
 
+	DEBUG(cout << "Categorisation:" << endl);
+
     for (int i = 0; i < oneStep->numSuccessors; i++) {
         planStep *ps = oneStep->successorList[i];
         oneNextTasks[ps->task].insert(ps);
         tasks.insert(ps->task);
+		DEBUG(cout << "\tone: " << ps->task << endl);
     }
     for (int i = 0; i < otherStep->numSuccessors; i++) {
         planStep *ps = otherStep->successorList[i];
         otherNextTasks[ps->task].insert(ps);
         tasks.insert(ps->task);
+		DEBUG(cout << "\tother: " << ps->task << endl);
     }
 
     for (int t : tasks) if (oneNextTasks[t].size() != otherNextTasks[t].size()) return false;
@@ -318,7 +327,7 @@ uint32_t VisitedList::getHash(vector<int> *seq) {
 
 // computes the task count hash
 // completely ignores order of tasks, but still considers how often specific types of tasks occur
-size_t VisitedList::taskCountHash(searchNode * n){
+uint64_t VisitedList::taskCountHash(searchNode * n){
 	uint64_t lhash = 1;
     for (int i = 0; i < n->numContainedTasks; i++) {
         uint64_t numTasks = this->htn->numTasks;
@@ -336,6 +345,16 @@ size_t VisitedList::taskCountHash(searchNode * n){
     return lhash;
 }
 
+uint64_t VisitedList::taskSequenceHash(vector<int> & tasks){
+	uint64_t lhash = 0;
+    for (int t : tasks) {
+		// we need to use +1 here as the task sequence may contain the task htn->numTasks as a divider (for the parallel-seq case)
+		lhash = (lhash * (htn->numTasks + 1)) % max32BitP;
+		lhash += t;
+    }
+    return lhash;
+}
+
 
 
 bool VisitedList::insertVisi(searchNode *n) {
@@ -349,11 +368,12 @@ bool VisitedList::insertVisi(searchNode *n) {
 	vector<bool> exactBitString = n->state;
 	// add everything we choose to append to the bitstring
 
+	vector<int> sequenceForHashing;
+
 	if (topologicalOrdering){
-		vector<int> seq;
 		if (useTotalOrderMode){
-        	if (n->numPrimitive) to_dfs(n->unconstraintPrimitive[0], seq);
-        	if (n->numAbstract) to_dfs(n->unconstraintAbstract[0], seq);
+        	if (n->numPrimitive) to_dfs(n->unconstraintPrimitive[0], sequenceForHashing);
+        	if (n->numAbstract) to_dfs(n->unconstraintAbstract[0], sequenceForHashing);
 		} if (useSequencesMode) {
 			vector<vector<int>> sequences;
             for (int a = 0; a < n->numAbstract; a++) {
@@ -370,15 +390,15 @@ bool VisitedList::insertVisi(searchNode *n) {
             sort(sequences.begin(), sequences.end());
 			bool first = true;
 			for (vector<int> & sub : sequences){
-				if (!first) seq.push_back(htn->numTasks);
-				for (int & s : sub) seq.push_back(s);
+				if (!first) sequenceForHashing.push_back(htn->numTasks);
+				for (int & s : sub) sequenceForHashing.push_back(s);
 				first = false;
 			}
 		} else {
-			seq = topSort(n);
+			sequenceForHashing = topSort(n);
 		}
 
-		for (int task : seq)
+		for (int task : sequenceForHashing)
 			for (int bit = 0; bit < bitsNeededPerTask; bit++)
 				exactBitString.push_back(task & (1 << bit));
 	}
@@ -398,6 +418,8 @@ bool VisitedList::insertVisi(searchNode *n) {
 		if (orderPairs){
 			// write sorted pairs into list
 			for (auto & [a,b] : pairs){
+				//cout << "OP: " << a << " " << b << endl;
+				
 				for (int bit = 0; bit < bitsNeededPerTask; bit++)
 					exactBitString.push_back(a & (1 << bit));
 				for (int bit = 0; bit < bitsNeededPerTask; bit++)
@@ -457,7 +479,6 @@ bool VisitedList::insertVisi(searchNode *n) {
 			}
 			// XXX if we ever add a hash after the layer hash, we must push *two* htn->numTasks in order to ensure a clean boundary
 		}
-
 	}
 
 	// state access
@@ -466,8 +487,8 @@ bool VisitedList::insertVisi(searchNode *n) {
 	// 2. STEP
 	// compute the hashs
 	uint64_t hash = hash_state(state2Int(n->state).first); // TODO double computation ...
-	if (taskHash)
-		hash = hash ^ taskCountHash(n);
+	if (taskHash) hash = hash ^ taskCountHash(n);
+	if (sequenceHash) hash = hash ^ taskSequenceHash(sequenceForHashing);
 
 	// ACCESS Phase
 	// access the hash hable
@@ -480,9 +501,13 @@ bool VisitedList::insertVisi(searchNode *n) {
 		subHashCollision++;
 	}
 	
+	
 	DEBUG(cout << "HASH     : " << hash << endl);
+	DEBUG(cout << "HADR     : " << stateEntry << endl);
+	DEBUG(cout << "ACCESS   :"; for (auto x : accessVector) cout << " " << bitset<64>(x); cout << " Padding: " << padding << endl);
+	DEBUG(cout << "ADR      : " << payload << endl);
 	DEBUG(cout << "READ     : " << *payload << endl);
-
+	
 	// 1. CASE
 	// problem is totally ordered -- then we can use the total order mode
 	if (useTotalOrderMode || useSequencesMode) {
@@ -493,25 +518,30 @@ bool VisitedList::insertVisi(searchNode *n) {
 		std::clock_t after = std::clock();
         this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
 		if (returnValue) uniqueInsertions++;
+
 		return returnValue;
 	} else {
 		vector<searchNode*> ** nodes = (vector<searchNode*> **) payload;
 		if (*nodes == nullptr)
 			*nodes = new vector<searchNode*>;
-            
+   
+
 		for (searchNode *other : **nodes) {
 			bool result = matching(n, other);
+			//cout << endl << endl << "Comp " << result << endl;
+			//other->printNode(cout);
 			if (result) {
 				std::clock_t after = std::clock();
 				this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
 				return false;
 			}
-            if ((*nodes)->size() > 0) subHashCollision++;
-            (*nodes)->push_back(n);
 		}
+        
+		(*nodes)->push_back(n);
 		
 		std::clock_t after = std::clock();
 		this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
+		uniqueInsertions++;
 		return true;
 	}
 }

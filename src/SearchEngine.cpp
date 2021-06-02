@@ -329,12 +329,13 @@ int main(int argc, char *argv[]) {
 		
 		bool noVisitedList = args_info.noVisitedList_flag;
 		bool taskHash = args_info.taskHash_flag;
+		bool taskSequenceHash = args_info.taskSequenceHash_flag;
 		bool topologicalOrdering = args_info.topologicalOrdering_flag;
 		bool orderPairsHash = args_info.noOrderPairs_flag;
 		bool layerHash = args_info.noLayers_flag;
-
+		bool allowParalleSequencesMode = args_info.noParallelSequences_flag;
     	
-		VisitedList visi(htn,noVisitedList, taskHash, topologicalOrdering, orderPairsHash, layerHash);
+		VisitedList visi(htn,noVisitedList, taskHash, taskSequenceHash, topologicalOrdering, orderPairsHash, layerHash, allowParalleSequencesMode);
     	PriorityQueueSearch search;
     	OneQueueWAStarFringe fringe(aStarType, aStarWeight, hLength);
 

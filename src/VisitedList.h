@@ -14,7 +14,7 @@ const int max_task_count = (1 << (1 << number_of_bits_for_task_count)) - 1;
 using namespace progression;
 
 struct VisitedList{
-	VisitedList(Model * m, bool _noVisitedCheck, bool _taskHash, bool _topologicalOrdering, bool _orderPairs, bool _layers);
+	VisitedList(Model *m, bool _noVisitedCheck, bool _taskHash, bool _taskSequenceHash, bool _topologicalOrdering, bool _orderPairs, bool _layers, bool _allowedToUseParallelSequences);
 	
 	// insert the node into the visited list
 	// @returns true if the node was *new* and false, if the node was already contained in the visited list
@@ -36,6 +36,7 @@ private:
 	// configuration given by the user
 	bool noVisitedCheck;
 	bool taskHash;
+	bool sequenceHash;
 	bool topologicalOrdering;
 	bool orderPairs;
 	bool layers;
@@ -44,7 +45,8 @@ private:
 
 	hash_table * stateTable;
 
-	size_t taskCountHash(searchNode * n);
+	uint64_t taskCountHash(searchNode * n);
+	uint64_t taskSequenceHash(vector<int> & tasks);
 
     vector<int> topSort(searchNode *n);
 
