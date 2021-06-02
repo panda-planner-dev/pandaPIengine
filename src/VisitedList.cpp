@@ -59,9 +59,10 @@ uint64_t hash_state(const vector<uint64_t> & v) {
 }
 
 
-VisitedList::VisitedList(Model *m, bool _noVisitedCheck, bool _taskHash, bool _taskSequenceHash, bool _topologicalOrdering, bool _orderPairs, bool _layers, bool _allowedToUseParallelSequences) {
+VisitedList::VisitedList(Model *m, bool _noVisitedCheck, bool _taskHash, bool _taskSequenceHash, bool _topologicalOrdering, bool _orderPairs, bool _layers, bool _allowGIcheck, bool _allowedToUseParallelSequences) {
     this->htn = m;
 	this->noVisitedCheck = _noVisitedCheck;
+	this->GIcheck = _allowGIcheck;
 
 	// auto detect properties of the problem
 	this->useTotalOrderMode = this->htn->isTotallyOrdered;
@@ -511,7 +512,7 @@ bool VisitedList::insertVisi(searchNode *n) {
 	
 	// 1. CASE
 	// problem is totally ordered -- then we can use the total order mode
-	if (useTotalOrderMode || useSequencesMode) {
+	if (useTotalOrderMode || useSequencesMode || !GIcheck) {
 		// check if node was new
 		bool returnValue = *payload == nullptr;
 		*payload = (void*) 1; // now the hash is known

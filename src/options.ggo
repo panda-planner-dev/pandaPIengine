@@ -41,6 +41,7 @@ option "topologicalOrdering" O "disable visited checking with task sequences, th
 option "noLayers" - "disable layer hashing [default=with layer hash]" flag on
 option "noOrderPairs" - "disable order pairs hashing [default=with order pairs hash]" flag on
 option "noParallelSequences" - "disable optimisation for parallel sequences [default=with optimisation]" flag on
+option "noGIcheck" - "disable GI-complete equivalence checking for partially ordered task networks [default=with GI-complete checking]" flag on
 
 section "SAT Planner Options"
 

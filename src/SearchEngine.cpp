@@ -328,6 +328,7 @@ int main(int argc, char *argv[]) {
 
 		
 		bool noVisitedList = args_info.noVisitedList_flag;
+		bool allowGIcheck = args_info.noGIcheck_flag;
 		bool taskHash = args_info.taskHash_flag;
 		bool taskSequenceHash = args_info.taskSequenceHash_flag;
 		bool topologicalOrdering = args_info.topologicalOrdering_flag;
@@ -335,7 +336,7 @@ int main(int argc, char *argv[]) {
 		bool layerHash = args_info.noLayers_flag;
 		bool allowParalleSequencesMode = args_info.noParallelSequences_flag;
     	
-		VisitedList visi(htn,noVisitedList, taskHash, taskSequenceHash, topologicalOrdering, orderPairsHash, layerHash, allowParalleSequencesMode);
+		VisitedList visi(htn,noVisitedList, taskHash, taskSequenceHash, topologicalOrdering, orderPairsHash, layerHash, allowGIcheck, allowParalleSequencesMode);
     	PriorityQueueSearch search;
     	OneQueueWAStarFringe fringe(aStarType, aStarWeight, hLength);
 
