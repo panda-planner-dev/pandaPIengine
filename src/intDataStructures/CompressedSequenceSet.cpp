@@ -72,7 +72,7 @@ compressed_sequence_trie::compressed_sequence_trie(const vector<uint64_t> & sequ
 compressed_sequence_trie::compressed_sequence_trie(const vector<uint64_t> & sequence, int startingBlock, int startingBit, int paddingBits, void** & p) : compressed_sequence_trie(){
 	blocks = sequence.size() - startingBlock;
 	p = &payload;
-	myFirstBlock = 0;
+	myFirstBlock = startingBlock;
 	ignoreBitsFirst = startingBit;
 	ignoreBitsLast = paddingBits;
 	zero = one = nullptr;
@@ -91,7 +91,7 @@ void compressed_sequence_trie::split_me_at(int block, int bit){
 	// child gets all blocks from (inclusive) block to blocks
 	child->blocks = blocks - block; DEBUG(cout << "\tchild receives " << child->blocks << " blocks " << endl);
 	assert(child->blocks);
-	child->myFirstBlock = myFirstBlock + block;
+	child->myFirstBlock = myFirstBlock + block; DEBUG(cout << "\tfirst block is " << child->myFirstBlock << endl);
 	child->value = (uint64_t*) calloc(child->blocks, sizeof(uint64_t));
 	for (int i = 0; i < child->blocks; i++)
 		child->value[i] = value[i + block]; // copy blocks to child	
@@ -266,10 +266,13 @@ void compressed_sequence_trie::insert(const vector<uint64_t> & sequence, int pad
 	// split me	
 	split_me_at(block_with_first_difference,splitBit);
 
-	if (sequence[myFirstBlock + block_with_first_difference] & bitmask_bit(splitBit))
+	if (sequence[myFirstBlock + block_with_first_difference] & bitmask_bit(splitBit)){
+		DEBUG(cout << "New Child One. Block " << myFirstBlock + block_with_first_difference << endl);
 		one = new compressed_sequence_trie(sequence,myFirstBlock + block_with_first_difference, splitBit, paddingBits, p);
-	else
+	} else {
+		DEBUG(cout << "New Child Two. Block " << myFirstBlock + block_with_first_difference << endl);
 		zero = new compressed_sequence_trie(sequence,myFirstBlock + block_with_first_difference, splitBit, paddingBits, p);
+	}
 
 	TEST(check_integrity());
 	// split
