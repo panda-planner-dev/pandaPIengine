@@ -13,7 +13,8 @@
 #include "../intDataStructures/IntPairHeap.h"
 #include "../intDataStructures/CompressedSequenceSet.h"
 
-const uint64_t max32BitP = 2147483647;
+const uint64_t max32BitP = 2147483647ULL;
+const uint64_t over16BitP = 65537ULL;
 const uint64_t tenMillionP = 16777213; // largest prime smaller than 16*1024*1014
 const uint64_t oneMillionP = 1048573; // largest prime smaller than 1024*1014
 const uint64_t tenThousandP = 16381; // largest prime smaller than 1024*16
@@ -57,6 +58,23 @@ uint64_t hash_state(const vector<uint64_t> & v) {
 		r = r ^ x;
 	return r;
 }
+
+
+uint64_t hash_state_sequence(const vector<uint64_t> & state){
+	uint64_t ret = 0;
+
+	for (uint64_t x : state){
+		uint64_t cur = x;
+		for (int b = 0; b < 4; b++){
+			uint64_t block = cur & ((1ULL << 16) - 1);
+			cur = cur >> 16;
+			ret = (ret * over16BitP) + block;
+		}
+	}
+
+	return ret;
+}
+
 
 
 VisitedList::VisitedList(Model *m, bool _noVisitedCheck, bool _taskHash, bool _taskSequenceHash, bool _topologicalOrdering, bool _orderPairs, bool _layers, bool _allowGIcheck, bool _allowedToUseParallelSequences) {
@@ -368,6 +386,8 @@ bool VisitedList::insertVisi(searchNode *n) {
 	// compute the exact information
 	vector<bool> exactBitString = n->state;
 	// add everything we choose to append to the bitstring
+    
+	auto [sv,svpadding] = state2Int(exactBitString);
 
 	vector<int> sequenceForHashing;
 
@@ -485,12 +505,13 @@ bool VisitedList::insertVisi(searchNode *n) {
 
 	// state access
     auto [accessVector,padding] = state2Int(exactBitString);
-
+	
 	// 2. STEP
 	// compute the hashs
-	uint64_t hash = hash_state(state2Int(n->state).first); // TODO double computation ...
+	uint64_t hash = hash_state_sequence(state2Int(n->state).first); // TODO double computation ...
 	if (taskHash) hash = hash ^ taskCountHash(n);
 	if (sequenceHash) hash = hash ^ taskSequenceHash(sequenceForHashing);
+
 
 	// ACCESS Phase
 	// access the hash hable
@@ -520,7 +541,7 @@ bool VisitedList::insertVisi(searchNode *n) {
 		std::clock_t after = std::clock();
         this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
 		if (returnValue) uniqueInsertions++;
-
+	
 		return returnValue;
 	} else {
 		vector<searchNode*> ** nodes = (vector<searchNode*> **) payload;
