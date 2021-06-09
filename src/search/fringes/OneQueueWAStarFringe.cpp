@@ -37,9 +37,6 @@ void OneQueueWAStarFringe::push(searchNode *n) {
 	// compute the f values for this search node
 	n->fValue = n->heuristicValue[0] * hWeight;
 
-	cout << "0 " << n->heuristicValue[0] << endl;
-	cout << "1 " << n->fValue << endl;
-
 	switch (aStarOption){
 		case gValNone:  /* nothing to do */ break;
 		case gValPathCosts: n->fValue += n->modificationDepth; break;
@@ -47,8 +44,6 @@ void OneQueueWAStarFringe::push(searchNode *n) {
 		case gValActionPathCosts: n->fValue += n->mixedModificationDepth; break;
 	}
 	
-	cout << "2 " << n->fValue << endl;
-
 	fringe.push(n);
 }
 
