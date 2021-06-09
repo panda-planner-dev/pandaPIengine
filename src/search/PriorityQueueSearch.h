@@ -99,11 +99,6 @@ namespace progression {
                             continue;
                         searchNode *n2 = htn->apply(n, i);
                         numSearchNodes++;
-                        if (!n2->goalReachable) { // progression has detected unsol
-                            delete n2;
-                            continue;
-                        }
-
                         // check whether we have seen this one already
                         if (suboptimalSearch && !visitedList.insertVisi(n2)) {
                             delete n2;
@@ -116,6 +111,11 @@ namespace progression {
                         n2->heuristicValue = new int[hLength];
                         for (int i = 0; i < hLength; i++) {
                             hF[i]->setHeuristicValue(n2, n, n->unconstraintPrimitive[i]->task);
+                        }
+                        
+						if (!n2->goalReachable) { // progression has detected unsol
+                            delete n2;
+                            continue;
                         }
 
                         assert(n2->goalReachable || (!htn->isGoal(n2))); // otherwise the heuristic is not save
@@ -145,11 +145,6 @@ namespace progression {
                         int method = htn->taskToMethods[task][i];
                         searchNode *n2 = htn->decompose(n, decomposedStep, method);
                         numSearchNodes++;
-                        if (!n2->goalReachable) { // decomposition has detected unsol
-                            delete n2;
-                            continue; // with next method
-                        }
-
                         // check whether we have seen this one already
                         if (suboptimalSearch && !visitedList.insertVisi(n2)) {
                             delete n2;
@@ -162,6 +157,12 @@ namespace progression {
                         for (int i = 0; i < hLength; i++) {
                             hF[i]->setHeuristicValue(n2, n, decomposedStep, method);
                         }
+                        
+						if (!n2->goalReachable) { // decomposition has detected unsol
+                            delete n2;
+                            continue; // with next method
+                        }
+
 
                         assert(n2->goalReachable || (!htn->isGoal(n2))); // otherwise the heuristic is not save
 

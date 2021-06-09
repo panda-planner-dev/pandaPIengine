@@ -311,12 +311,12 @@ int main(int argc, char *argv[]) {
     	if (string(args_info.gValue_arg) == "action") aStarType = gValActionCosts;
     	if (string(args_info.gValue_arg) == "mixed") aStarType = gValActionPathCosts;
     	if (string(args_info.gValue_arg) == "none") aStarType = gValNone;
-		
+	
 		bool suboptimalSearch = args_info.suboptimal_flag;
 
 		cout << "Search config:" << endl;
 		cout << " - type: ";
-		switch (aStarWeight){
+		switch (aStarType){
 			case gValNone: cout << "greedy"; break;
 			case gValActionCosts: cout << "cost optimal"; break;
 			case gValPathCosts: cout << "path cost"; break;
@@ -326,7 +326,7 @@ int main(int argc, char *argv[]) {
 		cout << " - weight: " << aStarWeight << endl;
 		cout << " - suboptimal: " << (suboptimalSearch?"true":"false") << endl;
 
-		
+
 		bool noVisitedList = args_info.noVisitedList_flag;
 		bool allowGIcheck = args_info.noGIcheck_flag;
 		bool taskHash = args_info.taskHash_flag;
