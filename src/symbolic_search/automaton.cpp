@@ -1036,6 +1036,21 @@ void extract(int curCost, int curDepth, int curTask, int curTo,
 }
 
 
+void print_states_in_bdd(symbolic::SymVariables & sym_vars, Model * htn, BDD & states){
+	BDD firstStates = states.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsEff).AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsAux);
+	
+	for (vector<int> state : sym_vars.getStatesFrom(firstStates)){
+        std::cout << color(BLUE,"State:") << endl;
+        for (int val : state){
+                //if (count[val] == states.size()) continue;
+                //std::cout << "\t" << val << "/" << htn->numStateBits << endl;
+                std::cout << "\t" << htn->factStrs[val] << endl;
+        }
+        std::cout << std::endl << std::endl;
+    }
+    std::cout << color(BLUE,"LAST State") << endl;
+}
+
 //================================================== planning algorithm
 
 void build_automaton(Model * htn){
@@ -1174,8 +1189,23 @@ void build_automaton(Model * htn){
 				continue;
 			}
 		
+			// determine which time step to consult for propagation
+			if (currentDepthInAbstract != 0){
+				lastCost = currentCost;
+				lastDepth = currentDepthInAbstract - 1;
+			} else {
+				int taskCost = htn->actionCosts[task];
+				assert(taskCost > 0);
+				lastCost = currentCost - taskCost;
+				lastDepth = edges[0][task][to][lastCost].rbegin()->first;
+			}
+
+			DEBUG(cout << "Last Cost " << lastCost << " Last Depth " << lastDepth << endl);
+
 
 			BDD state = edges[0][task][to][lastCost][lastDepth];
+			
+			
 			//sym_vars.bdd_to_dot(state, "state" + std::to_string(step) + ".dot");
 	  
 
@@ -1197,6 +1227,9 @@ void build_automaton(Model * htn){
 			if (task < htn->numActions || htn->emptyMethod[task] != -1){
 				BDD nextState = state;
 				
+				DEBUG(cout << "Current state" << endl;
+				print_states_in_bdd(sym_vars,htn,nextState));
+				
 				if (task < htn->numActions){
 					DEBUG(std::cout << "Prim: " << htn->taskNames[task] << std::endl);
 					// apply action to state
@@ -1206,6 +1239,10 @@ void build_automaton(Model * htn){
 				}
 				
 				nextState = nextState.SwapVariables(sym_vars.swapVarsEff, sym_vars.swapVarsAux);
+				DEBUG(cout << "Image state" << endl;
+				print_states_in_bdd(sym_vars,htn,nextState));
+				
+				
 				if (nextState.IsZero()){
 					DEBUG(std::cout << "\t\t" << color(RED," action is not applicable") << std::endl);
 				} else {
@@ -1228,7 +1265,7 @@ void build_automaton(Model * htn){
 								// we only add something if it is not already at the edge ...
 								ensureBDD(task2, to2, currentCost, currentDepthInAbstract, sym_vars);
 								addStateWithIntermediate = addStateWithIntermediate * !edges[0][task2][to2][currentCost][currentDepthInAbstract];
-							
+								
 								if (addStateWithIntermediate.IsZero()) continue; 
 							   	
 								// determine at which cost this is to be inserted ...
@@ -1278,11 +1315,22 @@ void build_automaton(Model * htn){
 								
 								BDD addState = addStateWithIntermediate.AndAbstract(sym_vars.oneBDD(), sym_vars.existsVarsEff);
 							
+								
+
+
 								BDD edgeDisjunct = edges[0][task2][to2][currentCost][currentDepthInAbstract] + addState;
 								if (edgeDisjunct == edges[0][task2][to2][currentCost][currentDepthInAbstract])
 									continue;
 								
+								DEBUG(
+								std::cout << "new states" << endl;
+								print_states_in_bdd(sym_vars,htn,addState);
+								std::cout << "current states" << endl;
+								print_states_in_bdd(sym_vars,htn,edges[0][task2][to2][currentCost][currentDepthInAbstract]);
+								std::cout << "all states" << endl;
+								print_states_in_bdd(sym_vars,htn,edgeDisjunct));
 								
+
 								edges[0][task2][to2][currentCost][currentDepthInAbstract] = edgeDisjunct;
 								DEBUG(if (task < htn->numActions) std::cout << "\tPrim: "; else std::cout << "\tMethod: ";
 										std::cout << task2 << " " << vertex_to_method[to2] << std::endl);
@@ -1291,7 +1339,11 @@ void build_automaton(Model * htn){
 								
 								tracingInfo tracingInf = {currentCost, currentDepthInAbstract, task, to, htn->emptyMethod[task], task2, to2, -1};
 								eps_inserted[to][currentCost][currentDepthInAbstract].push_back(tracingInf);
+							
 								
+								//if (step == 141){
+								//	exit(0);
+								//}	
 							}
 						}
 
