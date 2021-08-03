@@ -1220,7 +1220,7 @@ void build_automaton(Model * htn){
 			
 			if (state == sym_vars.zeroBDD()) {
 				std::cout << color(RED,"state attached to edge is empty ... bug!") << std::endl;
-				exit(0);
+				//exit(0);
 				continue; // impossible state, don't treat it
 			}
 
