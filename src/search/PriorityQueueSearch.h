@@ -99,7 +99,13 @@ namespace progression {
                             continue;
                         searchNode *n2 = htn->apply(n, i);
                         numSearchNodes++;
-                        // check whether we have seen this one already
+                        
+						if (!n2->goalReachable) { // progression has detected unsol
+                            delete n2;
+                            continue;
+                        }
+                       
+					   	// check whether we have seen this one already
                         if (suboptimalSearch && !visitedList.insertVisi(n2)) {
                             delete n2;
                             continue;
@@ -113,7 +119,7 @@ namespace progression {
                             hF[i]->setHeuristicValue(n2, n, n->unconstraintPrimitive[i]->task);
                         }
                         
-						if (!n2->goalReachable) { // progression has detected unsol
+						if (!n2->goalReachable) { // heuristic has detected unsol
                             delete n2;
                             continue;
                         }
@@ -145,6 +151,12 @@ namespace progression {
                         int method = htn->taskToMethods[task][i];
                         searchNode *n2 = htn->decompose(n, decomposedStep, method);
                         numSearchNodes++;
+						
+						if (!n2->goalReachable) { // decomposition has detected unsol
+                            delete n2;
+                            continue; // with next method
+                        }
+
                         // check whether we have seen this one already
                         if (suboptimalSearch && !visitedList.insertVisi(n2)) {
                             delete n2;
@@ -158,7 +170,7 @@ namespace progression {
                             hF[i]->setHeuristicValue(n2, n, decomposedStep, method);
                         }
                         
-						if (!n2->goalReachable) { // decomposition has detected unsol
+						if (!n2->goalReachable) { // heuristic has detected unsol
                             delete n2;
                             continue; // with next method
                         }
