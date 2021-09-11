@@ -343,7 +343,7 @@ public:
 	
 	void printActionsToFile(string file);
 	void printStateBitsToFile(string file);
-	void reorderTasks();
+	void reorderTasks(bool warning);
 	bool parallelSequences();
   int calculatePrecsAndAdds(int* s, int* p, int* a, string tasks, int** conv);
 

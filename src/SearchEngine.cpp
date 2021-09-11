@@ -198,7 +198,7 @@ int main(int argc, char *argv[]) {
   startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
   cout << "- reordering subtasks";
   
-  htn->reorderTasks();
+  htn->reorderTasks(problemType == 3);
   
   gettimeofday(&tp, NULL);
   currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;

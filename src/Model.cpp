@@ -3357,7 +3357,7 @@ void Model::calcMinimalProgressionBound(bool to) {
   }
   
   
-  void Model::reorderTasks(){
+  void Model::reorderTasks(bool warning){
     firstNumTOPrimTasks = new int[numMethods];
     subTasksInOrder = new int*[numMethods];
     hasNoLastTask = new bool[numMethods];
@@ -3376,6 +3376,9 @@ void Model::calcMinimalProgressionBound(bool to) {
         continue;
       }
       if (numOrderings[i] == 0){
+		if (i != taskToMethods[initialTask][0] && warning){
+			cout << "ATTENTION: Instance is not of the parallel sequences type. Search with the PSeq encoding might be incomplete." << endl;
+		}
         for (int j = 0; j < numSubTasks[i]; j++){
           subTasksInOrder[i][j] = subTasks[i][numSubTasks[i] - 1 - j];
         }
@@ -3384,6 +3387,7 @@ void Model::calcMinimalProgressionBound(bool to) {
       }
       int* subs = new int[numSubTasks[i]];
       for (int j = 0; j < numSubTasks[i]; j++){
+		bool valueSet = false;
         for (int k = 0; k < numSubTasks[i]; k++){
           bool notAlone = false;
           for (int l = 0; l < numOrderings[i] / 2; l++){
@@ -3409,8 +3413,12 @@ void Model::calcMinimalProgressionBound(bool to) {
             }
           }
           if (not notAlone){
-            subs[j] = k;
-            break;
+            if (not valueSet){
+				subs[j] = k;
+				valueSet = true;
+			} else {
+				cout << "ATTENTION: Instance is not of the parallel sequences type. Search with the PSeq encoding might be incomplete." << endl;
+			}
           }
         }
       }
