@@ -33,6 +33,7 @@ struct SOG {
 
 	vector<int> firstPossible;
 	vector<int> lastPossible;
+	vector<bool> leafContainsEffectAction;
 };
 
 SOG* optimiseSOG(vector<tuple<uint32_t,uint32_t,uint32_t>> & methods, Model* htn);

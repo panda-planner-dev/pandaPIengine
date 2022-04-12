@@ -5,6 +5,7 @@ void generate_matching_formula(void* solver, sat_capsule & capsule, Model * htn,
 	////////////////////////////////// matching variables
 	matching.matchingPerLeaf.resize(leafSOG->numberOfVertices);
 	matching.matchingPerPosition.resize(vars.size());
+	matching.matchingPerPositionAMO.resize(vars.size());
 	matching.vars = vars;
 	matching.leafSOG = leafSOG;
 	
@@ -15,6 +16,11 @@ void generate_matching_formula(void* solver, sat_capsule & capsule, Model * htn,
 			DEBUG(capsule.registerVariable(matchVar,"match leaf " + pad_int(l) + " + position " + pad_int(p)));
 			matching.matchingPerLeaf[l].push_back(matchVar);
 			matching.matchingPerPosition[p].push_back(matchVar);
+			if (leafSOG->leafContainsEffectAction[l]){
+				matching.matchingPerPositionAMO[p].push_back(matchVar);
+			} else{
+				cout << "Don't include " << l << "@" <<p << endl;
+			}
 		}	
 	}
 
@@ -40,9 +46,9 @@ void generate_matching_formula(void* solver, sat_capsule & capsule, Model * htn,
 		atMostOne(solver,capsule,matching.matchingPerLeaf[l]);
 	
 	// AMO paths per position 
-	// TODO improve here, currently at-most-one
+	// but only consider paths that can actually contain an action with an effect
 	for (int p = 0; p < vars.size(); p++)
-		atMostOne(solver,capsule,matching.matchingPerPosition[p]);
+		atMostOne(solver,capsule,matching.matchingPerPositionAMO[p]);
 
 
 	// activity of leafs
@@ -67,8 +73,9 @@ void generate_matching_formula(void* solver, sat_capsule & capsule, Model * htn,
 	// actions at positions must be caused
 	for (int p = 0; p < vars.size(); p++){
 		vector<int> positionVariables;
-		for (auto [pvar,_] : vars[p])
-			positionVariables.push_back(pvar);
+		for (auto [pvar,prim] : vars[p])
+			if (htn->numAdds[prim] != 0 || htn->numDels[prim] != 0)
+				positionVariables.push_back(pvar);
 
 		impliesOr(solver,positionActive[p],positionVariables);
 		notImpliesAllNot(solver,positionActive[p],positionVariables);
@@ -76,7 +83,8 @@ void generate_matching_formula(void* solver, sat_capsule & capsule, Model * htn,
 
 	// if position is active one of its matchings must be true
 	for (int p = 0; p < vars.size(); p++)
-		impliesOr(solver,positionActive[p],matching.matchingPerPosition[p]);
+		impliesOr(solver,positionActive[p],matching.matchingPerPositionAMO[p]);
+
 
 
 	for (int p = 0; p < vars.size(); p++){
@@ -105,9 +113,9 @@ void generate_matching_formula(void* solver, sat_capsule & capsule, Model * htn,
 			}
 		}
 	}
-
-
+	
 	for (int l = 0; l < leafSOG->numberOfVertices; l++){
+		if (!leafSOG->leafContainsEffectAction[l]) continue;
 		// determine the possible primitives for this leaf
 		vector<int> leafPrimitives (htn->numActions);
 		PDT * leaf = leafSOG->leafOfNode[l];
@@ -117,20 +125,19 @@ void generate_matching_formula(void* solver, sat_capsule & capsule, Model * htn,
 		
 		for (int p = 0; p < vars.size(); p++)
 			for (auto [pvar,prim] : vars[p]){
+				if (htn->numAdds[prim] != 0 || htn->numDels[prim] != 0){
 				if (leafPrimitives[prim] > 0){
 					// the leaf can potentially contain the action
-					impliesAnd(solver,matching.matchingPerPosition[p][l],pvar,leafPrimitives[prim]);
+						impliesAnd(solver,matching.matchingPerPosition[p][l],pvar,leafPrimitives[prim]);
 				} else {
 					// this is implicitly a bi-implication
 					impliesNot(solver,matching.matchingPerPosition[p][l],pvar);
 				}
+				}
 			}
 	}
 
-
-
 	////////////////////////// impose the encoded order
-	
 	vector<vector<int>> forbiddenPerLeaf (leafSOG->numberOfVertices);
 	vector<vector<int>> forbiddenPerPosition (vars.size());
 

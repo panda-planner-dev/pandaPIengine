@@ -11,6 +11,7 @@ bool getDebugMode (void)
 
 void setDebugMode (bool enabled)
 {
+	debugMode = enabled;
 #ifndef NDEBUG
 	debugMode = enabled;
 #else

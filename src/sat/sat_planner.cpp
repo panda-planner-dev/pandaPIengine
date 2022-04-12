@@ -84,10 +84,11 @@ void printSolution(void * solver, Model * htn, PDT* pdt, MatchingData & matching
 				if (ipasir_val(solver,pvar) > 0){
 					// find the if of the matched leaf
 					for (int l = 0; l < matching.matchingPerPosition[p].size(); l++){
-						if (ipasir_val(solver,matching.matchingPerPosition[p][l]) > 0){
+						if (ipasir_val(solver,matching.matchingPerPosition[p][l]) > 0
+								&& matching.leafSOG->leafOfNode[l]->outputTask == prim){
 							// get the output number of that leaf
 							PDT * leaf = matching.leafSOG->leafOfNode[l];
-							std::cout << leaf->outputID << " " << htn->taskNames[prim] << endl;
+							std::cout << p << "@" << l << " | " << leaf->outputID << " " << htn->taskNames[prim] << endl;
 						}
 					}
 					
@@ -651,6 +652,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn, bool block_compre
 			
 			
 			cout << "Solver state: " << color((state==10?Color::GREEN:Color::RED), (state==10?"SAT":"UNSAT")) << endl;
+			//if (depth == 3) exit(0);
 		} else {
 			cout << "Initial abstract task is pruned: " <<  color(Color::RED,"UNSAT") << endl;
 		}

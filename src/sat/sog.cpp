@@ -17,11 +17,14 @@ SOG* runPOSOGOptimiser(SOG* sog, vector<tuple<uint32_t,uint32_t,uint32_t>> & met
 	antiAdj.resize(sog->numberOfVertices);
 	antiBdj.resize(sog->numberOfVertices);
 	vector<uint16_t> mapping;
+	unordered_set<int> vertices_for_effectless_actions;
 	for (size_t i = 0; i < sog->numberOfVertices; i++){
 		mapping.push_back(i);
-		sog->labels[i].insert(htn->subTasks[m0][i]);
+		int task = htn->subTasks[m0][i];
+		sog->labels[i].insert(task);
+		if (task < htn->numActions && htn->numAdds[task] == 0 && htn->numDels[task] == 0) vertices_for_effectless_actions.insert(i);
 	}
-	sog-> methodSubTasksToVertices.push_back(mapping);
+	sog->methodSubTasksToVertices.push_back(mapping);
 
 
 
@@ -48,12 +51,17 @@ SOG* runPOSOGOptimiser(SOG* sog, vector<tuple<uint32_t,uint32_t,uint32_t>> & met
 
 		for (size_t stID = 0; stID < htn->numSubTasks[m]; stID++){
 			int subTask = htn->methodTotalOrder[m][stID]; // use positions in topological order, may lead to better results
-
+			
+			int myTask = htn->subTasks[m][subTask];
+			bool isEffectless = false;
+			if (myTask < htn->numActions && (htn->numAdds[myTask] == 0 && htn->numDels[myTask] == 0)) isEffectless = true;
+				
 			// try to find a matching task
-		
 			vector<int> matchingVertices;
 			for (size_t v = 0; v < sog->numberOfVertices; v++){
 				if (takenVertices.count(v)) continue;
+				if (isEffectless != vertices_for_effectless_actions.count(v)) continue; // effect-less actions may only be grouped together with other effect-less actions
+				
 				// check all previous tasks of this method
 				for (size_t ostID = 0; ostID < stID; ostID++){
 					int otherSubTask = htn->methodTotalOrder[m][ostID];
@@ -71,7 +79,6 @@ SOG* runPOSOGOptimiser(SOG* sog, vector<tuple<uint32_t,uint32_t,uint32_t>> & met
 						if (sog->adj[v].count(ov)) goto next_vertex;
 						if (sog->bdj[v].count(ov)) goto next_vertex;
 					}
-
 				}
 			
 				// if we reached this point, this vertex is ok
@@ -98,7 +105,6 @@ next_vertex:;
 #endif
 			// TODO better do this with DP? At least in the total order case, this should be possible
 			
-			int myTask = htn->subTasks[m][subTask];
 			int v = -1;
 			for (int & x : matchingVertices)
 				if (sog->labels[x].count(myTask)) {
@@ -116,7 +122,20 @@ next_vertex:;
 
 			mapping[subTask] = v;
 			takenVertices.insert(v);
+			cout << "-----------------------------------" << endl;
+			set<int> types;
+			for (int x : sog->labels[v])
+				cout << "\t" << htn->taskNames[x] << " " << (x < htn->numActions && (htn->numAdds[x] == 0 && htn->numDels[x] == 0))<< endl,
+					 types.insert((x < htn->numActions && (htn->numAdds[x] == 0 && htn->numDels[x] == 0)));
+			cout << "++++" << htn->taskNames[myTask]  << " " << (myTask < htn->numActions && (htn->numAdds[myTask] == 0 && htn->numDels[myTask] == 0)) << endl;
+			cout << "-----------------------------------" << endl;
+
+			if (types.size() && types.count(myTask < htn->numActions && (htn->numAdds[myTask] == 0 && htn->numDels[myTask] == 0)) == 0)
+				exit(0);
+
+
 			sog->labels[v].insert(myTask);
+			if (myTask < htn->numActions && (htn->numAdds[myTask] == 0 && htn->numDels[myTask] == 0)) vertices_for_effectless_actions.insert(v);
 
 			// add the vertices and anti-vertices needed for this new node
 			for (size_t ostID = 0; ostID < stID; ostID++){
@@ -509,10 +528,10 @@ SOG* optimiseSOG(vector<tuple<uint32_t,uint32_t,uint32_t>> & methods, Model* htn
 #endif
 
 
-	if (allMethodsAreTotallyOrdered)
-		return runTOSOGOptimiser(sog, methods, htn);
-		//return runTOSOGOptimiserRecursive(sog, methods, htn);
-	else
+	//if (allMethodsAreTotallyOrdered)
+	//	return runTOSOGOptimiser(sog, methods, htn);
+	//	//return runTOSOGOptimiserRecursive(sog, methods, htn);
+	//else
 		return runPOSOGOptimiser(sog, methods, htn);
 }
 

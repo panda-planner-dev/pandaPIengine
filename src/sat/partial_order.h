@@ -9,6 +9,7 @@
 struct MatchingData{
 	vector<vector<int>> matchingPerLeaf;
 	vector<vector<int>> matchingPerPosition;
+	vector<vector<int>> matchingPerPositionAMO;
 	
 	vector<vector<pair<int,int>>> vars;
 

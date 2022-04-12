@@ -251,6 +251,37 @@ void get_linear_state_atoms(sat_capsule & capsule, vector<PDT*> & leafs, vector<
 
 void get_partial_state_atoms(sat_capsule & capsule, Model * htn, SOG* sog,
 		vector<vector<pair<int,int>>> & ret){
+	// determine which leafs only contain method preconditions
+	int leafsWithoutActualActions = 0;
+	sog->leafContainsEffectAction.resize(sog->numberOfVertices);
+	for (int t = 0; t < sog->numberOfVertices; t++){
+		cout << "----------" << endl;
+		bool actualAction = false;
+		bool effectLessAction = false;
+		for (int prim : sog->leafOfNode[t]->possiblePrimitives){
+			cout << htn->taskNames[prim];
+			if (htn->numAdds[prim] > 0 || htn->numDels[prim] > 0){
+				actualAction = true;
+				cout << " actual" << endl;
+			} else {
+				effectLessAction = true;
+				cout << " eless" << endl;
+			}
+		}
+
+		if (actualAction && effectLessAction) exit(0);
+		if (!actualAction) leafsWithoutActualActions++;
+		sog->leafContainsEffectAction[t] = actualAction;
+	}
+	int numberOfTimeSteps = sog->numberOfVertices - leafsWithoutActualActions;
+	numberOfTimeSteps = min(numberOfTimeSteps,8);
+	
+	
+	cout << "Total Leafs: " << sog->numberOfVertices << " of that without effect-actions " << leafsWithoutActualActions << " remaining: " << numberOfTimeSteps << endl;
+
+
+
+
 	// determine to which times a given leaf can potentially be mapped
 	sog->calcSucessorSets();
 	sog->calcPredecessorSets();
@@ -259,16 +290,25 @@ void get_partial_state_atoms(sat_capsule & capsule, Model * htn, SOG* sog,
 	sog->firstPossible.resize(sog->numberOfVertices);
 	sog->lastPossible.resize(sog->numberOfVertices);
 
-
-	vector<unordered_set<int>> actionsPerPosition (sog->numberOfVertices);
-
-	// these are just the primitives in the correct order
+	vector<unordered_set<int>> actionsPerPosition (numberOfTimeSteps);
 	for (int t = 0; t < sog->numberOfVertices; t++){
-		int numSucc = sog->successorSet[t].size() - 1;
-		int numPrec = sog->predecessorSet[t].size() - 1;
+		int numSucc = -1;
+	   	for (int n : sog->successorSet[t])
+			if (sog->leafContainsEffectAction[n])
+				numSucc++;
+		if (numSucc < 0) numSucc = 0;
 
-		int firstPossible = numPrec;
-		int lastPossible = sog->numberOfVertices - 1 - numSucc;
+		int numPrec = -1;
+		for (int n : sog->predecessorSet[t])
+			if (sog->leafContainsEffectAction[n])
+				numPrec++;
+		if (numPrec < 0) numPrec = 0;
+
+
+		//int firstPossible = numPrec;
+		//int lastPossible = numberOfTimeSteps - 1 - numSucc;
+		int firstPossible = 0;
+		int lastPossible = numberOfTimeSteps - 1;
 		
 		sog->firstPossible[t] = firstPossible;
 		sog->lastPossible[t] = lastPossible;
@@ -295,7 +335,7 @@ void get_partial_state_atoms(sat_capsule & capsule, Model * htn, SOG* sog,
 		ret.push_back(atoms);
 	}
 */
-	for (int t = 0; t < sog->numberOfVertices; t++){
+	for (int t = 0; t < numberOfTimeSteps; t++){
 		vector<pair<int,int>> atoms;
 		for (int p : actionsPerPosition[t]){
 			int pvar = capsule.new_variable();
