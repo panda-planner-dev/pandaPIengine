@@ -175,6 +175,22 @@ int main(int argc, char *argv[]) {
 			
 	if (inputFilename != "-") ((ifstream*) inputStream)->close();
 
+
+	if (args_info.writeInputToHDDL_given){
+		cout << "writing input problem to file" << endl;
+		if (inputFilename == "-"){
+			cout << "Cannot determine proper file names when reading from stdin" << endl;
+			return 1;
+		}
+		string dName = inputFilename + ".d.hddl";
+		string pName = inputFilename + ".p.hddl";
+		htn->buildOrderingDatastructures();
+		htn->writeToPDDL(dName,pName);
+
+		return 0;
+	}
+
+
 	
     if(reachability != mtrNO) {
         htn->calcSCCs();
@@ -347,6 +363,7 @@ int main(int argc, char *argv[]) {
 #ifndef CMAKE_NO_SAT
 		bool block_compression = args_info.blockcompression_flag;
 		bool sat_mutexes = args_info.satmutexes_flag;
+		bool effectLessActionsInSeparateLeaf = args_info.methodPreconditionsInSeparateLeafs_given;
 
     	sat_pruning pruningMode = SAT_FF;
     	if (string(args_info.pruning_arg) == "none") pruningMode = SAT_NONE;
@@ -356,7 +373,7 @@ int main(int argc, char *argv[]) {
 		extract_invariants_from_parsed_model(htn);
 		if (sat_mutexes) compute_Rintanen_Invariants(htn);
 
-		solve_with_sat_planner(htn, block_compression, sat_mutexes, pruningMode);
+		solve_with_sat_planner(htn, block_compression, sat_mutexes, pruningMode, effectLessActionsInSeparateLeaf);
 #else
 		cout << "Planner compiled without SAT planner support" << endl;
 #endif

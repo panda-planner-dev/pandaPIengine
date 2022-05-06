@@ -5,7 +5,7 @@
 #include "pdt.h"
 
 
-SOG* runPOSOGOptimiser(SOG* sog, vector<tuple<uint32_t,uint32_t,uint32_t>> & methods, Model* htn){
+SOG* runPOSOGOptimiser(SOG* sog, vector<tuple<uint32_t,uint32_t,uint32_t>> & methods, Model* htn, bool effectLessActionsInSeparateLeaf){
 	vector<unordered_set<uint16_t>> antiAdj;
 	vector<unordered_set<uint16_t>> antiBdj;
 	int m0 = get<0>(methods[0]);
@@ -60,7 +60,8 @@ SOG* runPOSOGOptimiser(SOG* sog, vector<tuple<uint32_t,uint32_t,uint32_t>> & met
 			vector<int> matchingVertices;
 			for (size_t v = 0; v < sog->numberOfVertices; v++){
 				if (takenVertices.count(v)) continue;
-				if (isEffectless != vertices_for_effectless_actions.count(v)) continue; // effect-less actions may only be grouped together with other effect-less actions
+				// if enabled, effect-less actions may only be grouped together with other effect-less actions
+				if (effectLessActionsInSeparateLeaf && isEffectless != vertices_for_effectless_actions.count(v)) continue;
 				
 				// check all previous tasks of this method
 				for (size_t ostID = 0; ostID < stID; ostID++){
@@ -122,6 +123,7 @@ next_vertex:;
 
 			mapping[subTask] = v;
 			takenVertices.insert(v);
+#ifndef NDEBUG
 			cout << "-----------------------------------" << endl;
 			set<int> types;
 			for (int x : sog->labels[v])
@@ -129,9 +131,9 @@ next_vertex:;
 					 types.insert((x < htn->numActions && (htn->numAdds[x] == 0 && htn->numDels[x] == 0)));
 			cout << "++++" << htn->taskNames[myTask]  << " " << (myTask < htn->numActions && (htn->numAdds[myTask] == 0 && htn->numDels[myTask] == 0)) << endl;
 			cout << "-----------------------------------" << endl;
-
 			if (types.size() && types.count(myTask < htn->numActions && (htn->numAdds[myTask] == 0 && htn->numDels[myTask] == 0)) == 0)
 				exit(0);
+#endif
 
 
 			sog->labels[v].insert(myTask);
@@ -498,7 +500,7 @@ SOG* runTOSOGOptimiserRecursive(SOG* sog, vector<tuple<uint32_t,uint32_t,uint32_
 
 
 // just the greedy optimiser
-SOG* optimiseSOG(vector<tuple<uint32_t,uint32_t,uint32_t>> & methods, Model* htn){
+SOG* optimiseSOG(vector<tuple<uint32_t,uint32_t,uint32_t>> & methods, Model* htn, bool effectLessActionsInSeparateLeaf){
 	// edge case
 	bool allMethodsAreTotallyOrdered = true;
 	for (const auto & [m,_1,_2] : methods)
@@ -527,12 +529,16 @@ SOG* optimiseSOG(vector<tuple<uint32_t,uint32_t,uint32_t>> & methods, Model* htn
 	cout << " with " << methods.size() << " methods with up to " << maxSize << " subtasks." << endl;
 #endif
 
-
-	//if (allMethodsAreTotallyOrdered)
-	//	return runTOSOGOptimiser(sog, methods, htn);
-	//	//return runTOSOGOptimiserRecursive(sog, methods, htn);
-	//else
-		return runPOSOGOptimiser(sog, methods, htn);
+	if (!effectLessActionsInSeparateLeaf){
+		if (allMethodsAreTotallyOrdered)
+			return runTOSOGOptimiser(sog, methods, htn);
+			//return runTOSOGOptimiserRecursive(sog, methods, htn);
+		else
+			return runPOSOGOptimiser(sog, methods, htn);
+	} else {
+		cout << "NYI" << endl;
+		exit(0);
+	}
 }
 
 

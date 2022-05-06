@@ -121,7 +121,7 @@ void PDT::initialisePruning(Model * htn){
 
 int SOGNUM = 0;
 
-void PDT::expandPDT(Model* htn){
+void PDT::expandPDT(Model* htn, bool effectLessActionsInSeparateLeaf){
 	if (expanded) {
 		//cout << "PDT is already expanded" << endl;
 		return;
@@ -152,7 +152,7 @@ void PDT::expandPDT(Model* htn){
 	cout << "A "; printMemory();
 	std::clock_t before_sog = std::clock();
 #endif
-	sog = optimiseSOG(applicableMethodsForSOG, htn);
+	sog = optimiseSOG(applicableMethodsForSOG, htn, effectLessActionsInSeparateLeaf);
 #ifndef NDEBUG
 	std::clock_t after_sog = std::clock();
 	cout << "Computed SOG, size: " << sog->numberOfVertices << endl;
@@ -405,14 +405,14 @@ void PDT::expandPDT(Model* htn){
 }
 
 
-void PDT::expandPDTUpToLevel(int K, Model* htn){
+void PDT::expandPDTUpToLevel(int K, Model* htn, bool effectLessActionsInSeparateLeaf){
 	assert(K >= 0);
 	if (K == 0) return;
 	
-	expandPDT(htn);
+	expandPDT(htn, effectLessActionsInSeparateLeaf);
 
 	for (PDT* child : children)
-		child->expandPDTUpToLevel(K-1,htn);
+		child->expandPDTUpToLevel(K-1,htn, effectLessActionsInSeparateLeaf);
 }
 
 void PDT::getLeafs(vector<PDT*> & leafs){

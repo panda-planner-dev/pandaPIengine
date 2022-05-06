@@ -16,6 +16,7 @@ option "debug" d "activate debug mode" optional
 option "seed" S "specify the random seed" int default="42"
 option "timelimit" t "specify timelimit in seconds" int default="1800"
 option "noPlanOutput" N "don't output the plan [default=print plan]" flag off
+option "writeInputToHDDL" - "don't run the engine at all. Output the given SAS+ planning problem as HDDL again." flag off
 
 section "Planner Selection" sectiondesc="default=progression"
 
@@ -48,4 +49,4 @@ section "SAT Planner Options"
 option "blockcompression" B "apply block" flag on
 option "satmutexes" M "encode SAT mutexes" flag on
 option "pruning" P "pruning mode" string values="none","ff","h2" default="ff"
-
+option "methodPreconditionsInSeparateLeafs" m "if in partial order mode, but method precondition actions into extra leafs. This allows for better encoding of executability, but may increase the size of the PDT" flag off

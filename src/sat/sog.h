@@ -36,7 +36,7 @@ struct SOG {
 	vector<bool> leafContainsEffectAction;
 };
 
-SOG* optimiseSOG(vector<tuple<uint32_t,uint32_t,uint32_t>> & methods, Model* htn);
+SOG* optimiseSOG(vector<tuple<uint32_t,uint32_t,uint32_t>> & methods, Model* htn, bool effectLessActionsInSeparateLeaf);
 
 SOG* generateSOGForLeaf(PDT* leaf);
 

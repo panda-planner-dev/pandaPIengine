@@ -102,9 +102,9 @@ struct PDT {
 	PDT(PDT * m);
 	PDT(Model* htn);
 
-	void expandPDT(Model* htn);
+	void expandPDT(Model* htn, bool effectLessActionsInSeparateLeaf);
+	void expandPDTUpToLevel(int K, Model* htn, bool effectLessActionsInSeparateLeaf);
 	void getLeafs(vector<PDT*> & leafs);
-	void expandPDTUpToLevel(int K, Model* htn);
 
 	void initialisePruning(Model * htn);
 	void resetPruning(Model * htn);
