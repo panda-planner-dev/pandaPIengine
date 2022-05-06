@@ -286,28 +286,38 @@ void PDT::expandPDT(Model* htn, bool effectLessActionsInSeparateLeaf){
 				}
 
 			if (!found) {
-				// childrenTasks[0][p] = _empty; no need to do this, as there are no duplicates in the list of primitives
-				bool iameffectLess = htn->numAdds[p] == 0 && htn->numDels[p] == 0; 
-				bool childSelected = false;
-				for (size_t c = 0; c < sog->numberOfVertices; c++){
-					if (childrenTasks[c].size() != 0){
-						int itsFirst = childrenTasks[c].begin()->first;
-						bool itEffectless = htn->numAdds[itsFirst] == 0 && htn->numDels[itsFirst] == 0;
-						if (itEffectless != iameffectLess) continue;
+				if (effectLessActionsInSeparateLeaf){
+					// childrenTasks[0][p] = _empty; no need to do this, as there are no duplicates in the list of primitives
+					bool iameffectLess = htn->numAdds[p] == 0 && htn->numDels[p] == 0; 
+					bool childSelected = false;
+					for (size_t c = 0; c < sog->numberOfVertices; c++){
+						if (childrenTasks[c].size() != 0){
+							int itsFirst = childrenTasks[c].begin()->first;
+							bool itEffectless = htn->numAdds[itsFirst] == 0 && htn->numDels[itsFirst] == 0;
+							if (itEffectless != iameffectLess) continue;
+						}
+						// 
+						selectedChild = c;
+						int subIndex = children[selectedChild]->possiblePrimitives.size();
+						children[selectedChild]->possiblePrimitives.push_back(p);
+						childCausesForPrimitives[selectedChild].push_back(_empty);
+						positionOfPrimitiveTasksInChildren[selectedChild][p] = subIndex;
+						childSelected = true;
+						break;
 					}
-					// 
-					selectedChild = c;
+
+					if (!childSelected){
+						cout << "Edge case: no proper child selectable. Not yet implemented. mail g.behnke@uva.nl for bugfixing." << endl;
+						exit(0);
+					}
+				} else {
+					// just take 0
+					// childrenTasks[0][p] = _empty; no need to do this, as there are no duplicates in the list of primitives
+					selectedChild = 0;
 					int subIndex = children[selectedChild]->possiblePrimitives.size();
 					children[selectedChild]->possiblePrimitives.push_back(p);
 					childCausesForPrimitives[selectedChild].push_back(_empty);
-					positionOfPrimitiveTasksInChildren[selectedChild][p] = subIndex;
-					childSelected = true;
-					break;
-				}
-
-				if (!childSelected){
-					cout << "Edge case: no proper child selectable. Not yet implemented. mail g.behnke@uva.nl for bugfixing." << endl;
-					exit(0);
+					positionOfPrimitiveTasksInChildren[selectedChild][p] = subIndex;	
 				}
 			}
 			
@@ -324,21 +334,26 @@ void PDT::expandPDT(Model* htn, bool effectLessActionsInSeparateLeaf){
 
 
 	for (size_t c = 0; c < sog->numberOfVertices; c++){
-		
-		bool actualAction = false;
-		bool effectLessAction = false;
-		for (int prim : children[c]->possiblePrimitives){
-			cout << htn->taskNames[prim];
-			if (htn->numAdds[prim] > 0 || htn->numDels[prim] > 0){
-				actualAction = true;
-				cout << " actual" << endl;
-			} else {
-				effectLessAction = true;
-				cout << " eless" << endl;
+	
+#ifndef NDEBUG
+		if (effectLessActionsInSeparateLeaf){
+			bool actualAction = false;
+			bool effectLessAction = false;
+			for (int prim : children[c]->possiblePrimitives){
+				cout << htn->taskNames[prim];
+				if (htn->numAdds[prim] > 0 || htn->numDels[prim] > 0){
+					actualAction = true;
+				} else {
+					effectLessAction = true;
+				}
+			}
+
+			if (actualAction && effectLessAction) {
+				cout << "Non allowed mix of actions with effects and without." << endl;
+				exit(0);
 			}
 		}
-
-		if (actualAction && effectLessAction) exit(0);
+#endif
 
 
 

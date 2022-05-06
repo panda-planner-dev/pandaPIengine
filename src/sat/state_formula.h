@@ -19,6 +19,6 @@ void no_abstract_in_leaf(void* solver, vector<PDT*> & leafs, Model* htn);
 
 
 void get_linear_state_atoms(sat_capsule & capsule, vector<PDT*> & leafs, vector<vector<pair<int,int>>> & ret);
-void get_partial_state_atoms(sat_capsule & capsule, Model * htn, SOG * sog, vector<vector<pair<int,int>>> & ret);
+void get_partial_state_atoms(sat_capsule & capsule, Model * htn, SOG * sog, vector<vector<pair<int,int>>> & ret, bool effectLessActionsInSeparateLeaf);
 
 #endif

@@ -249,38 +249,30 @@ void get_linear_state_atoms(sat_capsule & capsule, vector<PDT*> & leafs, vector<
 	}
 }
 
-void get_partial_state_atoms(sat_capsule & capsule, Model * htn, SOG* sog,
-		vector<vector<pair<int,int>>> & ret){
+void get_partial_state_atoms(sat_capsule & capsule, Model * htn, SOG* sog, vector<vector<pair<int,int>>> & ret, bool effectLessActionsInSeparateLeafs ){
 	// determine which leafs only contain method preconditions
 	int leafsWithoutActualActions = 0;
 	sog->leafContainsEffectAction.resize(sog->numberOfVertices);
 	for (int t = 0; t < sog->numberOfVertices; t++){
-		cout << "----------" << endl;
 		bool actualAction = false;
 		bool effectLessAction = false;
 		for (int prim : sog->leafOfNode[t]->possiblePrimitives){
-			cout << htn->taskNames[prim];
 			if (htn->numAdds[prim] > 0 || htn->numDels[prim] > 0){
 				actualAction = true;
-				cout << " actual" << endl;
 			} else {
 				effectLessAction = true;
-				cout << " eless" << endl;
 			}
 		}
 
-		if (actualAction && effectLessAction) exit(0);
+		if (effectLessActionsInSeparateLeafs && actualAction && effectLessAction) exit(0);
 		if (!actualAction) leafsWithoutActualActions++;
 		sog->leafContainsEffectAction[t] = actualAction;
 	}
 	int numberOfTimeSteps = sog->numberOfVertices - leafsWithoutActualActions;
-	numberOfTimeSteps = min(numberOfTimeSteps,8);
-	
+	numberOfTimeSteps = numberOfTimeSteps;
+	if (numberOfTimeSteps == 0) numberOfTimeSteps = 1;
 	
 	cout << "Total Leafs: " << sog->numberOfVertices << " of that without effect-actions " << leafsWithoutActualActions << " remaining: " << numberOfTimeSteps << endl;
-
-
-
 
 	// determine to which times a given leaf can potentially be mapped
 	sog->calcSucessorSets();

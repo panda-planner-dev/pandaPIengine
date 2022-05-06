@@ -258,8 +258,37 @@ SOG* linearLabelSetOptimisation(Model * htn, vector<pair<int,vector<int>>> & lab
 	return sog;
 }
 
+void addCompactSequenceToSOG(SOG *sog, vector<int> &sequence, vector<int> &matchingPositions, int sequenceID, Model *htn, unordered_set<int> &effectlessVertices) {
+	int lastMacthing = -1;
+	for (size_t pos = 0; pos < sequence.size(); pos++) {
+		bool foundMatching = false;
+		int task = sequence[pos];
+		bool isEffectlessAction = task < htn->numActions && (htn->numAdds[task] == 0 && htn->numDels[task] == 0);
+		for (size_t v = lastMacthing+1; v < sog->numberOfVertices; v++) {
+			if (isEffectlessAction != effectlessVertices.count(v)) continue;
+			sog->labels[v].insert(task);
+			sog->methodSubTasksToVertices[sequenceID][matchingPositions[pos]] = v;
+			foundMatching = true;
+			lastMacthing = v;
+			break;
+		}
+		if (!foundMatching) {	
+			lastMacthing = sog->numberOfVertices++;
+			unordered_set<uint16_t> _temp16;
+			unordered_set<uint32_t> _temp32;
+			sog->labels.push_back(_temp32);
+			sog->adj.push_back(_temp16);
+			sog->bdj.push_back(_temp16);
+			sog->labels[sog->numberOfVertices - 1].insert(task);
+			sog->methodSubTasksToVertices[sequenceID][matchingPositions[pos]] = sog->numberOfVertices - 1;
+			if (isEffectlessAction) effectlessVertices.insert(sog->numberOfVertices - 1);
+		}
+	}
+}
 
-SOG* runTOSOGOptimiser(SOG* sog, vector<tuple<uint32_t,uint32_t,uint32_t>> & methods, Model* htn){
+
+
+SOG* runTOSOGOptimiser(SOG* sog, vector<tuple<uint32_t,uint32_t,uint32_t>> & methods, Model* htn, bool effectLessActionsInSeparateLeafs){
 	//cout << endl << endl << endl << "================================================" << endl;
 	
 	int m = get<0>(methods[0]);
@@ -267,6 +296,8 @@ SOG* runTOSOGOptimiser(SOG* sog, vector<tuple<uint32_t,uint32_t,uint32_t>> & met
 	sog->labels.resize(sog->numberOfVertices);
 	sog->methodSubTasksToVertices.resize(methods.size());
 
+	unordered_set<int> effectlessVertices;
+	
 	for (size_t mID = 0; mID < methods.size(); mID++){
 		int m = get<0>(methods[mID]);
 		sog->methodSubTasksToVertices[mID].resize(htn->numSubTasks[m]);
@@ -278,8 +309,11 @@ SOG* runTOSOGOptimiser(SOG* sog, vector<tuple<uint32_t,uint32_t,uint32_t>> & met
 			int task   = htn->subTasks[m][taskID];
 			taskSequence.push_back(task);
 			indexSequence.push_back(taskID);
-		}	
-		addSequenceToSOG(sog, taskSequence, indexSequence, mID, 0, sog->numberOfVertices);
+		}
+		if (!effectLessActionsInSeparateLeafs)
+			addSequenceToSOG(sog, taskSequence, indexSequence, mID, 0, sog->numberOfVertices);
+		else
+			addCompactSequenceToSOG(sog, taskSequence, indexSequence, mID, htn, effectlessVertices);
 	}
 
 	sog->adj.resize(sog->numberOfVertices);
@@ -293,7 +327,9 @@ SOG* runTOSOGOptimiser(SOG* sog, vector<tuple<uint32_t,uint32_t,uint32_t>> & met
 
 	return sog;
 }	
-	
+
+
+
 SOG* runTOSOGOptimiserRecursive(SOG* sog, vector<tuple<uint32_t,uint32_t,uint32_t>> & methods, Model* htn){
 	//cout << endl << endl << endl << "================================================" << endl;
 	// 1. Step extract the recursive tasks per method
@@ -458,7 +494,7 @@ SOG* runTOSOGOptimiserRecursive(SOG* sog, vector<tuple<uint32_t,uint32_t,uint32_
 	int numRec = 0;
 	for (int i = 0; i < sog->numberOfVertices; i++){
 		bool recursive = false;
-		for (const int & l : sog->labels[i])
+		for (const unsigned int & l : sog->labels[i])
 			recursive |= !htn->sccIsAcyclic[htn->taskToSCC[l]];
 
 		if (recursive) numRec++;
@@ -470,7 +506,7 @@ SOG* runTOSOGOptimiserRecursive(SOG* sog, vector<tuple<uint32_t,uint32_t,uint32_
 
 		for (int i = 0; i < sog->numberOfVertices; i++){
 			cout << "POS " << i << endl;
-			for (const int & l : sog->labels[i])
+			for (const unsigned int & l : sog->labels[i])
 				 if (!htn->sccIsAcyclic[htn->taskToSCC[l]])
 					 cout << "\t" << htn->taskNames[l] << endl;
 		}
@@ -528,17 +564,11 @@ SOG* optimiseSOG(vector<tuple<uint32_t,uint32_t,uint32_t>> & methods, Model* htn
 	else                             cout << "Running PO SOG optimiser";
 	cout << " with " << methods.size() << " methods with up to " << maxSize << " subtasks." << endl;
 #endif
-
-	if (!effectLessActionsInSeparateLeaf){
-		if (allMethodsAreTotallyOrdered)
-			return runTOSOGOptimiser(sog, methods, htn);
-			//return runTOSOGOptimiserRecursive(sog, methods, htn);
-		else
-			return runPOSOGOptimiser(sog, methods, htn);
-	} else {
-		cout << "NYI" << endl;
-		exit(0);
-	}
+	if (allMethodsAreTotallyOrdered)
+		return runTOSOGOptimiser(sog, methods, htn, effectLessActionsInSeparateLeaf);
+		//return runTOSOGOptimiserRecursive(sog, methods, htn);
+	else
+		return runPOSOGOptimiser(sog, methods, htn, effectLessActionsInSeparateLeaf);
 }
 
 

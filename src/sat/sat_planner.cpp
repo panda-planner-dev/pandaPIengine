@@ -89,6 +89,7 @@ void printSolution(void * solver, Model * htn, PDT* pdt, MatchingData & matching
 							// get the output number of that leaf
 							PDT * leaf = matching.leafSOG->leafOfNode[l];
 							std::cout << p << "@" << l << " | " << leaf->outputID << " " << htn->taskNames[prim] << endl;
+							cout << "PUP" << endl;
 						}
 					}
 					
@@ -396,7 +397,7 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	if (htn->isTotallyOrdered){
 		get_linear_state_atoms(capsule, leafs, vars);
 	} else {
-		get_partial_state_atoms(capsule, htn, leafsog, vars);
+		get_partial_state_atoms(capsule, htn, leafsog, vars, effectLessActionsInSeparateLeaf);
 	}
 	
 	cout << "State atoms" << endl;
