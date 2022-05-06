@@ -19,7 +19,7 @@ void generate_matching_formula(void* solver, sat_capsule & capsule, Model * htn,
 			if (leafSOG->leafContainsEffectAction[l]){
 				matching.matchingPerPositionAMO[p].push_back(matchVar);
 			} else{
-				cout << "Don't include " << l << "@" <<p << endl;
+				DEBUG(cout << "Don't include " << l << "@" <<p << endl);
 			}
 		}	
 	}
