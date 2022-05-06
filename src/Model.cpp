@@ -19,6 +19,7 @@
 #include <cerrno>
 #include <cstring>
 #include <map>
+#include <stack>
 #include <sys/time.h>
 #include "intDataStructures/IntPairHeap.h"
 
@@ -2794,27 +2795,108 @@ newlyReachedMLMs = new noDelIntSet();
 			dfile << " :parameters ())" << endl;
 		}
 		dfile << endl;
+		
+		vector<bool> actionOccurs(this->numActions); // initialised to false
 
 		for (int i = 0; i < numMethods; i++) {
+			int possibleMethodPrecondition = -1;
+			for (int j = 0; j < numSubTasks[i]; j++) {
+				if (taskNames[subTasks[i][j]].rfind("__method_precondition", 0) == 0){
+					if (possibleMethodPrecondition != -1){
+						possibleMethodPrecondition = -2;
+						break;
+					}
+
+					possibleMethodPrecondition = j;
+				}
+			}
+
+			if (possibleMethodPrecondition >= 0){
+				map<int,vector<int>> succs;
+				int j = 0;
+				while (j < this->numOrderings[i]) {
+					succs[this->ordering[i][j]].push_back(this->ordering[i][j + 1]);
+					j += 2;
+				}
+				
+				set<int> allSuccessors;
+				stack<int> cur;
+				cur.push(possibleMethodPrecondition);
+
+				while (cur.size()){
+					int c = cur.top(); cur.pop();
+					allSuccessors.insert(c);
+					for (int x : succs[c])
+						if (allSuccessors.count(x) == 0)
+							cur.push(x);
+				}
+
+				if (allSuccessors.size() != numSubTasks[i])
+					possibleMethodPrecondition = -1; // not the first task, no not possible to write as precondition
+			}
+
+			
+
+
 			dfile << "  (:method " << su.cleanStr(this->methodNames[i]) << "_" << i << endl;
 			dfile << "     :parameters ()" << endl;
 			dfile << "     :task (" << su.cleanStr(this->taskNames[this->decomposedTask[i]]) << ")" << endl;
-			dfile << "     :subtasks (and" << endl;
-			for (int j = 0; j < numSubTasks[i]; j++) {
-				dfile << "        (task" << j << " (" << su.cleanStr(taskNames[subTasks[i][j]]) << "))" << endl;
-			}
-			dfile << "     )" << endl;
-
-			if (this->numOrderings[i]) {
-				dfile << "     :ordering (and" << endl;
-
-				int j = 0;
-				while (j < this->numOrderings[i]) {
-					dfile << "        (task" << this->ordering[i][j] << " < task" << this->ordering[i][j + 1] << ")"
-						<< endl;
-					j += 2;
+			if (possibleMethodPrecondition >= 0){
+				int preconditionTask = subTasks[i][possibleMethodPrecondition];
+				
+				dfile << "     :precondition (and " << endl;
+				for (int j = 0; j < this->numPrecs[preconditionTask]; j++) {
+					dfile << "         (" << su.cleanStr(this->factStrs[this->precLists[preconditionTask][j]]) << ")" << endl;
 				}
 				dfile << "     )" << endl;
+			}
+
+
+			if (methodIsTotallyOrdered[i]){
+				dfile << "     :ordered-subtasks (and" << endl;
+				for (int k = 0; k < numSubTasks[i]; k++) {
+					int j = methodTotalOrder[i][k];
+					if (j == possibleMethodPrecondition) continue;
+					if (subTasks[i][j] < this->numActions)
+						actionOccurs[subTasks[i][j]] = true;
+					dfile << "        (" << su.cleanStr(taskNames[subTasks[i][j]]) << ")" << endl;
+				}
+				dfile << "     )" << endl;
+
+
+
+			} else {
+				dfile << "     :subtasks (and" << endl;
+				for (int j = 0; j < numSubTasks[i]; j++) {
+					if (j == possibleMethodPrecondition) continue;
+					if (subTasks[i][j] < this->numActions)
+						actionOccurs[subTasks[i][j]] = true;
+					dfile << "        (task" << j << " (" << su.cleanStr(taskNames[subTasks[i][j]]) << "))" << endl;
+				}
+				dfile << "     )" << endl;
+
+
+				if (this->numOrderings[i]) {
+
+					int j = 0;
+					bool firstOrdering = true;
+					while (j < this->numOrderings[i]) {
+						if (this->ordering[i][j] == possibleMethodPrecondition) {
+							j+=2;
+							continue;
+						}
+						if (firstOrdering) {
+							dfile << "     :ordering (and" << endl;
+							firstOrdering = false;
+						}
+						
+						
+						dfile << "        (task" << this->ordering[i][j] << " < task" << this->ordering[i][j + 1] << ")"
+							<< endl;
+						j += 2;
+					}
+					if (!firstOrdering) dfile << "     )" << endl;
+				}
 			}
 
 			dfile << "  )" << endl;
@@ -2822,6 +2904,7 @@ newlyReachedMLMs = new noDelIntSet();
 		dfile << endl;
 
 		for (int i = 0; i < this->numActions; i++) {
+			if (!actionOccurs[i]) continue; // don't output method precondition actions.
 			dfile << "  (:action " << su.cleanStr(this->taskNames[i]) << endl;
 			dfile << "     :parameters ()" << endl;
 			if (this->numPrecs[i]) {
