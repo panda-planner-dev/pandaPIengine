@@ -4374,10 +4374,10 @@ void Model::calcMinimalProgressionBound(bool to) {
         index++;
       }
     }
-    return 0;
+    return numActionsTrans;
   }
    
-  int Model::htnToStrips(int pgb) {
+ int Model::htnToStrips(int pgb) {
     // number of translated variables
     int n = pgb * (pgb - 1);
     numVarsTrans = numVars + 2 * pgb + n;
@@ -4744,7 +4744,7 @@ void Model::calcMinimalProgressionBound(bool to) {
         numInvalidTransActions++;
       }
     }
-    return 0;
+    return numActionsTrans;
   }
 
   void Model::combination(int* array, int n, int k, int i){
@@ -4801,7 +4801,7 @@ void Model::calcMinimalProgressionBound(bool to) {
     return i;
   }
      
-  void Model::htnPS(int numSeq, int* pgbList) {
+  int Model::htnPS(int numSeq, int* pgbList) {
     // number of variables: one head counter per sequence, the sequences themselves and constraints between sequences
     int pgb = 0;
     numVarsTrans = numVars + numSeq + 1 + numSeq * (numSeq - 1);
@@ -5110,6 +5110,7 @@ void Model::calcMinimalProgressionBound(bool to) {
       }
     }
     delete[] taskIndezes;
+	return numActionsTrans;
   }
 
   void Model::tohtnToStrips(int pgb) {
@@ -5137,8 +5138,9 @@ void Model::calcMinimalProgressionBound(bool to) {
 
     for (int i = 0; i < pgb; i++){
       firstIndexTrans[firstTaskIndex + i] = lastIndexTrans[firstTaskIndex + i - 1] + 1;
-      lastIndexTrans[firstTaskIndex + i] = firstIndexTrans[firstTaskIndex + i] + numTasks + 1;
-    }
+      lastIndexTrans[firstTaskIndex + i] = firstIndexTrans[firstTaskIndex + i] + numTasks;
+    	cout << firstIndexTrans[firstTaskIndex + i] << " " << lastIndexTrans[firstTaskIndex + i] << endl;
+	}
 
     numStateBitsTrans = lastIndexTrans[numVarsTrans - 1] + 1;
 
@@ -5157,14 +5159,14 @@ void Model::calcMinimalProgressionBound(bool to) {
     for (int i = 0; i < numStateBits; i++){
       factStrsTrans[firstIndexTrans[firstVarIndex] + i] = factStrs[i];
     }
-    factStrsTrans[firstIndexTrans[headIndex]] = "+point[head,finish]";
+    factStrsTrans[firstIndexTrans[headIndex]] = "ppoint(head, finish)";
     for (int i = 0; i < pgb; i++){
-      factStrsTrans[i + firstIndexTrans[headIndex] + 1] = string("+point[head,point")+ to_string(i) + ']';
+      factStrsTrans[i + firstIndexTrans[headIndex] + 1] = string("ppoint(head, point")+ to_string(i) + ')';
     }
     for (int i = firstTaskIndex; i < numVarsTrans; i++){
-      factStrsTrans[firstIndexTrans[i]] = string("+task[point") + to_string(i-firstTaskIndex) + string(",noTask]")    ;
-      for (int j = 0; j < lastIndexTrans[i] - firstIndexTrans[i]- 1; j++){
-        factStrsTrans[firstIndexTrans[i]+j + 1] = string("+task[point") + to_string(i - firstTaskIndex) + string(",task") + to_string(j) + ']';
+      factStrsTrans[firstIndexTrans[i]] = string("ptask(point") + to_string(i-firstTaskIndex) + string(", noTask)")    ;
+      for (int j = 0; j < lastIndexTrans[i] - firstIndexTrans[i]; j++){
+        factStrsTrans[firstIndexTrans[i]+j + 1] = string("ptask(point") + to_string(i - firstTaskIndex) + string(", task") + to_string(j) + ')';
       }
     }
 
@@ -5352,7 +5354,10 @@ void Model::calcMinimalProgressionBound(bool to) {
         string ns = this->factStrsTrans[first_index + j];
         convertMutexVars[first_index + j][0] = i;
         convertMutexVars[first_index + j][1] = j;
-        sasfile << "Atom " << ns << endl;
+		if (ns == "none-of-them")
+			sasfile << "<none of those>" << endl;
+		else
+			sasfile << "Atom " << ns << endl;
       }
   
       sasfile << "end_variable" << endl;
@@ -5624,7 +5629,7 @@ void Model::calcMinimalProgressionBound(bool to) {
     return i;
   }
   int Model::maxProgressionBound(){
-    return 100;
+    return 5000000;
   }
   
   int Model::calculatePrecsAndAdds(int* s, int* p, int* a, string tasks, int** conv){

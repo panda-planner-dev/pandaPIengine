@@ -239,12 +239,13 @@ int main(int argc, char *argv[]) {
   cerr << "- starting Progressionbound = " << pgb << endl;
   cerr << "- maximum Progressionbound = " << maxpgb << endl;
   cerr << "- Progressionbound steps = " << pgbsteps << endl;
+  string foundPlanFileName;
   while (true) {
     
     if (pgb > maxpgb){
       cerr << "maximum progressionbound exeeded" << endl;
       cerr << "terminating process" << endl;
-      break;
+      exit(0);
     }
     /*
     * Translate model
@@ -268,6 +269,7 @@ int main(int argc, char *argv[]) {
     else if (problemType == 2){
       cerr << "HTN to strips";
       int b = htn->htnToStrips(pgb);
+	  cout << "Number of actions: " << b << " pgb: " << pgb << endl;
       if (b == -1){
         cerr << endl << "problem too big to solve" << endl;;
         delete[] pgbList;
@@ -276,11 +278,13 @@ int main(int argc, char *argv[]) {
     }
     else if (problemType == 3){
       cerr << "HTN with parallel total order sequences";
-      htn->htnPS(parallel, pgbList);
+      int b = htn->htnPS(parallel, pgbList);
+	  cout << "Number of actions: " << b << " pgb: " << pgb << endl;
     }
     else if (problemType == 4){
       cerr << "HTN to strips with conditional effects and sorted queue";
       int b = htn->htnToCondSorted(pgb);
+	  cout << "Number of actions: " << b << " pgb: " << pgb << endl;
       if (b == -1){
         cerr << endl << "problem too big to solve" << endl;;
         delete[] pgbList;
@@ -306,11 +310,17 @@ int main(int argc, char *argv[]) {
     gettimeofday(&tp, NULL);
     currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
     cout << " (" << (currentT - startT) << " ms)" << endl;
-    string command;
+	string planFileName = sasfile + string(".plan");
+    string command = solver + string(" --internal-plan-file ") + planFileName;
 	switch (downwardConf){
-		case 0: command = solver + string(" --evaluator 'hcea=cea()' --search 'lazy_greedy([hcea], preferred=[hcea])' --internal-plan-file ") + sasfile + string(".plan < ") + sasfile; break;
-		case 1: command = solver + string(" --evaluator 'hff=ff()' --search 'iterated([ehc(hff, preferred=[hff]),lazy_greedy([hff], preferred=[hff])], continue_on_fail=true, continue_on_solve=false, max_time=1800)' --internal-plan-file ") + sasfile + string(".plan < ") + sasfile; break;
-    case 2: command = solver + ' ' + sasfile + string(" --evaluator 'hcea=cea()' --search 'lazy_greedy([hcea], preferred=[hcea])'"); break;
+		case 0: command += string(" --evaluator 'hcea=cea()' --search 'lazy_greedy([hcea], preferred=[hcea])' < ") + sasfile; break;
+		case 1: command += string(" --evaluator 'hff=ff()' --search 'iterated([ehc(hff, preferred=[hff]),lazy_greedy([hff], preferred=[hff])], continue_on_fail=true, continue_on_solve=false, max_time=1800)' < ") + sasfile; break;
+    	case 2: command += string(" --portfolio /home/behnkeg/classical/Saarplan/driver/portfolios/seq_agl_saarplan.py ") + sasfile; break;
+    	case 3: command += string(" --build=release64 --search-time-limit 10000 --search --alias seq-sat-fdss-2018 ") + sasfile; break;
+    	case 4: command += string(" --alias seq-sat-fd-autotune-1 ") + sasfile; break;
+    	case 5: command += string(" --alias seq-sat-fd-autotune-2 ") + sasfile; break;
+    	case 6: command += string(" --alias seq-sat-lama-2011 ") + sasfile; break;
+    	case 7: command = solver + string(" --build=aidos_ipc --alias seq-unsolvable-aidos-1 --search-time-limit=30m ") + sasfile; planFileName = "sas_plan"; break;
 	}
     gettimeofday(&tp, NULL);
     startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
@@ -318,11 +328,18 @@ int main(int argc, char *argv[]) {
     error_code = system(command.c_str());
     gettimeofday(&tp, NULL);
     currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-    cout << "Solving Time (" << (currentT - startT) << " ms)" << endl << endl;
-    if (error_code == 0){
+    cout << "Solving Time (" << (currentT - startT) << " ms) with Error Code: " << error_code << endl << endl;
+    if (error_code == 0 || error_code == 2){
+	  foundPlanFileName = planFileName;
       break;
     }
-    else if (error_code == 3072 || error_code == 2816){
+  	if (does_file_exist(planFileName) || does_file_exist(planFileName + string(".1"))) {
+		foundPlanFileName = planFileName;
+		break; // if output file is there, we have a plan
+	}
+ 
+	
+	if (error_code == 3072 || error_code == 2816 || error_code == 512 || error_code == 1280 || error_code > 10){
       if (problemType == 3){
         for (int i = 0; i < parallel; i++){
           pgbList[i] += pgbsteps;
@@ -338,11 +355,11 @@ int main(int argc, char *argv[]) {
     }
   }
   delete[] pgbList;
-  string infile = sasfile + ".plan";
-  if (! does_file_exist(infile))
-	  infile = infile + ".1";
+  //string infile = sasfile + ".plan";
+  if (! does_file_exist(foundPlanFileName))
+	  foundPlanFileName = foundPlanFileName + ".1";
   string outfile = planfile;
-  htn->planToHddl(infile, outfile);
+  htn->planToHddl(foundPlanFileName, outfile);
   
   //string command = "./pandaPIparser/pandaPIparser -c " + outfile + " c-" + outfile;
   //cerr << command << endl;
