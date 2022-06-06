@@ -21,7 +21,13 @@
 #include "string.h"
 
 
-void printSolution(void * solver, Model * htn, PDT* pdt, MatchingData & matching){
+bool optimisePlan = true;
+bool costMode = false;
+int currentMaximumCost;
+int costFactor = 1000;
+
+
+int printSolution(void * solver, Model * htn, PDT* pdt, MatchingData & matching){
 	vector<PDT*> leafs;
 	pdt->getLeafs(leafs);
 
@@ -53,6 +59,7 @@ void printSolution(void * solver, Model * htn, PDT* pdt, MatchingData & matching
 
 	
 	int currentID = 0;
+	int solutionCost = 0;
 	
 	cout << "==>" << endl;
 	/// extract the primitive plan
@@ -66,6 +73,7 @@ void printSolution(void * solver, Model * htn, PDT* pdt, MatchingData & matching
 					assert(leaf->outputID == -1);
 					leaf->outputID = currentID++;
 					std::cout << leaf->outputID << " " << htn->taskNames[leaf->possiblePrimitives[pIndex]] << endl;
+					solutionCost += htn->actionCosts[leaf->possiblePrimitives[pIndex]];
 #ifndef NDEBUG
 					cout << "Assigning " << leaf->outputID << " to atom " << prim << endl;
 #endif
@@ -104,6 +112,8 @@ void printSolution(void * solver, Model * htn, PDT* pdt, MatchingData & matching
 	// out decompositions
 	pdt->printDecomposition(htn);
 	cout << "<==" << endl;
+	cout << "Total cost of solution: " << solutionCost << endl;
+	return solutionCost;
 }
 
 void printVariableTruth(void* solver, Model * htn, sat_capsule & capsule){
@@ -432,6 +442,38 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	cout << color(Color::BLUE,"Formula: ") << (afterDecomp - beforeDecomp) << " decomposition " << (afterState - afterDecomp) << " state "  << (afterMutex - afterState) << " mutex" << endl;
 
 
+	if (costMode){
+		vector<int> costVars;
+		for (int t = 0; t < vars.size(); t++){
+			// maximum cost per time step
+			int maxCost = 0;
+			for (const auto & [varID,taskID] : vars[t])
+				maxCost = max(maxCost,htn->actionCosts[taskID]);
+			//cout << "\tMaximum Cost Time " << t << " is " << maxCost << endl;
+
+			maxCost /= costFactor;
+
+			//cout << "\tGenerating cost Implications" << endl;
+			for (int c = 1; c <= maxCost; c++){
+				//cout << "\tC=" << c << endl;
+				int cvar = capsule.new_variable();
+				DEBUG(capsule.registerVariable(cvar,"cost var " + pad_int(c) + " @ " + pad_int(t)));
+				for (const auto & [varID,taskID] : vars[t])
+					if (htn->actionCosts[taskID]/costFactor >= c)
+						implies(solver,varID,cvar);
+					else
+						impliesNot(solver,varID,cvar);
+
+				costVars.push_back(cvar);
+			}
+		}
+
+		cout << "Generating at most K formula " << currentMaximumCost/costFactor << "*" << costVars.size() << "=" << currentMaximumCost/costFactor * costVars.size() <<  "... " << endl;
+		atMostK(solver,capsule,currentMaximumCost/costFactor,costVars);
+		cout << "done" << endl;
+	}
+
+
 
 
 	//map<int,string> names;
@@ -623,6 +665,69 @@ void temp(Model * htn, PDT * pdt){
 }
 
 
+
+void optimise_with_sat_planner_linear_bound_increase(Model * htn, bool block_compression, bool sat_mutexes, sat_pruning pruningMode, bool effectLessActionsInSeparateLeaf,
+		sat_capsule & capsule,
+		PDT* pdt,
+		int depth,
+		int currentCost
+		){
+
+	pdt = new PDT(htn);
+
+	costMode = true;
+	currentMaximumCost = currentCost - 1;
+
+	while (true){
+		void* solver = ipasir_init();
+		cout << endl << endl << color(Color::YELLOW, "Generating formula for depth " + to_string(depth) + " and cost " + to_string(currentMaximumCost)) << endl;
+		std::clock_t formula_start = std::clock();
+		int state = 20;
+
+		MatchingData matching;
+		if (createFormulaForDepth(solver,pdt,htn,capsule,matching,depth,block_compression,sat_mutexes, pruningMode, effectLessActionsInSeparateLeaf)){
+			std::clock_t formula_end = std::clock();
+			double formula_time_in_ms = 1000.0 * (formula_end-formula_start) / CLOCKS_PER_SEC;
+			cout << "Formula has " << capsule.number_of_variables << " vars and " << get_number_of_clauses() << " clauses." << endl;
+			cout << "Formula time: " << fixed << formula_time_in_ms << "ms" << endl;
+			
+			
+			cout << "Starting solver" << endl;
+			std::clock_t solver_start = std::clock();
+			state = ipasir_solve(solver);
+			std::clock_t solver_end = std::clock();
+			double solver_time_in_ms = 1000.0 * (solver_end-solver_start) / CLOCKS_PER_SEC;
+			cout << "Solver time: " << fixed << solver_time_in_ms << "ms" << endl;
+			
+			
+			cout << "Solver state: " << color((state==10?Color::GREEN:Color::RED), (state==10?"SAT":"UNSAT")) << endl;
+			//if (depth == 3) exit(0);
+		} else {
+			cout << "Initial abstract task is pruned: " <<  color(Color::RED,"UNSAT") << endl;
+		}
+
+		if (state == 10){
+#ifndef NDEBUG
+			printVariableTruth(solver, htn, capsule);
+#endif
+			int cost = printSolution(solver,htn,pdt,matching);
+			ipasir_release(solver);
+			if (cost < 1000)
+				costFactor = 1; // try to get a better resolution ...
+			currentMaximumCost = cost - 1;
+			pdt = new PDT(htn);
+		} else {
+			depth++;
+			ipasir_release(solver);
+			//return;
+		}
+	}
+}
+
+
+
+
+
 void solve_with_sat_planner_linear_bound_increase(Model * htn, bool block_compression, bool sat_mutexes, sat_pruning pruningMode, bool effectLessActionsInSeparateLeaf){
 	PDT* pdt = new PDT(htn);
 	//graph * dg = compute_disabling_graph(htn, true);
@@ -663,8 +768,10 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn, bool block_compre
 #ifndef NDEBUG
 			printVariableTruth(solver, htn, capsule);
 #endif
-			printSolution(solver,htn,pdt,matching);
+			int cost = printSolution(solver,htn,pdt,matching);
 			ipasir_release(solver);
+			if (optimisePlan)
+				optimise_with_sat_planner_linear_bound_increase(htn, block_compression, sat_mutexes, pruningMode, effectLessActionsInSeparateLeaf, capsule, pdt, depth, cost);
 			return;
 		} else {
 			depth++;

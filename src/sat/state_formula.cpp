@@ -20,6 +20,8 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 	
 void generate_state_transition_formula(void* solver, sat_capsule & capsule, vector<vector<pair<int,int>>> & actionVariables, vector<int> & block_base_variables, vector<vector<int>> & blocks, Model* htn){
 
+	cout << "Generating state formula for " << blocks.size() << " blocks." << endl;
+
 	// as many blocks as we have timesteps
 	int timesteps = blocks.size();
 	block_base_variables.resize(timesteps);
@@ -50,6 +52,7 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 
 	//////////////////////// state transition
 	for (size_t time = 0; time < timesteps; time++){
+		int beforeClauses = get_number_of_clauses();
 #ifndef NDEBUG
 		int bef = get_number_of_clauses();
 #endif
@@ -98,6 +101,9 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 		int frame = get_number_of_clauses();
 		cout << setw(4) << time << " actions " << setw(7) << act << " " << setw(8) << eff-bef << " " << setw(8) << frame-eff << endl;
 #endif
+	
+		int afterClauses = get_number_of_clauses();
+		cout << "Timestep clauses " << afterClauses - beforeClauses << " from " << blocks[time].size() << " actions." << endl;
 	}
 
 

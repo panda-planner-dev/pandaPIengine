@@ -48,6 +48,7 @@ int sat_capsule::new_variable(){
 
 #ifndef NDEBUG
 void sat_capsule::registerVariable(int v, std::string name){
+	//std::cout << "Register " << v << " " << name << std::endl;
 	assert(variableNames.count(v) == 0);
 	variableNames[v] = name;	
 }
@@ -219,14 +220,24 @@ void atMostOne(void* solver, sat_capsule & capsule, std::vector<int> & is){
 void atMostK(void* solver, sat_capsule & capsule, int K, std::vector<int> & is){
 	std::vector<int> vars;
 	for (int x = 0; x < is.size(); x++){
-		vars.push_back(capsule.new_variable());
-		for (int i = 1; i <= K+1; i++)
-			capsule.new_variable(); // id will not be needed
+		int base = capsule.new_variable();
+		vars.push_back(base);
+		DEBUG(capsule.registerVariable(base,"at-most-K " + pad_int(0)+"-"+pad_int(x)));
+		for (int i = 1; i <= K+1; i++){
+			int v = capsule.new_variable();
+			DEBUG(capsule.registerVariable(v,"at-most-K " + pad_int(i)+"-"+pad_int(x)));
+			// id will not be needed
+		}
 	}
 
-	vars.push_back(capsule.new_variable());
-	for (int i = 1; i <= K+1; i++)
-		capsule.new_variable(); // id will not be needed
+	int base = capsule.new_variable();
+	vars.push_back(base);
+	DEBUG(capsule.registerVariable(base,"at-most-K " + pad_int(0)));
+	for (int i = 1; i <= K+1; i++){
+		int v = capsule.new_variable();
+		DEBUG(capsule.registerVariable(v,"at-most-K " + pad_int(i)));
+		// id will not be needed
+	}
 
 
 	for (int i = 0; i < is.size(); i++){

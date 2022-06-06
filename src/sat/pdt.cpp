@@ -938,8 +938,9 @@ void PDT::addDecompositionClauses(void* solver, sat_capsule & capsule, Model * h
 				methodAtoms.push_back(i);
 		}
 	}
-	assert(methodAtoms.size());
-	atMostOne(solver,capsule, methodAtoms);
+	if (methodAtoms.size())
+		//assert(methodAtoms.size());
+		atMostOne(solver,capsule, methodAtoms);
 #ifndef NDEBUG
 	int stepC = get_number_of_clauses();
 #endif
