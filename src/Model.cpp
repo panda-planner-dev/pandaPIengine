@@ -2851,12 +2851,15 @@ newlyReachedMLMs = new noDelIntSet();
 				dfile << "     )" << endl;
 			}
 
-
 			if (methodIsTotallyOrdered[i]){
 				dfile << "     :ordered-subtasks (and" << endl;
 				for (int k = 0; k < numSubTasks[i]; k++) {
 					int j = methodTotalOrder[i][k];
 					if (j == possibleMethodPrecondition) continue;
+					// don't output no-op actions again.
+					if (taskNames[subTasks[i][j]].rfind("__noop", 0) == 0) continue;
+					
+					
 					if (subTasks[i][j] < this->numActions)
 						actionOccurs[subTasks[i][j]] = true;
 					dfile << "        (" << su.cleanStr(taskNames[subTasks[i][j]]) << ")" << endl;
@@ -2866,9 +2869,15 @@ newlyReachedMLMs = new noDelIntSet();
 
 
 			} else {
+				set<int> noopIDs;
 				dfile << "     :subtasks (and" << endl;
 				for (int j = 0; j < numSubTasks[i]; j++) {
 					if (j == possibleMethodPrecondition) continue;
+					// don't output no-op actions again.
+					if (taskNames[subTasks[i][j]].rfind("__noop", 0) == 0) {
+						noopIDs.insert(j);
+						continue;
+					}
 					if (subTasks[i][j] < this->numActions)
 						actionOccurs[subTasks[i][j]] = true;
 					dfile << "        (task" << j << " (" << su.cleanStr(taskNames[subTasks[i][j]]) << "))" << endl;
@@ -2881,7 +2890,7 @@ newlyReachedMLMs = new noDelIntSet();
 					int j = 0;
 					bool firstOrdering = true;
 					while (j < this->numOrderings[i]) {
-						if (this->ordering[i][j] == possibleMethodPrecondition) {
+						if (this->ordering[i][j] == possibleMethodPrecondition || noopIDs.count(this->ordering[i][j]) || noopIDs.count(this->ordering[i][j] + 1) ) {
 							j+=2;
 							continue;
 						}
