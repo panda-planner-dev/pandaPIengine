@@ -191,7 +191,7 @@ int main(int argc, char *argv[]) {
   return 0;
 #endif  
 
-  cerr << "Reading HTN model from file \"" << s << "\" ... " << endl;
+  cout << "Reading HTN model from file \"" << s << "\" ... " << endl;
   htn->read(s);
   
   gettimeofday(&tp, NULL);
@@ -254,45 +254,45 @@ int main(int argc, char *argv[]) {
     startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 
     if (problemType == 0){
-      cerr << "TOHTN to strips";
+      cout << "TOHTN to strips";
       htn->tohtnToStrips(pgb);
     }
     else if (problemType == 1){
-      cerr << "HTN to strips with conditional effects";
+      cout << "HTN to strips with conditional effects";
       int b = htn->htnToCond(pgb);
       if (b == -1){
-        cerr << endl << "problem too big to solve" << endl;;
+        cout << endl << "problem too big to solve" << endl;;
         delete[] pgbList;
         return 0;
       }
     }
     else if (problemType == 2){
-      cerr << "HTN to strips";
+      cout << "HTN to strips";
       int b = htn->htnToStrips(pgb);
 	  cout << "Number of actions: " << b << " pgb: " << pgb << endl;
       if (b == -1){
-        cerr << endl << "problem too big to solve" << endl;;
+        cout << endl << "problem too big to solve" << endl;;
         delete[] pgbList;
         return 0;
       }
     }
     else if (problemType == 3){
-      cerr << "HTN with parallel total order sequences";
+      cout << "HTN with parallel total order sequences";
       int b = htn->htnPS(parallel, pgbList);
 	  cout << "Number of actions: " << b << " pgb: " << pgb << endl;
     }
     else if (problemType == 4){
-      cerr << "HTN to strips with conditional effects and sorted queue";
+      cout << "HTN to strips with conditional effects and sorted queue";
       int b = htn->htnToCondSorted(pgb);
 	  cout << "Number of actions: " << b << " pgb: " << pgb << endl;
       if (b == -1){
-        cerr << endl << "problem too big to solve" << endl;;
+        cout << endl << "problem too big to solve" << endl;;
         delete[] pgbList;
         return 0;
       }
     }
     else {
-      cerr << "not a valid problem Type" << endl;
+      cout << "not a valid problem Type" << endl;
       delete[] pgbList;
       return 0;
     }
@@ -305,7 +305,7 @@ int main(int argc, char *argv[]) {
     */
     gettimeofday(&tp, NULL);
     startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-    cerr << "Printing HTN model to file \"" << sasfile << "\" ... ";
+    cout << "Printing HTN model to file \"" << sasfile << "\" ... ";
     htn->writeToFastDown(sasfile, problemType, pgb);
     gettimeofday(&tp, NULL);
     currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
@@ -321,21 +321,32 @@ int main(int argc, char *argv[]) {
     	case 5: command += string(" --alias seq-sat-fd-autotune-2 ") + sasfile; break;
     	case 6: command += string(" --alias seq-sat-lama-2011 ") + sasfile; break;
     	case 7: command = solver + string(" --build=aidos_ipc --alias seq-unsolvable-aidos-1 --search-time-limit=30m ") + sasfile; planFileName = "sas_plan"; break;
+    	case 8: command += string(" --search 'astar(lmcut())' < ") + sasfile; break;
+    	case 9: command += string(" --search 'astar(merge_and_shrink(merge_strategy=merge_precomputed(merge_tree=linear(variable_order=reverse_level)),shrink_strategy=shrink_bisimulation(greedy=true),label_reduction=exact(before_shrinking=true,before_merging=false),max_states=infinity,threshold_before_merge=1))' < ") + sasfile; break;
+    	case 10: command += string(" --evaluator 'lmc=lmcount(lm_merged([lm_rhw(),lm_hm(m=1)]),admissible=true)' --search 'astar(lmc,lazy_evaluator=lmc)' < ") + sasfile; break;
 	}
     gettimeofday(&tp, NULL);
     startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-    cerr << command << endl;
+    cout << command << endl;
     error_code = system(command.c_str());
     gettimeofday(&tp, NULL);
     currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
     cout << "Solving Time (" << (currentT - startT) << " ms) with Error Code: " << error_code << endl << endl;
     if (error_code == 0 || error_code == 2){
 	  foundPlanFileName = planFileName;
-      break;
+	  cout << "We have a plan, but we will continue and try to find a better one ..." << endl << endl << endl;
+	  //break; // if output file is there, we have a plan
+      pgb += pgbsteps;
+      cout << "- new progressionbound: " << pgb << endl;
+      continue;
     }
   	if (does_file_exist(planFileName) || does_file_exist(planFileName + string(".1"))) {
 		foundPlanFileName = planFileName;
-		break; // if output file is there, we have a plan
+		cout << "We have a plan, but we will continue and try to find a better one ..." << endl << endl << endl;
+		//break; // if output file is there, we have a plan
+      	pgb += pgbsteps;
+     	cout << "- new progressionbound: " << pgb << endl;
+		continue;
 	}
  
 	
@@ -346,10 +357,10 @@ int main(int argc, char *argv[]) {
         }
       }
       pgb += pgbsteps;
-      cerr << "- new progressionbound: " << pgb << endl;
+      cout << "- new progressionbound: " << pgb << endl;
     }
     else {
-      cerr << "- error code: " << error_code << endl;
+      cout << "- error code: " << error_code << endl;
       delete[] pgbList;
       return 0;
     }
