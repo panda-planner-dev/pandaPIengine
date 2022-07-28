@@ -5199,6 +5199,14 @@ void Model::calcMinimalProgressionBound(bool to) {
     }
     for (int i = firstMethodIndex; i < numActionsTrans; i++) {
       actionCostsTrans[i] = 0;
+	  int method = (i-firstMethodIndex)/pgb;
+	  //cout << "ACC " << i << " " << method << " " << firstNumTOPrimTasks[method] << " " << numSubTasks[method] << " " << firstNumTOPrimTasks[method] << endl;
+      if (firstNumTOPrimTasks[method] > 0){
+          for (int k = 0; k < firstNumTOPrimTasks[method]; k++){
+			  //cout << "C " << method << " " << numMethods << " " << numSubTasks[method] << " " << 1 << " " << k << " = " << subTasksInOrder[method][numSubTasks[method] - 1 - k] << endl;
+	    	  actionCostsTrans[i] += actionCosts[subTasksInOrder[method][numSubTasks[method] - 1 - k]];
+		  }
+	  }
     }
 
     // transformed actions
@@ -5307,13 +5315,15 @@ void Model::calcMinimalProgressionBound(bool to) {
                 actionNamesTrans[firstMethodIndex + i * pgb + j] += ',' + to_string(j + k);
               }
             }
-            if (firstNumTOPrimTasks[i] > 0){
+            
+			if (firstNumTOPrimTasks[i] > 0){
               actionNamesTrans[firstMethodIndex + i * pgb + j] += "],firstPrim[" + to_string(subTasksInOrder[i][numSubTasks[i] - 1]);
               for (int k = 1; k < firstNumTOPrimTasks[i]; k++){
                 actionNamesTrans[firstMethodIndex + i * pgb + j] += ',' + to_string(subTasksInOrder[i][numSubTasks[i] - 1 - k]);
               }
             }
             actionNamesTrans[firstMethodIndex + i * pgb + j] += "]): " + methodNames[i];
+			//cout << "output " << i << " " << j << " " << firstMethodIndex + i * pgb + j << " " << " " << firstNumTOPrimTasks[i] << actionNamesTrans[firstMethodIndex + i * pgb + j] << endl;
         }
     }
 }
@@ -5332,7 +5342,7 @@ void Model::calcMinimalProgressionBound(bool to) {
     sasfile <<  endl;
     // metric
     sasfile << "begin_metric" << endl;
-    sasfile << "0" << endl;
+    sasfile << "1" << endl;
     sasfile << "end_metric" << endl;
     sasfile <<  endl;
 
