@@ -334,19 +334,19 @@ int main(int argc, char *argv[]) {
     cout << "Solving Time (" << (currentT - startT) << " ms) with Error Code: " << error_code << endl << endl;
     if (error_code == 0 || error_code == 2){
 	  foundPlanFileName = planFileName;
-	  cout << "We have a plan, but we will continue and try to find a better one ..." << endl << endl << endl;
-	  //break; // if output file is there, we have a plan
-      pgb += pgbsteps;
-      cout << "- new progressionbound: " << pgb << endl;
-      continue;
+	  //cout << "We have a plan, but we will continue and try to find a better one ..." << endl << endl << endl;
+	  break; // if output file is there, we have a plan
+      //pgb += pgbsteps;
+      //cout << "- new progressionbound: " << pgb << endl;
+      //continue;
     }
   	if (does_file_exist(planFileName) || does_file_exist(planFileName + string(".1"))) {
 		foundPlanFileName = planFileName;
-		cout << "We have a plan, but we will continue and try to find a better one ..." << endl << endl << endl;
-		//break; // if output file is there, we have a plan
-      	pgb += pgbsteps;
-     	cout << "- new progressionbound: " << pgb << endl;
-		continue;
+		//cout << "We have a plan, but we will continue and try to find a better one ..." << endl << endl << endl;
+		break; // if output file is there, we have a plan
+      	//pgb += pgbsteps;
+     	//cout << "- new progressionbound: " << pgb << endl;
+		//continue;
 	}
  
 	
