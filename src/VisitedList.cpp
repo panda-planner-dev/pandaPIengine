@@ -536,7 +536,17 @@ bool VisitedList::insertVisi(searchNode *n) {
 	if (useTotalOrderMode || useSequencesMode || !GIcheck) {
 		// check if node was new
 		bool returnValue = *payload == nullptr;
-		*payload = (void*) 1; // now the hash is known
+
+
+		int costOfInsertedNode = n->fValue + 1; // add 1 to distinguish f=0 from no search node at all.
+		int costInTree = *(int*)payload;
+
+		if (costInTree > costOfInsertedNode) // re-opening of the node
+			returnValue = true;
+		
+
+		if (returnValue)
+			*payload = (void*) costOfInsertedNode; // now the hash is known at the given cost
 		
 		std::clock_t after = std::clock();
         this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
@@ -548,16 +558,30 @@ bool VisitedList::insertVisi(searchNode *n) {
 		if (*nodes == nullptr)
 			*nodes = new vector<searchNode*>;
    
-
+		searchNode* toRemove = nullptr;
+		
 		for (searchNode *other : **nodes) {
 			bool result = matching(n, other);
 			//cout << endl << endl << "Comp " << result << endl;
 			//other->printNode(cout);
 			if (result) {
+				if (other->fValue > n->fValue){
+					toRemove = other;
+					continue;
+				}
 				std::clock_t after = std::clock();
 				this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
 				return false;
 			}
+		}
+
+		if (toRemove != nullptr){
+			vector<searchNode*> cpy_nodes = **nodes;
+			(*nodes)->clear();
+			
+			for (searchNode *other : cpy_nodes)
+				if (other != toRemove)
+					(*nodes)->push_back(other);
 		}
         
 		(*nodes)->push_back(n);
