@@ -18,7 +18,7 @@
 #include "RCModelFactory.h"
 
 enum eEstimate {
-    estDISTANCE, estCOSTS
+    estDISTANCE, estMIXED, estCOSTS
 };
 
 template<class ClassicalHeuristic>
@@ -43,11 +43,23 @@ public:
 
         Model *heuristicModel;
         factory = new RCModelFactory(htnModel);
+		// two weird things:
+		// 1. the model may contain artificial actions (for method preconditions), which always have cost 0
+		// If we estimate the distance, we may want to count them.
+		// 2. the original, non-artificial actions may have costs > 1 and for distance we might not want to count them as somthing > 1
+
+		// the first argument controls the cost of method actions
+		// 0: all have cost 0
+		// 1: all have cost 1
+		// the second argument controls the cost of the primitive actions
+		// 0: keep the costs of the input model (including the weird things mentioned above)
+		// 1: set the costs of all actions to 1
         if (estimate == estCOSTS) {
-            heuristicModel = factory->getRCmodelSTRIPS(0); // costs of methods need to be zero
-        } else {
-            heuristicModel = factory->getRCmodelSTRIPS(1); // estimate distance -> method costs 1
-            // fixme: this configuration is wired when actions have actual costs
+            heuristicModel = factory->getRCmodelSTRIPS(0,0); // costs of methods need to be zero
+        } else if (estimate == estMIXED){
+            heuristicModel = factory->getRCmodelSTRIPS(1,0); // estimate distance -> method costs 1, actions keep their costs
+        } else if (estimate == estDISTANCE){
+            heuristicModel = factory->getRCmodelSTRIPS(1,1); // estimate distance -> method costs 1, actions costs 1
         }
 
         this->sasH = new ClassicalHeuristic(heuristicModel);

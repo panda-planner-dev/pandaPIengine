@@ -235,6 +235,8 @@ int main(int argc, char *argv[]) {
 				eEstimate estimate = estDISTANCE;
 				if (estimate_string == "cost")
 					estimate = estCOSTS;
+				if (estimate_string == "mixed")
+					estimate = estMIXED;
 				
 				string correct_task_count_string = (args.count("taskcount"))?args["taskcount"]:args["arg3"];
 				bool correctTaskCount = true;

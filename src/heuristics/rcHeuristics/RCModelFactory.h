@@ -19,7 +19,7 @@ public:
 	RCModelFactory(Model* htn);
 	virtual ~RCModelFactory();
 	Model* getRCmodelSTRIPS();
-	Model* getRCmodelSTRIPS(int costsMethodActions);
+	Model* getRCmodelSTRIPS(int costsMethodActions, int costRegularActions);
 	void createInverseMappings(Model* c);
 	int t2tdr(int task);
 	int t2bur(int task);
