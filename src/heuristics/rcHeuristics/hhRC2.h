@@ -85,7 +85,9 @@ public:
     }
 	
 	string getDescription(){
-		return "hhRC2("	+ sasH->getDescription() + ";" + (estimate == estDISTANCE?"distance":"cost") + ";" + (correctTaskCount?"correct count":"") + ")";
+		return "hhRC2("	+ sasH->getDescription() + ";" +
+			(estimate == estDISTANCE?"distance":(estimate == estCOSTS?"cost":"mixed"))
+		   	+ ";" + (correctTaskCount?"correct count":"") + ")";
 	}
 
     void setHeuristicValue(searchNode *n, searchNode *parent, int action) override {
