@@ -58,6 +58,7 @@ compressed_sequence_trie::~compressed_sequence_trie(){
 compressed_sequence_trie::compressed_sequence_trie(const vector<uint64_t> & sequence, int paddingBits, void** & p) : compressed_sequence_trie(){
 	blocks = sequence.size();
 	p = &payload;
+	payload = nullptr;
 	myFirstBlock = 0;
 	ignoreBitsFirst = 0;
 	ignoreBitsLast = paddingBits;
@@ -72,6 +73,7 @@ compressed_sequence_trie::compressed_sequence_trie(const vector<uint64_t> & sequ
 compressed_sequence_trie::compressed_sequence_trie(const vector<uint64_t> & sequence, int startingBlock, int startingBit, int paddingBits, void** & p) : compressed_sequence_trie(){
 	blocks = sequence.size() - startingBlock;
 	p = &payload;
+	payload = nullptr;
 	myFirstBlock = startingBlock;
 	ignoreBitsFirst = startingBit;
 	ignoreBitsLast = paddingBits;

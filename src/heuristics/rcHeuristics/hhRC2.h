@@ -55,12 +55,18 @@ public:
 		// 0: keep the costs of the input model (including the weird things mentioned above)
 		// 1: set the costs of all actions to 1
         if (estimate == estCOSTS) {
+			cout << "Generate 1" << endl << endl;
             heuristicModel = factory->getRCmodelSTRIPS(0,0); // costs of methods need to be zero
         } else if (estimate == estMIXED){
+			cout << "Generate 2" << endl << endl;
             heuristicModel = factory->getRCmodelSTRIPS(1,0); // estimate distance -> method costs 1, actions keep their costs
         } else if (estimate == estDISTANCE){
+			cout << "Generate 3" << endl << endl;
             heuristicModel = factory->getRCmodelSTRIPS(1,1); // estimate distance -> method costs 1, actions costs 1
-        }
+        } else {
+			cout << "BLUUUUUP";
+			exit(0);
+		}
 
         this->sasH = new ClassicalHeuristic(heuristicModel);
         this->s0set.init(heuristicModel->numStateBits);

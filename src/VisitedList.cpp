@@ -77,9 +77,10 @@ uint64_t hash_state_sequence(const vector<uint64_t> & state){
 
 
 
-VisitedList::VisitedList(Model *m, bool _noVisitedCheck, bool _taskHash, bool _taskSequenceHash, bool _topologicalOrdering, bool _orderPairs, bool _layers, bool _allowGIcheck, bool _allowedToUseParallelSequences) {
+VisitedList::VisitedList(Model *m, bool _noVisitedCheck, bool _noReOpening, bool _taskHash, bool _taskSequenceHash, bool _topologicalOrdering, bool _orderPairs, bool _layers, bool _allowGIcheck, bool _allowedToUseParallelSequences) {
     this->htn = m;
 	this->noVisitedCheck = _noVisitedCheck;
+	this->noReopening = _noReOpening;
 	this->GIcheck = _allowGIcheck;
 
 	// auto detect properties of the problem
@@ -537,16 +538,18 @@ bool VisitedList::insertVisi(searchNode *n) {
 		// check if node was new
 		bool returnValue = *payload == nullptr;
 
+		if (noReopening){
+			*payload = (void*) 1; // know the hash is known
+		} else {
+			int costOfInsertedNode = n->fValue + 1; // add 1 to distinguish f=0 from no search node at all.
+			int costInTree = *(int*)payload;
 
-		int costOfInsertedNode = n->fValue + 1; // add 1 to distinguish f=0 from no search node at all.
-		int costInTree = *(int*)payload;
+			if (costInTree > costOfInsertedNode) // re-opening of the node
+				returnValue = true;
 
-		if (costInTree > costOfInsertedNode) // re-opening of the node
-			returnValue = true;
-		
-
-		if (returnValue)
-			*payload = (void*) costOfInsertedNode; // now the hash is known at the given cost
+			if (returnValue)
+				*payload = (void*) costOfInsertedNode; // now the hash is known at the given cost
+		}
 		
 		std::clock_t after = std::clock();
         this->time += 1000.0 * (after - before) / CLOCKS_PER_SEC;
