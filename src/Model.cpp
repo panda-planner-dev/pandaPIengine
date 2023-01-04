@@ -230,7 +230,7 @@ newlyReachedMLMs = new noDelIntSet();
 		delete[] stToMethodNum;
 		delete[] stToMethod;
 
-		delete[] minImpliedCosts;
+		delete[] minEstimatedCosts;
 		delete[] minImpliedDistance;
 	}
 
@@ -2683,24 +2683,24 @@ newlyReachedMLMs = new noDelIntSet();
 		gettimeofday(&tp, NULL);
 		long startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
 
-		cout << "- Calculating minimal implied costs and distances";
+		cout << "- Calculating minimal implied distances and estimated costs";
 
-		this->minImpliedCosts = new int[this->numTasks];
+		this->minEstimatedCosts = new int[this->numTasks];
 		this->minImpliedDistance = new int[this->numTasks];
-		int *minImpliedCostsM = new int[this->numMethods];
+		int *minEstimatedCostsM = new int[this->numMethods];
 		int *minImpliedDistanceM = new int[this->numMethods];
 
 		for (int i = 0; i < this->numMethods; i++) {
-			minImpliedCostsM[i] = 0;
+            minEstimatedCostsM[i] = 0;
 			minImpliedDistanceM[i] = 0;
 		}
 
 		for (int i = 0; i < this->numTasks; i++) {
 			if (i < this->numActions) {
-				minImpliedCosts[i] = this->actionCosts[i];
+                minEstimatedCosts[i] = this->actionCosts[i];
 				minImpliedDistance[i] = 1;
 			} else {
-				minImpliedCosts[i] = 0;
+                minEstimatedCosts[i] = 0;
 				minImpliedDistance[i] = 0;
 			}
 		}
@@ -2720,17 +2720,17 @@ newlyReachedMLMs = new noDelIntSet();
 			tOrMnode *n = h.front();
 			h.pop_front();
 			if (n->isMethod) {
-				int cCosts = minImpliedCostsM[n->id];
+				int cCosts = minEstimatedCostsM[n->id];
 				int cDist = minImpliedDistanceM[n->id];
 
-				minImpliedCostsM[n->id] = 0;
+                minEstimatedCostsM[n->id] = 0;
 				minImpliedDistanceM[n->id] = 1; // a distance of one is implied by the decomposition itself
 				for (int i = 0; i < this->numSubTasks[n->id]; i++) {
 					int st = this->subTasks[n->id][i];
-					minImpliedCostsM[n->id] += minImpliedCosts[st];
+                    minEstimatedCostsM[n->id] += minEstimatedCosts[st];
 					minImpliedDistanceM[n->id] += minImpliedDistance[st];
 				}
-				bool changed = ((minImpliedCostsM[n->id] != cCosts)
+				bool changed = ((minEstimatedCostsM[n->id] != cCosts)
 						|| (minImpliedDistanceM[n->id] != cDist));
 				if (changed) {
 					tOrMnode *nn = new tOrMnode();
@@ -2739,18 +2739,18 @@ newlyReachedMLMs = new noDelIntSet();
 					h.push_back(nn);
 				}
 			} else { // is task
-				int cCosts = minImpliedCosts[n->id];
+				int cCosts = minEstimatedCosts[n->id];
 				int cDist = minImpliedDistance[n->id];
 
-				minImpliedCosts[n->id] = INT_MAX;
+                minEstimatedCosts[n->id] = INT_MAX;
 				minImpliedDistance[n->id] = INT_MAX;
 				for (int i = 0; i < this->numMethodsForTask[n->id]; i++) {
 					int m = this->taskToMethods[n->id][i];
-					minImpliedCosts[n->id] = min(minImpliedCostsM[m], minImpliedCosts[n->id]);
+                    minEstimatedCosts[n->id] = min(minEstimatedCostsM[m], minEstimatedCosts[n->id]);
 					minImpliedDistance[n->id] = min(minImpliedDistanceM[m], minImpliedDistance[n->id]);
 				}
 
-				bool changed = ((minImpliedCosts[n->id] != cCosts)
+				bool changed = ((minEstimatedCosts[n->id] != cCosts)
 						|| (minImpliedDistance[n->id] != cDist));
 				if (changed) {
 					for (int i = 0; i < this->stToMethodNum[n->id]; i++) {
@@ -2764,7 +2764,7 @@ newlyReachedMLMs = new noDelIntSet();
 			}
 			delete n;
 		}
-		delete[] minImpliedCostsM;
+		delete[] minEstimatedCostsM;
 		delete[] minImpliedDistanceM;
 
 		gettimeofday(&tp, NULL);
@@ -2773,7 +2773,7 @@ newlyReachedMLMs = new noDelIntSet();
 		cout << " (" << (currentT - startT) << " ms)" << endl;
 		/*
 		   for (int i = 0 ; i < this->numTasks; i++) {
-		   cout << this->taskNames[i] << " c:" << minImpliedCosts[i] << " d:" << minImpliedDistance[i] << endl;
+		   cout << this->taskNames[i] << " c:" << minEstimatedCosts[i] << " d:" << minImpliedDistance[i] << endl;
 		   }
 		   */
 	}

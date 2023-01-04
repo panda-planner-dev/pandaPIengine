@@ -1,3 +1,4 @@
+
 //
 // Created by dh on 10.03.20.
 //
@@ -33,6 +34,8 @@ private:
     const eEstimate estimate = estDISTANCE;
     const bool correctTaskCount = true;
 
+    bool useAdmissibleCostEstimate = false;
+
 public:
     ClassicalHeuristic *sasH;
     list<LMCutLandmark *>* cuts = new list<LMCutLandmark *>();
@@ -46,7 +49,7 @@ public:
 		// two weird things:
 		// 1. the model may contain artificial actions (for method preconditions), which always have cost 0
 		// If we estimate the distance, we may want to count them.
-		// 2. the original, non-artificial actions may have costs > 1 and for distance we might not want to count them as somthing > 1
+		// 2. the original, non-artificial actions may have costs > 1 and for distance we might not want to count them as something > 1
 
 		// the first argument controls the cost of method actions
 		// 0: all have cost 0
@@ -62,6 +65,7 @@ public:
             heuristicModel = factory->getRCmodelSTRIPS(1,1); // estimate distance -> method costs 1, actions costs 1
         }
 
+
         this->sasH = new ClassicalHeuristic(heuristicModel);
         this->s0set.init(heuristicModel->numStateBits);
         this->gset.init(heuristicModel->numStateBits);
@@ -69,13 +73,17 @@ public:
 
         if (storeCuts) {
             if (typeid(ClassicalHeuristic) != typeid(hsLmCut)) {
+                useAdmissibleCostEstimate = (correctTaskCount && (estimate == estCOSTS));
+                if (useAdmissibleCostEstimate) {
+                    cout << "- a combination of cost estimate and admissible heuristic is used -> using admissible correction of heuristic value (this is bad when you do not want to find optimal plans).";
+                }
                 storeCuts = false;
                 cout
                         << "- the option \"store cuts\" of the RC heuristic can only be used with the inner heuristic LM-Cut. It will be disabled."
                         << endl;
 			}
 		}
-		if (correctTaskCount) {
+		if (correctTaskCount && !useAdmissibleCostEstimate) {
 			htnModel->calcMinimalImpliedX();
         }
     }
@@ -209,10 +217,14 @@ public:
                         int task = n->containedTasks[i];
                         int count = n->containedTaskCount[i];
                         assert(task < htn->numTasks);
-						if (estimate == estDISTANCE) {
+                        if (useAdmissibleCostEstimate) {
+                            if (task < htn->numActions) {
+                                hval += (htn->actionCosts[task] * (count - 1));
+                            }
+                        } else if (estimate == estDISTANCE) {
                             hval += (htn->minImpliedDistance[task] * (count - 1));
                         } else if (estimate == estCOSTS) {
-                            hval += (htn->minImpliedCosts[task] * (count - 1));
+                            hval += (htn->minEstimatedCosts[task] * (count - 1));
                         }
                     }
                 }
