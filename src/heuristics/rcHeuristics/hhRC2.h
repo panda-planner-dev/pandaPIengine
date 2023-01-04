@@ -71,6 +71,12 @@ public:
         this->gset.init(heuristicModel->numStateBits);
         this->intSet.init(heuristicModel->numStateBits);
 
+        if (typeid(ClassicalHeuristic) == typeid(hsLmCut)) {
+            useAdmissibleCostEstimate = (correctTaskCount && (estimate == estCOSTS));
+            if (useAdmissibleCostEstimate) {
+                cout << "- a combination of cost estimate and admissible heuristic is used -> using admissible correction of heuristic value (this is bad when you do not want to find optimal plans).";
+            }
+        }
         if (storeCuts) {
             if (typeid(ClassicalHeuristic) != typeid(hsLmCut)) {
                 useAdmissibleCostEstimate = (correctTaskCount && (estimate == estCOSTS));
