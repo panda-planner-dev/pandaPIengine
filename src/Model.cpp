@@ -2517,9 +2517,9 @@ newlyReachedMLMs = new noDelIntSet();
 			// reachability
 			int lastMaintained = 0;
 			if (maintainTaskReachability == mtrACTIONS) {
-				lastMaintained = this->numTasks;
+                lastMaintained = this->numActions;
 			} else if (maintainTaskReachability == mtrALL) {
-				lastMaintained = this->numActions;
+                lastMaintained = this->numTasks;
 			}
 			this->numReachable = new int[numTasks];
 			for (int i = 0; i < numTasks; i++) {
