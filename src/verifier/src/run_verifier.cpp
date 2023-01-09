@@ -15,19 +15,22 @@ int main(int argc, char *argv[]) {
 
     Verifier *verifier;
 
-    // TOVerifier *verifier = new TOVerifier(htnFile);
+    verifier = new TOVerifier(htnFile, planFile); // delete in the future
     std::clock_t beforePrep = std::clock();
     if (selectedVerifier.compare("to-verifier") == 0) {
         verifier = new TOVerifier(htnFile, planFile);
     } else if (selectedVerifier.compare("sat-verifier") == 0) {
         // verifier = new SATVerifier(htnFile);
         cout << "Function to be delivered" << endl;
+        exit(-1);
     } else if (selectedVerifier.compare("sat-verifier-icaps17") == 0) {
         // verifier = new SATVerifierTable(htnFile);
         cout << "Function to be delivered" << endl;
+        exit(-1);
     } else if (selectedVerifier.compare("cyk-verifier") == 0) {
         // verifier = new CYKVerifier(htnFile);
         cout << "Function to be delivered" << endl;
+        exit(-1);
     }
     // TOVerifier *verifier = new TOVerifier(htnFile);
     std::clock_t afterPrep = std::clock();

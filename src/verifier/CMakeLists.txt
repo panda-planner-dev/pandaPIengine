@@ -20,10 +20,22 @@ target_link_libraries(util
 )
 
 # commands for the TO verifier
-file(GLOB TO_SOURCE_FILES "to_verifier/src/*.cpp")
+file(GLOB TO_SOURCE_FILES 
+    "to_verifier/src/*.cpp" 
+    "../Model.cpp" 
+    "../ProgressionNetwork.cpp" 
+    "../Util.cpp" 
+    "../Debug.cpp" 
+    "../Invariants.cpp"
+)
 
 add_library(to_verifier
     ${TO_SOURCE_FILES}
+    ${pandaPIengine_SOURCE_DIR}/Model.cpp
+    ${pandaPIengine_SOURCE_DIR}/ProgressionNetwork.cpp
+    ${pandaPIengine_SOURCE_DIR}/Util.cpp
+    ${pandaPIengine_SOURCE_DIR}/Debug.cpp
+    ${pandaPIengine_SOURCE_DIR}/Invariants.cpp
 )
 
 target_include_directories(to_verifier
@@ -40,14 +52,14 @@ target_link_libraries(to_verifier
 )
 
 # commands for command-line arguments
-find_program(GENGETOPT gengetopt)
+# find_program(GENGETOPT gengetopt)
 
-add_custom_command(
-	OUTPUT ${PROJECT_SOURCE_DIR}/cmdline.h ${PROJECT_SOURCE_DIR}/cmdline.c
-	COMMAND gengetopt --include-getopt --default-optional --unamed-opts -i options.ggo
-	DEPENDS options.ggo
-	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-	COMMENT "Generating getopt parser code (cmdline.{h,c}) ..."
-	VERBATIM
-)
+# add_custom_command(
+# 	OUTPUT ${PROJECT_SOURCE_DIR}/cmdline.h ${PROJECT_SOURCE_DIR}/cmdline.c
+# 	COMMAND gengetopt --include-getopt --default-optional --unamed-opts -i options.ggo
+# 	DEPENDS options.ggo
+# 	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+# 	COMMENT "Generating getopt parser code (cmdline.{h,c}) ..."
+# 	VERBATIM
+# )
 

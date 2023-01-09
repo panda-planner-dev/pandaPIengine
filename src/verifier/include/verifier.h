@@ -12,7 +12,7 @@ class Verifier {
             this->plan = parsePlan(planStr);
         }
 
-        bool getResult() {return this->result;}
+        virtual bool getResult() {return this->result;}
 
     protected:
         Model *htn;

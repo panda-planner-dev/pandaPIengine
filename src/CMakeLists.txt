@@ -127,5 +127,6 @@ target_link_libraries(run_verifier
 
 target_include_directories(run_verifier
 	PUBLIC
+		${verifier_SOURCE_DIR}
 		${verifier_SOURCE_DIR}/include
 )
