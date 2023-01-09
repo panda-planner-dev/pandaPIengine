@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
     verifier = new TOVerifier(htnFile, planFile); // delete in the future
     std::clock_t beforePrep = std::clock();
     if (selectedVerifier.compare("to-verifier") == 0) {
-        verifier = new TOVerifier(htnFile, planFile);
+        // verifier = new TOVerifier(htnFile, planFile);
     } else if (selectedVerifier.compare("sat-verifier") == 0) {
         // verifier = new SATVerifier(htnFile);
         cout << "Function to be delivered" << endl;

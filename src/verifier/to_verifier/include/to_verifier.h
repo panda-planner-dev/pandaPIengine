@@ -36,7 +36,10 @@ class TOVerifier : public Verifier {
             // tasks which can be decomposed into the subsequence
             // plan[i, j] of the given plan 
             PlanExecution *execution = new PlanExecution(this->htn, this->plan);
-            if (!execution->isExecutable()) return false;
+            if (!execution->isExecutable()) {
+                cout << "The plan is not executable" << endl;
+                return false;
+            }
             int dim = this->plan.size();
             this->table.resize(dim);
             for (int start = dim - 1; start >= 0; start--) {
@@ -44,6 +47,12 @@ class TOVerifier : public Verifier {
                 // fill in the table
                 for (size_t end = start; end < dim; end++) {
                     updateTable(start, end);
+#ifndef NDEBUG
+                    cout << "Subsequence " << start << " to " << end << " includes tasks:" << endl;
+                    for (const auto &t : this->table[start][end]) {
+                        cout << "\t" << this->htn->taskNames[t] << endl;
+                    }
+#endif
                 }
             }
             return this->table[0][dim-1].count(this->htn->initialTask);
