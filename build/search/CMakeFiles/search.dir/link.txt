@@ -1,0 +1,2 @@
+/usr/bin/ar qc libsearch.a CMakeFiles/search.dir/PriorityQueueSearch.cpp.o CMakeFiles/search.dir/QueueFringe.cpp.o CMakeFiles/search.dir/StackFringe.cpp.o CMakeFiles/search.dir/UnsortedFringe.cpp.o CMakeFiles/search.dir/UnsrtFringeContainer.cpp.o CMakeFiles/search.dir/fringes/OneQueueWAStarFringe.cpp.o
+/usr/bin/ranlib libsearch.a

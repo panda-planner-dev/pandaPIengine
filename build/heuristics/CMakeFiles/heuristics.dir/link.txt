@@ -1,0 +1,2 @@
+/usr/bin/ar qc libheuristics.a CMakeFiles/heuristics.dir/Heuristic.cpp.o CMakeFiles/heuristics.dir/HeuristicPayload.cpp.o CMakeFiles/heuristics.dir/hhZero.cpp.o CMakeFiles/heuristics.dir/planningGraph.cpp.o
+/usr/bin/ranlib libheuristics.a

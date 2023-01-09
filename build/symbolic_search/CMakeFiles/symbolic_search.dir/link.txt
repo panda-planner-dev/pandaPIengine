@@ -1,0 +1,2 @@
+/usr/bin/ar qc libsymbolic_search.a CMakeFiles/symbolic_search.dir/automaton.cpp.o CMakeFiles/symbolic_search.dir/sym_variables.cpp.o CMakeFiles/symbolic_search.dir/transition_relation.cpp.o
+/usr/bin/ranlib libsymbolic_search.a

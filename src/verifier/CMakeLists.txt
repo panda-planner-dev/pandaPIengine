@@ -36,6 +36,7 @@ target_include_directories(to_verifier
 target_link_libraries(to_verifier
     PUBLIC
         intDataStructures
+        util
 )
 
 # commands for command-line arguments
@@ -49,3 +50,4 @@ add_custom_command(
 	COMMENT "Generating getopt parser code (cmdline.{h,c}) ..."
 	VERBATIM
 )
+

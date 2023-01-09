@@ -1,0 +1,2 @@
+/usr/bin/ar qc libto_verifier.a CMakeFiles/to_verifier.dir/to_verifier/src/to_verifier.cpp.o
+/usr/bin/ranlib libto_verifier.a

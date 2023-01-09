@@ -1,0 +1,2 @@
+/usr/bin/ar qc libhrc.a CMakeFiles/hrc.dir/LMCutLandmark.cpp.o CMakeFiles/hrc.dir/RCModelFactory.cpp.o CMakeFiles/hrc.dir/hhRC.cpp.o CMakeFiles/hrc.dir/hsAddFF-2.cpp.o CMakeFiles/hrc.dir/hsAddFF.cpp.o CMakeFiles/hrc.dir/hsFilter.cpp.o CMakeFiles/hrc.dir/hsLmCut.cpp.o
+/usr/bin/ranlib libhrc.a

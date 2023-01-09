@@ -1,0 +1,1 @@
+/usr/bin/c++ -O3 -DNDEBUG -flto -lpthread CMakeFiles/run_verifier.dir/verifier/src/run_verifier.cpp.o CMakeFiles/run_verifier.dir/verifier/cmdline.c.o -o run_verifier  verifier/libto_verifier.a verifier/libutil.a intDataStructures/libintDataStructures.a 
