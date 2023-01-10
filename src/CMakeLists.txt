@@ -115,18 +115,3 @@ target_link_libraries(pandaPIengine PUBLIC intDataStructures)
 
 # add plan verifiers
 add_subdirectory(verifier)
-
-# file(GLOB VERIFIER_SOUCE_FILES "verifier/src/*.cpp" "verifier/cmdline.c" "verifier/cmdline.h")
-
-add_executable(run_verifier ${verifier_SOURCE_DIR}/src/run_verifier.cpp ${verifier_SOURCE_DIR}/cmdline.c ${verifier_SOURCE_DIR}/cmdline.h)
-
-target_link_libraries(run_verifier
-	PUBLIC
-		to_verifier
-)
-
-target_include_directories(run_verifier
-	PUBLIC
-		${verifier_SOURCE_DIR}
-		${verifier_SOURCE_DIR}/include
-)

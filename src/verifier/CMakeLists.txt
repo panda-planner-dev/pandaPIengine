@@ -52,14 +52,32 @@ target_link_libraries(to_verifier
 )
 
 # commands for command-line arguments
-# find_program(GENGETOPT gengetopt)
+find_program(GENGETOPT gengetopt)
 
-# add_custom_command(
-# 	OUTPUT ${PROJECT_SOURCE_DIR}/cmdline.h ${PROJECT_SOURCE_DIR}/cmdline.c
-# 	COMMAND gengetopt --include-getopt --default-optional --unamed-opts -i options.ggo
-# 	DEPENDS options.ggo
-# 	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-# 	COMMENT "Generating getopt parser code (cmdline.{h,c}) ..."
-# 	VERBATIM
-# )
+add_custom_command(
+	OUTPUT ${PROJECT_SOURCE_DIR}/cmdline.h ${PROJECT_SOURCE_DIR}/cmdline.c
+	COMMAND gengetopt --include-getopt --default-optional --unamed-opts -i options.ggo
+	DEPENDS options.ggo
+	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+	COMMENT "Generating getopt parser code (cmdline.{h,c}) ..."
+	VERBATIM
+)
 
+add_custom_target(cmd
+    DEPENDS cmdline.h cmdline.c
+)
+
+file(GLOB VERIFIER_SOUCE_FILES "src/*.cpp")
+
+add_executable(run_verifier ${VERIFIER_SOUCE_FILES} cmdline.c cmdline.h)
+
+target_link_libraries(run_verifier
+	PUBLIC
+		to_verifier
+)
+
+target_include_directories(run_verifier
+	PUBLIC
+		${PROJECT_SOURCE_DIR}
+		${PROJECT_SOURCE_DIR}/include
+)
