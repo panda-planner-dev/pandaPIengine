@@ -36,7 +36,6 @@ void TOVerifier::updateTable(int start, int end) {
                     unordered_set<int> possibleMethods = this->invMapping->getMethod(firstTask, secondTask);
                     for (const auto &m : possibleMethods) {
                         this->table[start][end].insert(this->htn->decomposedTask[m]);
-                        // isAdded[m] = true;
                         validiated.insert(m);
                         // again do dfs on the construct graph in order to process all
                         // unit production methods which can lead to the current one

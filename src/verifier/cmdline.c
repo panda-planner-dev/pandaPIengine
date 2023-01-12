@@ -33,11 +33,10 @@ const char *gengetopt_args_info_versiontext = "<versiontext>";
 const char *gengetopt_args_info_description = "<description>";
 
 const char *gengetopt_args_info_help[] = {
-  "      --help             Print help and exit",
-  "  -V, --version          Print version and exit",
-  "  -h, --htn=STRING       the path to the input HTN problem file",
-  "  -p, --plan=STRING      the path to the input plan file",
-  "  -v, --verifier=STRING  selecting a plan verifier",
+  "      --help         Print help and exit",
+  "  -V, --version      Print version and exit",
+  "  -h, --htn=STRING   the path to the input HTN problem file",
+  "  -p, --plan=STRING  the path to the input plan file",
     0
 };
 
@@ -91,7 +90,6 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->version_given = 0 ;
   args_info->htn_given = 0 ;
   args_info->plan_given = 0 ;
-  args_info->verifier_given = 0 ;
 }
 
 static
@@ -102,8 +100,6 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->htn_orig = NULL;
   args_info->plan_arg = NULL;
   args_info->plan_orig = NULL;
-  args_info->verifier_arg = NULL;
-  args_info->verifier_orig = NULL;
   
 }
 
@@ -116,7 +112,6 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->version_help = gengetopt_args_info_help[1] ;
   args_info->htn_help = gengetopt_args_info_help[2] ;
   args_info->plan_help = gengetopt_args_info_help[3] ;
-  args_info->verifier_help = gengetopt_args_info_help[4] ;
   
 }
 
@@ -213,8 +208,6 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->htn_orig));
   free_string_field (&(args_info->plan_arg));
   free_string_field (&(args_info->plan_orig));
-  free_string_field (&(args_info->verifier_arg));
-  free_string_field (&(args_info->verifier_orig));
   
   
   for (i = 0; i < args_info->inputs_num; ++i)
@@ -258,8 +251,6 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "htn", args_info->htn_orig, 0);
   if (args_info->plan_given)
     write_into_file(outfile, "plan", args_info->plan_orig, 0);
-  if (args_info->verifier_given)
-    write_into_file(outfile, "verifier", args_info->verifier_orig, 0);
   
 
   i = EXIT_SUCCESS;
@@ -385,12 +376,6 @@ cmdline_parser_required2 (struct gengetopt_args_info *args_info, const char *pro
   if (! args_info->plan_given)
     {
       fprintf (stderr, "%s: '--plan' ('-p') option required%s\n", prog_name, (additional_error ? additional_error : ""));
-      error_occurred = 1;
-    }
-  
-  if (! args_info->verifier_given)
-    {
-      fprintf (stderr, "%s: '--verifier' ('-v') option required%s\n", prog_name, (additional_error ? additional_error : ""));
       error_occurred = 1;
     }
   
@@ -1144,7 +1129,6 @@ cmdline_parser_internal (
         { "version",	0, NULL, 'V' },
         { "htn",	1, NULL, 'h' },
         { "plan",	1, NULL, 'p' },
-        { "verifier",	1, NULL, 'v' },
         { 0,  0, 0, 0 }
       };
 
@@ -1153,7 +1137,7 @@ cmdline_parser_internal (
       custom_opterr = opterr;
       custom_optopt = optopt;
 
-      c = custom_getopt_long (argc, argv, "Vh:p:v:", long_options, &option_index);
+      c = custom_getopt_long (argc, argv, "Vh:p:", long_options, &option_index);
 
       optarg = custom_optarg;
       optind = custom_optind;
@@ -1189,18 +1173,6 @@ cmdline_parser_internal (
               &(local_args_info.plan_given), optarg, 0, 0, ARG_STRING,
               check_ambiguity, override, 0, 0,
               "plan", 'p',
-              additional_error))
-            goto failure;
-        
-          break;
-        case 'v':	/* selecting a plan verifier.  */
-        
-        
-          if (update_arg( (void *)&(args_info->verifier_arg), 
-               &(args_info->verifier_orig), &(args_info->verifier_given),
-              &(local_args_info.verifier_given), optarg, 0, 0, ARG_STRING,
-              check_ambiguity, override, 0, 0,
-              "verifier", 'v',
               additional_error))
             goto failure;
         

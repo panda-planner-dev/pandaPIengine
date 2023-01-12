@@ -45,15 +45,11 @@ struct gengetopt_args_info
   char * plan_arg;	/**< @brief the path to the input plan file.  */
   char * plan_orig;	/**< @brief the path to the input plan file original value given at command line.  */
   const char *plan_help; /**< @brief the path to the input plan file help description.  */
-  char * verifier_arg;	/**< @brief selecting a plan verifier.  */
-  char * verifier_orig;	/**< @brief selecting a plan verifier original value given at command line.  */
-  const char *verifier_help; /**< @brief selecting a plan verifier help description.  */
   
   unsigned int help_given ;	/**< @brief Whether help was given.  */
   unsigned int version_given ;	/**< @brief Whether version was given.  */
   unsigned int htn_given ;	/**< @brief Whether htn was given.  */
   unsigned int plan_given ;	/**< @brief Whether plan was given.  */
-  unsigned int verifier_given ;	/**< @brief Whether verifier was given.  */
 
   char **inputs ; /**< @brief unnamed options (options without names) */
   unsigned inputs_num ; /**< @brief unnamed options number */
