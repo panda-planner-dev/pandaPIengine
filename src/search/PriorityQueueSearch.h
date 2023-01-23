@@ -99,13 +99,12 @@ namespace progression {
                             continue;
                         searchNode *n2 = htn->apply(n, i);
                         numSearchNodes++;
-                        
-						if (!n2->goalReachable) { // progression has detected unsol
+                        if (!n2->goalReachable) { // progression has detected unsol
                             delete n2;
                             continue;
                         }
-                       
-					   	// check whether we have seen this one already
+
+                        // check whether we have seen this one already
                         if (suboptimalSearch && !visitedList.insertVisi(n2)) {
                             delete n2;
                             continue;
@@ -115,12 +114,18 @@ namespace progression {
 
                         // compute the heuristic
                         n2->heuristicValue = new int[hLength];
-                        for (int i = 0; i < hLength; i++) {
-                            hF[i]->setHeuristicValue(n2, n, n->unconstraintPrimitive[i]->task);
+                        for (int ih = 0; ih < hLength; ih++) {
+                            if (n2->goalReachable) {
+                                hF[ih]->setHeuristicValue(n2, n, n->unconstraintPrimitive[i]->task);
+                            } else {
+                                n2->heuristicValue[ih] = UNREACHABLE;
+                            }
                         }
                         
-						if (!n2->goalReachable) { // heuristic has detected unsol
-                            delete n2;
+			if (!n2->goalReachable) { // heuristic has detected unsol
+                            if ((suboptimalSearch) && (visitedList.canDeleteProcessedNodes)) {
+                                delete n2;
+                            }
                             continue;
                         }
 
@@ -151,8 +156,7 @@ namespace progression {
                         int method = htn->taskToMethods[task][i];
                         searchNode *n2 = htn->decompose(n, decomposedStep, method);
                         numSearchNodes++;
-						
-						if (!n2->goalReachable) { // decomposition has detected unsol
+                        if (!n2->goalReachable) { // decomposition has detected unsol
                             delete n2;
                             continue; // with next method
                         }
@@ -166,12 +170,18 @@ namespace progression {
 
                         // compute the heuristic
                         n2->heuristicValue = new int[hLength];
-                        for (int i = 0; i < hLength; i++) {
-                            hF[i]->setHeuristicValue(n2, n, decomposedStep, method);
+                        for (int ih = 0; ih < hLength; ih++) {
+                            if (n2->goalReachable) {
+                                hF[ih]->setHeuristicValue(n2, n, decomposedStep, method);
+                            } else {
+                                n2->heuristicValue[ih] = UNREACHABLE;
+                            }
                         }
                         
-						if (!n2->goalReachable) { // heuristic has detected unsol
-                            delete n2;
+			if (!n2->goalReachable) { // heuristic has detected unsol
+                            if ((suboptimalSearch) && (visitedList.canDeleteProcessedNodes)) {
+                                delete n2;
+                            }
                             continue; // with next method
                         }
 
