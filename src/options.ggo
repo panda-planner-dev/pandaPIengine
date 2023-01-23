@@ -28,7 +28,8 @@ groupoption "interactive" I "interactive search" group="planningAlgorithm"
 
 section "Progression Search Options"
 
-option "heuristic" H "specify a heuristic" string multiple default="rc2(ff)"
+option "heuristic" H "specify heuristics. The first heuristic in the list is the one used for search. Starting from the second, all other heuristics are used as tiebreakers. If you specify the same heuristic twice, it will only be computed once." string multiple default="rc2(ff)"
+option "mainHeuristicAsTiebreaker" - "use the first heuristic as the first tie-breaker. The first " flag off
 option "astarweight" w "weight of the heuristic for A*" int default="1"
 option "gValue" g "g value" string values="path","action","mixed","none" default="path"
 option "suboptimal" - "suboptimal search (early goal test and visited lists ignores costs)" flag off

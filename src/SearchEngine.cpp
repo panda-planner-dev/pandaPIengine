@@ -223,9 +223,17 @@ int main(int argc, char *argv[]) {
 			hLength = 1;
 		}
     	Heuristic **heuristics = new Heuristic *[hLength];
+		map<pair<string,map<string,string>>, int> heuristics_so_far;
 		for (int i = 0; i < hLength; i++){
 			auto [hName, args] = parse_heuristic_with_arguments_from_braced_expression(args_info.heuristic_arg[i]);
-		
+			
+			if (heuristics_so_far.count({hName, args})){
+				heuristics[i] = heuristics[heuristics_so_far[{hName, args}]];
+				cout << "\tHeuristic duplicate: Nr. " << i << " is the same as " << heuristics_so_far[{hName, args}] << endl;
+				continue;
+			}
+			heuristics_so_far[{hName, args}] = i;
+
 			if (hName == "zero"){
     			heuristics[i] = new hhZero(htn, i);
 			} else if (hName == "rc2"){

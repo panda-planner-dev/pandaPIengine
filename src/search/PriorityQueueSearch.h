@@ -116,7 +116,16 @@ namespace progression {
                         n2->heuristicValue = new int[hLength];
                         for (int ih = 0; ih < hLength; ih++) {
                             if (n2->goalReachable) {
-                                hF[ih]->setHeuristicValue(n2, n, n->unconstraintPrimitive[i]->task);
+								bool found = false;
+                        		for (int jh = 0; jh < ih; jh++) {
+									if (hF[ih] == hF[jh]){
+										n2->heuristicValue[ih] = n2->heuristicValue[jh];
+										found = true;
+									}
+								}
+
+								if (!found)
+	                                hF[ih]->setHeuristicValue(n2, n, n->unconstraintPrimitive[i]->task);
                             } else {
                                 n2->heuristicValue[ih] = UNREACHABLE;
                             }
@@ -172,7 +181,16 @@ namespace progression {
                         n2->heuristicValue = new int[hLength];
                         for (int ih = 0; ih < hLength; ih++) {
                             if (n2->goalReachable) {
-                                hF[ih]->setHeuristicValue(n2, n, decomposedStep, method);
+								bool found = false;
+                        		for (int jh = 0; jh < ih; jh++) {
+									if (hF[ih] == hF[jh]){
+										n2->heuristicValue[ih] = n2->heuristicValue[jh];
+										found = true;
+									}
+								}
+
+								if (!found)
+	                                hF[ih]->setHeuristicValue(n2, n, decomposedStep, method);
                             } else {
                                 n2->heuristicValue[ih] = UNREACHABLE;
                             }
