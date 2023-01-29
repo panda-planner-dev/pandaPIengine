@@ -30,6 +30,8 @@
 #include "intDataStructures/IntPairHeap.h"
 #include "intDataStructures/bIntSet.h"
 
+#include "heuristics/hhSimple.h"
+
 #include "heuristics/rcHeuristics/RCModelFactory.h"
 #include "heuristics/landmarks/lmExtraction/LmFdConnector.h"
 #include "heuristics/landmarks/hhLMCount.h"
@@ -236,6 +238,24 @@ int main(int argc, char *argv[]) {
 
 			if (hName == "zero"){
     			heuristics[i] = new hhZero(htn, i);
+			} else if (hName == "modDepth"){
+				string invertString = (args.count("invert"))?args["invert"]:args["arg1"];
+				bool invert = false;
+				if (invertString == "true" || invertString == "invert") invert = true;
+
+    			heuristics[i] = new hhModDepth(htn, i, invert);
+			} else if (hName == "mixedModDepth"){
+				string invertString = (args.count("invert"))?args["invert"]:args["arg1"];
+				bool invert = false;
+				if (invertString == "true" || invertString == "invert") invert = true;
+
+    			heuristics[i] = new hhMixedModDepth(htn, i, invert);
+			} else if (hName == "cost"){
+				string invertString = (args.count("invert"))?args["invert"]:args["arg1"];
+				bool invert = false;
+				if (invertString == "true" || invertString == "invert") invert = true;
+
+    			heuristics[i] = new hhCost(htn, i, invert);
 			} else if (hName == "rc2"){
 				string subName = (args.count("h"))?args["h"]:args["arg1"];
 			
