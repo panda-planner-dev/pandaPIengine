@@ -19,7 +19,7 @@ private:
 public:
 	hhModDepth(Model* htn, int index, bool _invert);
 	virtual ~hhModDepth();
-	string getDescription(){ return "modDepth()";}
+	string getDescription(){ return "modDepth(invert="+to_string(invert)+")";}
 	void setHeuristicValue(searchNode *n, searchNode *parent, int action);
 	void setHeuristicValue(searchNode *n, searchNode *parent, int absTask, int method);
 };
@@ -30,7 +30,7 @@ private:
 public:
 	hhMixedModDepth(Model* htn, int index, bool _invert);
 	virtual ~hhMixedModDepth();
-	string getDescription(){ return "mixedModDepth()";}
+	string getDescription(){ return "mixedModDepth(invert="+to_string(invert)+")";}
 	void setHeuristicValue(searchNode *n, searchNode *parent, int action);
 	void setHeuristicValue(searchNode *n, searchNode *parent, int absTask, int method);
 };
@@ -41,7 +41,7 @@ private:
 public:
 	hhCost(Model* htn, int index, bool _invert);
 	virtual ~hhCost();
-	string getDescription(){ return "cost()";}
+	string getDescription(){ return "cost(invert="+to_string(invert)+")";}
 	void setHeuristicValue(searchNode *n, searchNode *parent, int action);
 	void setHeuristicValue(searchNode *n, searchNode *parent, int absTask, int method);
 };
