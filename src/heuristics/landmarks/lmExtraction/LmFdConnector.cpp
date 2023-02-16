@@ -27,7 +27,6 @@ landmark** LmFdConnector::getLMs(){
 	return this->landmarks;
 }
 
-
 void LmFdConnector::createLMs(Model* htn) {
 	cout << "Connector for FD landmark generation" << endl;
 	RCModelFactory* factory = new RCModelFactory(htn);
@@ -40,7 +39,7 @@ void LmFdConnector::createLMs(Model* htn) {
 	system("\"/home/dh/Schreibtisch/temp/callFD.sh\"");
 	cout << "(done)." << endl;
 
-	cout << "- Readign FD landmarks...";
+	cout << "- Reading FD landmarks...";
 	this->readFDLMs("/home/dh/Schreibtisch/temp/fd.out", factory);
 	//this->readFDLMs("/home/dh/Schreibtisch/temp/lmc-out.txt", factory);
 	cout << "(done)." << endl;
@@ -70,10 +69,10 @@ void LmFdConnector::readFDLMs(string f, RCModelFactory* factory) {
 	getline(domainFile, line);
 	numConjunctive = 0;
 
-	while(line.compare("Landmark graph: ") != 0) {
+	while(line.compare("digraph G {") != 0) {
 		getline(domainFile, line);
 	}
-	while(line.compare("Landmark graph end.") != 0) {
+	while(line.compare("}") != 0) {
 		getline(domainFile, line);
 		if(line.rfind("LM ", 0) == 0) { // that's C++ for "startswith" ;-)
 			string s = su.getStrX(line, 2);

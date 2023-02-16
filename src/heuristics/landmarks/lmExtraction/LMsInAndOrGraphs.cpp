@@ -15,7 +15,7 @@
 namespace progression {
 
 LMsInAndOrGraphs::LMsInAndOrGraphs(Model* htn) {
-	bool loopback = true;
+	bool loopback = false;
 	this->htn = htn;
 
 	if(!loopback)
@@ -90,7 +90,7 @@ LMsInAndOrGraphs::LMsInAndOrGraphs(Model* htn) {
 
 	fullSet = new bool[numNodes];
 	LMs = new set<int>[numNodes];
-	this->heap = new IntPairHeap(numNodes / 4);
+	this->heap = new IntPairHeap<int>(numNodes / 4);
 
 	temp = new set<int>;
 	temp2 = new set<int>;
@@ -98,7 +98,7 @@ LMsInAndOrGraphs::LMsInAndOrGraphs(Model* htn) {
 	mlm = new set<int>;
 	tlm = new set<int>;
 	tasksInTNI = new int[htn->numTasks];
-	prettyPrintGraph();
+	//prettyPrintGraph();
 }
 void LMsInAndOrGraphs::prettyPrintGraph() {
 	cout << "digraph {" << endl;
@@ -155,7 +155,7 @@ LMsInAndOrGraphs::~LMsInAndOrGraphs() {
 void LMsInAndOrGraphs::generateAndOrLMs(searchNode* tnI){
 
 	timeval tp;
-	long startT;
+	long startT = 0;
 	if(!silent) {
 		gettimeofday(&tp, NULL);
 		startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
@@ -455,20 +455,10 @@ void LMsInAndOrGraphs::generateLocalLMs(Model* htn, searchNode* tnI){
 	tlm->clear();
 	flm->clear();
 	mlm->clear();
-	/*
-	numFLMs = 0;
-	numMLMs = 0;
-	numTLMs = lms->size();
-	fLMs = nullptr;
-	mLMs = nullptr;
-	tLMs = new int[numTLMs];
-	int i =0;
-	*/
-	for (set<int>::iterator it = lms->begin(); it !=lms->end(); ++it) {
-		//tLMs[i++] = *it;
-		tlm->insert(*it);
-	}
 
+	for (int lm : *lms) {
+		tlm->insert(lm);
+	}
 
 	gettimeofday(&tp, NULL);
 	long endT = tp.tv_sec * 1000 + tp.tv_usec / 1000;

@@ -34,7 +34,7 @@ public:
 	noDelIntSet reachableTasksSet;
 	noDelIntSet reachableMethodsSet;
 private:
-	IntPairHeap* queue;
+	IntPairHeap<int>* queue;
 	IntStack* stack;
 	int* hValPropInit;
 
@@ -45,8 +45,6 @@ private:
 	noDelIntSet markedFs;
 	noDelIntSet markedOps;
 	IntStack needToMark;
-
-	bool allActionsCostOne = false;
 
 	int* subtasks;
 

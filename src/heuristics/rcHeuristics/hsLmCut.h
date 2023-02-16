@@ -16,6 +16,7 @@
 #include "../../intDataStructures/noDelIntSet.h"
 #include "../../intDataStructures/FlexIntStack.h"
 #include "../../Model.h"
+#include "LMCutLandmark.h"
 
 namespace progression {
 
@@ -32,8 +33,14 @@ public:
 
 	int getHeuristicValue(bucketSet& s, noDelIntSet& g);
 	Model* m;
+	
+	string getDescription(){ return "lmc";}
+
+	//list<LMCutLandmark*> cuts;
+    list<LMCutLandmark *>* cuts = new list<LMCutLandmark *>();
 
 private:
+	IntUtil iu;
 	int getHMax(bucketSet& s, noDelIntSet& g);
 	int updateHMax(noDelIntSet& g, bucketSet* cut);
 	void calcGoalZone(noDelIntSet* goalZone, bucketSet* cut, bucketSet* precsOfCutNodes);
@@ -45,10 +52,9 @@ private:
 	bucketSet* precsOfCutNodes;
 
 	const bool storeCuts = true;
-	list<landmark*> cuts;
 
 	// hMax stuff
-	IntPairHeap* heap;
+	IntPairHeap<int>* heap;
 	int* hValInit;
 
 	int* unsatPrecs;

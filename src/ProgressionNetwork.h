@@ -12,18 +12,30 @@
 #include <vector>
 #include <unordered_set>
 #include <functional>
+#include <map>
+#include <set>
 #include <iostream>
 #include <forward_list>
 #include "heuristics/landmarks/lmDataStructures/landmark.h"
 #include "heuristics/landmarks/lmDataStructures/lookUpTab.h"
+#include "flags.h"
+//#include "heuristics/HeuristicPayload.h"
 
 using namespace std;
 
 namespace progression {
 
+
+// forward declaration due to cyclic dependency
+struct Model;
+
+
 #ifdef TRACESOLUTION
 extern int currentSolutionStepInstanceNumber;
 #endif
+#ifdef SAVESEARCHSPACE
+extern int currentSearchNodeID;
+#endif 
 
 struct solutionStep {
 	int task;
@@ -49,15 +61,12 @@ struct planStep {
 #endif
 	int numSuccessors;
 	planStep** successorList = nullptr;
-#ifdef MAINTAINREACHABILITY
 	int numReachableT;
 	int* reachableT = nullptr;
-#endif
 
-#ifdef RCHEURISTIC
+    // todo: delete the following two values when RC is replaced by RC2
 	int numGoalFacts;
 	int* goalFacts = nullptr;
-#endif
 
 	bool operator==(const planStep &that) const;
 
@@ -65,22 +74,20 @@ struct planStep {
 };
 
 struct searchNode {
-#if STATEREP == SRCOPY
 	vector<bool> state;
-#elif STATEREP == SRLIST
-	int* state = nullptr;
-	int stateSize;
-#endif
 	int numAbstract;
 	int numPrimitive;
 	planStep** unconstraintAbstract;
 	planStep** unconstraintPrimitive;
 
-	int heuristicValue;
+	int* heuristicValue = nullptr;
+	int fValue;
 	bool goalReachable = true;
 	int modificationDepth;
 	int mixedModificationDepth;
 	int actionCosts = 0;
+
+//    HeuristicPayload** hPL = nullptr;
 
 	solutionStep* solution;
 
@@ -91,11 +98,13 @@ struct searchNode {
 
 	int hRand;
 
-#ifdef TRACKTASKSINTN
-	int numContainedTasks = -1;
+#ifdef SAVESEARCHSPACE
+	int searchNodeID;
+#endif 
+
+	int numContainedTasks = 0;
 	int* containedTasks = nullptr;
 	int* containedTaskCount = nullptr;
-#endif
 
 #ifdef TRACKLMS
 	// obsolete, will be removed use TRACKLMSFULL
@@ -124,11 +133,18 @@ struct searchNode {
 	int reachedmLMs = 0; // number of method landmarks already *reached*
 #endif
 
+
+	void printNode(std::ostream & out);
+	void node2Dot(std::ostream & out);
+
+private:
+	void printDFS(planStep * s, map<planStep*,int> & psp, set<pair<planStep*,planStep*>> & orderpairs);
 };
 
-struct CmpNodePtrs {
-	bool operator()(const searchNode* a, const searchNode* b) const;
-};
+///////////////////// Functions for extracting results from search nodes
+pair<string,int> extractSolutionFromSearchNode(Model * htn, searchNode* tnSol);
+pair<string,int> printTraceOfSearchNode(Model* htn, searchNode* tnSol);
+
 
 }
 

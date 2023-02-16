@@ -18,14 +18,11 @@ RCModelFactory::~RCModelFactory() {
 }
 
 Model* RCModelFactory::getRCmodelSTRIPS() {
-#ifdef ASTARAC
-	return this->getRCmodelSTRIPS(0);
-#else
-	return this->getRCmodelSTRIPS(1);
-#endif
+	return this->getRCmodelSTRIPS(1,1);
 }
 
-Model* RCModelFactory::getRCmodelSTRIPS(int costsMethodActions) {
+Model* RCModelFactory::getRCmodelSTRIPS(int costsMethodActions, int costRegularActions) {
+	cout << "RC Factory: CMA " << costsMethodActions << endl;
 	Model* rc = new Model();
 	rc->isHtnModel = false;
 	rc->numStateBits = htn->numStateBits + htn->numActions + htn->numTasks;
@@ -137,7 +134,10 @@ Model* RCModelFactory::getRCmodelSTRIPS(int costsMethodActions) {
 	// set action costs
 	rc->actionCosts = new int[rc->numActions];
 	for(int i = 0; i < htn->numActions; i++) {
-		rc->actionCosts[i] = htn->actionCosts[i];
+		if (costRegularActions == 0)
+			rc->actionCosts[i] = htn->actionCosts[i];
+		else
+			rc->actionCosts[i] = costRegularActions;
 	}
 	for(int i = htn->numActions; i < rc->numActions; i++) {
 		rc->actionCosts[i] = costsMethodActions;

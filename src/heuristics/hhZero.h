@@ -9,13 +9,15 @@
 #define HTNHZERO_H_
 
 #include "../Model.h"
+#include "Heuristic.h"
 
 namespace progression {
 
-class hhZero {
+class hhZero : public Heuristic {
 public:
-	hhZero(const Model* htn);
+	hhZero(Model* htn, int index);
 	virtual ~hhZero();
+	string getDescription(){ return "zero()";}
 	void setHeuristicValue(searchNode *n, searchNode *parent, int action);
 	void setHeuristicValue(searchNode *n, searchNode *parent, int absTask, int method);
 };

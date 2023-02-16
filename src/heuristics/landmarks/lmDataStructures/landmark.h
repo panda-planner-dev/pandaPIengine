@@ -11,7 +11,7 @@
 namespace progression {
 
 enum lmConType {atom, conjunctive, disjunctive};
-enum lmType {fact, METHOD, task};
+enum lmType {fact, METHOD, task, LMCUT};
 
 class landmark {
 public:
@@ -25,6 +25,7 @@ public:
 	int* lm = nullptr;
 
 	void printLM();
+    static int coutLM(landmark** lm, lmType type, int size);
 };
 
 } /* namespace progression */

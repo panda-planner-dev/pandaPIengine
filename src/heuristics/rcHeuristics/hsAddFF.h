@@ -10,57 +10,62 @@
 
 #include <climits>
 #include <utility>
+#include <list>
 #include "../../intDataStructures/IntPairHeap.h"
 #include "../../intDataStructures/bucketSet.h"
 #include "../../intDataStructures/noDelIntSet.h"
 #include "../../intDataStructures/IntStack.h"
 #include "../../Model.h"
+#include "LMCutLandmark.h"
+
+// inner Types
+//typedef long long hType;
+//#define hUnreachable  LONG_LONG_MAX
+typedef int hType;
+#define hUnreachable  INT_MAX
 
 using namespace std;
 
 namespace progression {
 
-enum myHeu {
-	sasAdd, sasFF
-};
+    enum myHeu {
+        sasAdd, sasFF
+    };
 
-class ComparePair {
-public:
-	bool operator()(pair<int, int>* n1, pair<int, int>* n2);
-};
+    class hsAddFF {
+    public:
+        hsAddFF(Model *sas);
 
-class hsAddFF {
-public:
-	hsAddFF(Model* sas);
-	virtual ~hsAddFF();
-#if (STATEREP == SRCALC1) ||(STATEREP == SRCOPY)
-	int getHeuristicValue(bucketSet& s, noDelIntSet& g);
-#elif (STATEREP == SRCALC2) 
-	int getHeuristicValue(noDelIntSet& s, noDelIntSet& g);
-#elif(STATEREP == SRLIST)
-	int getHeuristicValue(noDelIntSet& s, noDelIntSet& g);
-#endif
-	Model* m;
-	myHeu heuristic = sasFF;
-	int calls = 0;
-private:
-	// todo: when parallelized, this must be per core
-	IntPairHeap* queue;
-	int* hValPropInit;
+        virtual ~hsAddFF();
 
-	int* numSatPrecs;
-	int* hValOp;
-	int* hValProp;
-	int* reachedBy;
+        int getHeuristicValue(bucketSet &s, noDelIntSet &g);
+        bool reportedOverflow = false;
+		
+		string getDescription(){ if (heuristic == sasFF) return "ff"; else return "add";}
 
-	noDelIntSet markedFs;
-	noDelIntSet markedOps;
-	IntStack needToMark;
+        Model *m;
+        myHeu heuristic = sasFF;
+        list<LMCutLandmark *>* cuts = new list<LMCutLandmark *>();
+    private:
+        // todo: when parallelized, this must be per core
+        IntPairHeap<hType> *queue;
+        hType *hValPropInit;
 
-	bool allActionsCostOne = false;
+        int *numSatPrecs;
+        hType *hValOp;
+        hType *hValProp;
+        int *reachedBy;
 
-	int getFF(noDelIntSet& g, int hVal);
-};
+        noDelIntSet markedFs;
+        noDelIntSet markedOps;
+        IntStack needToMark;
+
+        bool allActionsCostOne = false;
+
+        hType getFF(noDelIntSet &g);
+
+        bool assertPrecAddDelSets();
+    };
 
 } /* namespace progression */
 

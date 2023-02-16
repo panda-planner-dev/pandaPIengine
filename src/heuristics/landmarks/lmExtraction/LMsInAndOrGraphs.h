@@ -55,7 +55,7 @@ private:
 	vector<int>* Ninv = nullptr;
 	vector<int>* N = nullptr;
 	set<int>* LMs = nullptr;
-	IntPairHeap* heap = nullptr;
+	IntPairHeap<int>* heap = nullptr;
 	set<int>* temp = nullptr;
 	set<int>* temp2 = nullptr;
 	int* tasksInTNI = nullptr;

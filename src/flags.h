@@ -8,6 +8,8 @@
 #ifndef FLAGS_H_
 #define FLAGS_H_
 
+typedef int tHVal;
+#define tHValUNR INT_MAX
 
 // florian
 #define PROGRESSIONBOUND 4
@@ -18,76 +20,43 @@
 #define FORBIDDEN -2
 
 // [heuristics]
-#define ZERO 0      // hVal is zero for every node
-#define RCFILTER 1  // relaxed composition heuristic with the filter heuristic
-#define RCFF 2      // relaxed composition heuristic with the FF heuristic
-#define RCADD 3     // relaxed composition heuristic with the add heuristic
-#define RCLMC 4     // relaxed composition heuristic with the LM-Cut heuristic
-
-// [state-representation]
-#define SRCOPY 0  // copy bit vector that represents state
-#define SRCALC1 1 // calculate state based on current plan
-#define SRCALC2 2 // calculate state based on current plan
-#define SRLIST 3  // maintain int list with bits currently set
-
-// [search-type]
-#define DFSEARCH 0
-#define BFSEARCH 1
-#define HEURISTICSEARCH 2
-
-// [algorithm]
-#define PROGRESSIONORG 0 // branches over abstract and primitive tasks
-#define ICAPS18 1        // branches over primitive and one abstract task
-#define JAIR19 2         // processes abstract tasks first
-
-// *****************
-// * Configuration *
-// *****************
-
-// time limit in seconds
-#define TIMELIMIT 600
-
-//#define SEARCHALG PROGRESSIONORG
-//#define SEARCHALG ICAPS18
-#define SEARCHALG JAIR19 // choose from [algorithm]
-
-#define EARLYGOALTEST
-
-// select a state representation
-#define STATEREP SRCOPY // choose from [state-representation]
-
-//#define OPTIMIZEUNTILTIMELIMIT true
+#define LMCLOCAL 7
+#define LMCANDOR 8
+#define LMCFD 9
 
 
-// type of search
-#define SEARCHTYPE HEURISTICSEARCH // choose from [search-type]
 
-// options for heuristic search
-#define ASTAR
-#define GASTARWEIGHT 2
+// don't perform tests
+#define NTEST
 
-#define PRGEFFECTLESS // always progress effectless actions
+// the following options are preliminary and not part of final version -> can be kept as compiler flags until they are finished
+//#define ONEMODMETH // todo: this was always buggy, but the case is compiled away anyway
 
-#define ONEMODAC
-//#define ONEMODMETH
+// todo: LM tracking needs to be extended to LM orderings
+//#define TRACKLMSFULL
+//#define TRACKLMS
 
-// select a heuristic function
-#define HEURISTIC RCFF
+// todo switch new implementation second
+//RCHEURISTIC
 
-#define RCHEURISTIC
+
+// The following are used by  the members of the search class. Since I do not consider them a parameter frequently
+// changed by the users, I am fine with keeping them here, to be changed only in special circumstances.
 #define CHECKAFTER 5000 // nodes after which the timelimit is checked
-#define MAINTAINREACHABILITY
-#define ONLYACTIONS // it is only needed for actions
-#ifndef OPTIMIZEUNTILTIMELIMIT
-#define OPTIMIZEUNTILTIMELIMIT false
+#define OPTIMIZEUNTILTIMELIMIT false // search for more than one solution
+
+
+
+#define TRACESOLUTION
+
+
+// if we write the state space to file, we need to disable pretty much all optimisations ...
+#ifdef SAVESEARCHSPACE
+#undef OPTIMIZEUNTILTIMELIMIT
+#undef PRGEFFECTLESS // todo: this flag is not there anymore! needs to be set in the model constructor
+#undef ONEMODAC // todo: this flag is not there anymore! needs to be set in the model constructor
+#define OPTIMIZEUNTILTIMELIMIT true
 #endif
-
-#ifndef CHECKAFTER
-#define CHECKAFTER 5000 // nodes after which the timelimit is checked
-#endif
-
-
-//#define TRACESOLUTION
 
 
 #endif /* FLAGS_H_ */

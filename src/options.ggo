@@ -1,0 +1,53 @@
+package "pandaPIengine"
+version "0.1"
+purpose "A versatile HTN planning"
+usage "./pandaPIengine [OPTIONS] input.sas"
+#description "<description>"
+#versiontext "<versiontext>"
+
+args "--string-parser -u"
+
+
+## use "-" for an option without a short option
+
+section "General Options"
+
+option "debug" d "activate debug mode" optional
+option "seed" S "specify the random seed" int default="42"
+option "timelimit" t "specify timelimit in seconds" int default="1800"
+option "noPlanOutput" N "don't output the plan [default=print plan]" flag off
+option "writeInputToHDDL" - "don't run the engine at all. Output the given SAS+ planning problem as HDDL again." flag off
+
+section "Planner Selection" sectiondesc="default=progression"
+
+defgroup "planningAlgorithm"
+groupoption "progression" p "progression search" group="planningAlgorithm"
+groupoption "sat" s "translation to SAT" group="planningAlgorithm"
+groupoption "bdd" b "symbolic search" group="planningAlgorithm"
+groupoption "interactive" I "interactive search" group="planningAlgorithm"
+
+section "Progression Search Options"
+
+option "heuristic" H "specify heuristics. The first heuristic in the list is the one used for search. Starting from the second, all other heuristics are used as tiebreakers. If you specify the same heuristic twice, it will only be computed once." string multiple default="rc2(ff)"
+option "mainHeuristicAsTiebreaker" - "use the first heuristic as the first tie-breaker. The first " flag off
+option "astarweight" w "weight of the heuristic for A*" int default="1"
+option "gValue" g "g value" string values="path","action","mixed","none" default="path"
+option "suboptimal" - "suboptimal search (early goal test and visited lists ignores costs)" flag off
+
+section "Visited List Options"
+
+option "noVisitedList" V "disable visited lists [default=with lists]" flag off
+option "taskHash" T "disable task hashing [default=with task hash]" flag on
+option "taskSequenceHash" Q "disable task sequence hashing [default=with task sequence hash]" flag on
+option "topologicalOrdering" O "disable visited checking with task sequences, this makes totally-ordered visited lists incomplete [default=with order]" flag on
+option "noLayers" - "disable layer hashing [default=with layer hash]" flag on
+option "noOrderPairs" - "disable order pairs hashing [default=with order pairs hash]" flag on
+option "noParallelSequences" - "disable optimisation for parallel sequences [default=with optimisation]" flag on
+option "noGIcheck" - "disable GI-complete equivalence checking for partially ordered task networks [default=with GI-complete checking]" flag on
+
+section "SAT Planner Options"
+
+option "blockcompression" B "apply block" flag on
+option "satmutexes" M "encode SAT mutexes" flag on
+option "pruning" P "pruning mode" string values="none","ff","h2" default="ff"
+option "methodPreconditionsInSeparateLeafs" m "if in partial order mode, but method precondition actions into extra leafs. This allows for better encoding of executability, but may increase the size of the PDT" flag off

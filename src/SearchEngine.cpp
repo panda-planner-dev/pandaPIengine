@@ -7,377 +7,529 @@
 //============================================================================
 
 #include "flags.h" // defines flags
-#include <sys/stat.h>
 
 #include <iostream>
 #include <stdlib.h>
-#include <cassert>
+#include <getopt.h>
 #include <unordered_set>
-#include <sys/time.h>
+#include <landmarks/lmExtraction/LmCausal.h>
+#include <landmarks/lmExtraction/LMsInAndOrGraphs.h>
+#include <fringes/OneQueueWAStarFringe.h>
+#include "./search/PriorityQueueSearch.h"
 
-
+#include "Debug.h"
 #include "Model.h"
+
+#include "interactivePlanner.h"
+#include "sat/sat_planner.h"
+#include "Invariants.h"
+
+#include "symbolic_search/automaton.h"
+
+
+#include "intDataStructures/IntPairHeap.h"
+#include "intDataStructures/bIntSet.h"
+
+#include "heuristics/hhSimple.h"
+
+#include "heuristics/rcHeuristics/RCModelFactory.h"
+#include "heuristics/landmarks/lmExtraction/LmFdConnector.h"
+#include "heuristics/landmarks/hhLMCount.h"
+#ifndef CMAKE_NO_ILP
+#include "heuristics/dofHeuristics/hhStatisticsCollector.h"
+#endif
+#include "VisitedList.h"
+
+#include "cmdline.h"
 
 using namespace std;
 using namespace progression;
 
-inline bool does_file_exist (const string& name) {
-  struct stat buffer;   
-  return (stat (name.c_str(), &buffer) == 0); 
+vector<string> parse_list_of_strings(istringstream & ss){
+	vector<string> strings;
+	while (true){
+		if (ss.eof()) break;
+		string x; ss >> x;
+		strings.push_back(x);
+	}
+
+	return strings;
+}
+
+vector<string> parse_list_of_strings(string & line){
+	istringstream ss (line);
+	return parse_list_of_strings(ss);
 }
 
 
-int main(int argc, char *argv[]) {  
-  string s;
-	string sasfile;
-	string solver;
-	string parserpath = "./pandaPIparser/pandaPIparser";
-	bool showUsage = false;
-  int pgb = -1;
-  int maxpgb = -1;
-  int pgbsteps = 1;
-  int problemType = 0;
-  int downwardConf = 0;
-  string planfile = "stdout";
-  string domainfile;
-  string problemfile;
-  if (argc < 4) {
-	  showUsage = true;
-	} else {
-		s = argv[1];
-		sasfile = argv[2];
-		solver = argv[3];
-		for (int i = 4; i < argc; i++){
-      if (string("--help").compare(argv[i]) == 0){
-        cerr << "showing help" << endl;
-        showUsage = true;
-        break;
-      }
-      if (argc == i + 1){
-        cerr << argv[i] << ": missing argument" << endl;
-        showUsage = true;
-        break;
-      }
-      if (string("--problem").compare(argv[i]) == 0){
-        try {
-          problemType = stoi(argv[i+1], nullptr);
-        }
-        catch (...) {
-          cerr << "--problem: invalid option: " << argv[i + 1] << endl;
-          showUsage = true;
-          break;
-        }
-        if (problemType > 4){
-          cerr << "--problem: invalid option: " << problemType << endl;
-          showUsage = true;
-          break;
-        }
-      }
-      else if (string("--pgb").compare(argv[i]) == 0){
-        try {
-           pgb = stoi(argv[i+1], nullptr);
-        }
-        catch (...) {
-          cerr << "--pgb: invalid option: " << argv[i + 1] << endl;
-          showUsage = true;
-          break;
-        }
-      }
-      else if (string("--parserpath").compare(argv[i]) == 0){
-        parserpath = string(argv[i+1]);
-      }
-      else if (string("--domainfile").compare(argv[i]) == 0){
-        domainfile = string(argv[i+1]);
-      }
-      else if (string("--problemfile").compare(argv[i]) == 0){
-        problemfile = string(argv[i+1]);
-      }
-      else if (string("--maxpgb").compare(argv[i]) == 0){
-        try {
-          maxpgb = stoi(argv[i+1], nullptr);
-        }
-        catch (...) {
-          cerr << "--maxpgb: invalid option: " << argv[i + 1] << endl;
-          showUsage = true;
-          break;
-        }
-      }
-      else if (string("--pgbsteps").compare(argv[i]) == 0){
-        try {
-          pgbsteps = stoi(argv[i+1], nullptr);
-        }
-        catch (...) {
-          cerr << "--pgbsteps: invalid option: " << argv[i + 1] << endl;
-          showUsage = true;
-          break;
-        }
-      }
-      else if (string("--downward").compare(argv[i]) == 0){
-        try {
-          downwardConf = stoi(argv[i+1], nullptr);
-        }
-        catch (...) {
-          cerr << "--downward: invalid option (must be a number): " << argv[i + 1] << endl;
-          showUsage = true;
-          break;
-        }
-      }
-      else if (string("--planfile").compare(argv[i]) == 0){
-        try {
-          new (&planfile) string(argv[i+1]);
-        }
-        catch (...) {
-          cerr << "--downward: invalid option (must be a number): " << argv[i + 1] << endl;
-          showUsage = true;
-          break;
-        }
-      }
-      else{
-        cerr << "did not recognise option: " << argv[i] << endl;
-        showUsage = true;
-        break;
-      }
-		  i++;
-		}
-		
+pair<string,map<string,string>> parse_heuristic_with_arguments_from_braced_expression(string str){
+	string heuristic = "";
+	size_t pos= 0;
+	while (pos < str.size() && str[pos] != '('){
+   		heuristic += str[pos];
+		pos++;
 	}
-	if (showUsage){
-		cout << endl<< "Usage: PandaPIengine <intput_file> <output_file> <path/to/fast-downward> --options" << endl;
-		cout << endl<<"<intput_file>: grounded htn problem" << endl;
-		cout << "<output_file>: grounded translated pddl problem" << endl;
-		cout << "<path/to/fast-downward>: path to fast downward" << endl;
-		cout << "  solves <output_file>" << endl;
-		cout << "  default solving method: astar(ff())" << endl;
-		cout << "--help: show this help" << endl;
-		cout << "--problem <tohtn>/<htn>/<striptshtn>" << endl;
-		cout << "  0:" << endl;
-		cout << "    input is a totally ordered htn problem" << endl;
-		cout << "    output uses only strips operators (default)" << endl;
-		cout << "  1:" << endl;
-		cout << "    input is any htn problem" << endl;
-		cout << "    output uses strips with conditional effects" << endl;
-		cout << "  2:" << endl;
-		cout << "    input is any htn problem" << endl;
-		cout << "    output uses only strips operators" << endl;
-		cout << "  3:" << endl;
-		cout << "    input is a htn problem with parallel sequences" << endl;
-		cout << "    output uses only strips operators" << endl;
-		cout << "  4:" << endl;
-		cout << "    input is any htn problem" << endl;
-		cout << "    implements sorted queue with conditional effects" << endl;
-		cout << "--pgb <int>: set the starting progressionbound" << endl;
-		cout << "  default: automatic" << endl;
-		cout << "--maxpgb <int>: set the maximal progressionbound" << endl;
-		cout << "  default: " << maxpgb << endl;
-		cout << "--pgbsteps <int>: set the progressionbound stepsize" << endl;
-		cout << "  default: " << pgbsteps << endl;
+	
+	map<string,string> arguments;
+
+   	if (pos != str.size()){
+		string argument_string = str.substr(pos+1,str.size() - pos - 2);
+		replace(argument_string.begin(), argument_string.end(), ';', ' ');
+		vector<string> args = parse_list_of_strings(argument_string);
+
+		int position = 1;
+		for (string arg : args){
+			replace(arg.begin(), arg.end(), '=', ' ');
+			vector<string> argElems = parse_list_of_strings(arg);
+			if (argElems.size() == 1)
+				arguments["arg" + to_string(position)] = argElems[0];
+			else if (argElems.size() == 2)	
+				arguments[argElems[0]] = argElems[1];
+			else{
+				cout << "option " << arg << " has more than one equals sign ..." << endl;
+				exit(1);
+			}
+			position++;
+		}
+	} // else there are none
+
+	return make_pair(heuristic,arguments);
+}
+
+
+enum planningAlgorithm{
+	PROGRESSION,SAT,BDD,INTERACTIVE
+};
+
+
+void speed_test();
+
+int main(int argc, char *argv[]) {
+	//speed_test();
+	//return 42;
+#ifndef NDEBUG
+    cout
+            << "You have compiled the search engine without setting the NDEBUG flag. This will make it slow and should only be done for debug."
+            << endl;
+#endif
+
+	gengetopt_args_info args_info;
+	if (cmdline_parser(argc, argv, &args_info) != 0) return 1;
+
+	// set debug mode
+	if (args_info.debug_given) setDebugMode(true);
+
+	int seed = args_info.seed_arg; // has default value
+	cout << "Random seed: " << seed << endl;
+	srand(seed);
+    
+	int timeL = args_info.timelimit_arg;
+    cout << "Time limit: " << timeL << " seconds" << endl;
+
+	// get input files
+	std::vector<std::string> inputFiles;
+	for ( unsigned i = 0 ; i < args_info.inputs_num ; ++i )
+    	inputFiles.push_back(args_info.inputs[i]);
+
+	std::string inputFilename = "-";
+
+	if (inputFiles.size() > 1){
+		std::cerr << "You may specify at most one file as input: the SAS+ problem description" << std::endl;
+		return 1;
+	} else {
+		if (inputFiles.size())
+			inputFilename = inputFiles[0];
+	}
+
+	std::istream * inputStream;
+	if (inputFilename == "-") {
+		std::cout << "Reading input from standard input." << std::endl;
+		inputStream = &std::cin;
+	} else {
+		std::cout << "Reading input from " << inputFilename << "." << std::endl;
+
+		std::ifstream * fileInput = new std::ifstream(inputFilename);
+		if (!fileInput->good())
+		{
+			std::cerr << "Unable to open input file " << inputFilename << ": " << strerror (errno) << std::endl;
+			return 1;
+		}
+
+		inputStream = fileInput;
+	}
+
+	//
+
+	bool useTaskHash = true;
+
+
+
+    /* Read model */
+    // todo: the correct value of maintainTaskRechability depends on the heuristic
+    eMaintainTaskReachability reachability = mtrACTIONS;
+	bool trackContainedTasks = useTaskHash;
+    Model* htn = new Model(trackContainedTasks, reachability, true, true);
+	htn->filename = inputFilename;
+	if (args_info.satmutexes_flag) htn->rintanenInvariants = true;
+	htn->read(inputStream);
+	assert(htn->isHtnModel);
+	searchNode* tnI = htn->prepareTNi(htn);
+			
+	if (inputFilename != "-") ((ifstream*) inputStream)->close();
+
+
+	if (args_info.writeInputToHDDL_given){
+		cout << "writing input problem to file" << endl;
+		if (inputFilename == "-"){
+			cout << "Cannot determine proper file names when reading from stdin" << endl;
+			return 1;
+		}
+		string dName = inputFilename + ".d.hddl";
+		string pName = inputFilename + ".p.hddl";
+		htn->buildOrderingDatastructures();
+		htn->writeToPDDL(dName,pName);
+
 		return 0;
 	}
 
 
-  timeval tp;
-  long startT;
-  long currentT;
-
-  int error_code = -1;
-  /*
-   * Read model
-   */
-  Model* htn = new Model();
-  
-#ifdef CHECKDOWNWARD
-  htn->checkFastDownwardPlan("out.sas", "p.sas");
-  
-  return 0;
-#endif  
-
-  cout << "Reading HTN model from file \"" << s << "\" ... " << endl;
-  htn->read(s);
-  
-  gettimeofday(&tp, NULL);
-  startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-  cout << "- reordering subtasks";
-  
-  htn->reorderTasks(problemType == 3);
-  
-  gettimeofday(&tp, NULL);
-  currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-  cout << " (" << (currentT - startT) << " ms)" << endl;
-  gettimeofday(&tp, NULL);
-  startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-  cout << "- creating SAS+ vars";
-  
-  htn->sasPlus();
-  
-  gettimeofday(&tp, NULL);
-  currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-  cout << " (" << (currentT - startT) << " ms)" << endl;
-
-  if (problemType == 3 && !htn->parallelSequences()){
-    problemType = 2;
-  }
-  if (pgb < 1 || problemType == 3){
-    htn->calcMinimalProgressionBound((problemType == 0));
-    pgb = htn->minProgressionBound();
-  }
-  if (maxpgb < pgb){
-    maxpgb = htn->maxProgressionBound();
-  }
-  int topMethod = 0;
-  int parallel = 0;
-  if (problemType == 3){
-    topMethod = htn->taskToMethods[htn->initialTask][0];
-    parallel = htn->numSubTasks[topMethod];
-  }
-  int* pgbList = new int[parallel];
-  if (problemType == 3){
-    for (int i = 0; i < parallel; i++){
-      pgbList[i] = htn->minImpliedPGB[htn->subTasks[topMethod][0]];
-    }
-  }
-  cerr << "- starting search:" << endl;
-  cerr << "- starting Progressionbound = " << pgb << endl;
-  cerr << "- maximum Progressionbound = " << maxpgb << endl;
-  cerr << "- Progressionbound steps = " << pgbsteps << endl;
-  string foundPlanFileName;
-  while (true) {
-    
-    if (pgb > maxpgb){
-      cerr << "maximum progressionbound exeeded" << endl;
-      cerr << "terminating process" << endl;
-      exit(0);
-    }
-    /*
-    * Translate model
-    */
-    gettimeofday(&tp, NULL);
-    startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-
-    if (problemType == 0){
-      cout << "TOHTN to strips";
-      htn->tohtnToStrips(pgb);
-    }
-    else if (problemType == 1){
-      cout << "HTN to strips with conditional effects";
-      int b = htn->htnToCond(pgb);
-      if (b == -1){
-        cout << endl << "problem too big to solve" << endl;;
-        delete[] pgbList;
-        return 0;
-      }
-    }
-    else if (problemType == 2){
-      cout << "HTN to strips";
-      int b = htn->htnToStrips(pgb);
-	  cout << "Number of actions: " << b << " pgb: " << pgb << endl;
-      if (b == -1){
-        cout << endl << "problem too big to solve" << endl;;
-        delete[] pgbList;
-        return 0;
-      }
-    }
-    else if (problemType == 3){
-      cout << "HTN with parallel total order sequences";
-      int b = htn->htnPS(parallel, pgbList);
-	  cout << "Number of actions: " << b << " pgb: " << pgb << endl;
-    }
-    else if (problemType == 4){
-      cout << "HTN to strips with conditional effects and sorted queue";
-      int b = htn->htnToCondSorted(pgb);
-	  cout << "Number of actions: " << b << " pgb: " << pgb << endl;
-      if (b == -1){
-        cout << endl << "problem too big to solve" << endl;;
-        delete[] pgbList;
-        return 0;
-      }
-    }
-    else {
-      cout << "not a valid problem Type" << endl;
-      delete[] pgbList;
-      return 0;
-    }
-    gettimeofday(&tp, NULL);
-    currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-    cout << " (" << (currentT - startT) << " ms)" << endl;
-
-    /*
-    * Print to file
-    */
-    gettimeofday(&tp, NULL);
-    startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-    cout << "Printing HTN model to file \"" << sasfile << "\" ... ";
-    htn->writeToFastDown(sasfile, problemType, pgb);
-    gettimeofday(&tp, NULL);
-    currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-    cout << " (" << (currentT - startT) << " ms)" << endl;
-	string planFileName = sasfile + string(".plan");
-    string command = solver + string(" --internal-plan-file ") + planFileName;
-	switch (downwardConf){
-		case 0: command += string(" --evaluator 'hcea=cea()' --search 'lazy_greedy([hcea], preferred=[hcea])' < ") + sasfile; break;
-		case 1: command += string(" --evaluator 'hff=ff()' --search 'iterated([ehc(hff, preferred=[hff]),lazy_greedy([hff], preferred=[hff])], continue_on_fail=true, continue_on_solve=false, max_time=1800)' < ") + sasfile; break;
-    	case 2: command += string(" --portfolio /home/behnkeg/classical/Saarplan/driver/portfolios/seq_agl_saarplan.py ") + sasfile; break;
-    	case 3: command += string(" --build=release64 --search-time-limit 10000 --search --alias seq-sat-fdss-2018 ") + sasfile; break;
-    	case 4: command += string(" --alias seq-sat-fd-autotune-1 ") + sasfile; break;
-    	case 5: command += string(" --alias seq-sat-fd-autotune-2 ") + sasfile; break;
-    	case 6: command += string(" --alias seq-sat-lama-2011 ") + sasfile; break;
-    	case 7: command = solver + string(" --build=aidos_ipc --alias seq-unsolvable-aidos-1 --search-time-limit=30m ") + sasfile; planFileName = "sas_plan"; break;
-    	case 8: command += string(" --search 'astar(lmcut())' < ") + sasfile; break;
-    	case 9: command += string(" --search 'astar(merge_and_shrink(merge_strategy=merge_precomputed(merge_tree=linear(variable_order=reverse_level)),shrink_strategy=shrink_bisimulation(greedy=true),label_reduction=exact(before_shrinking=true,before_merging=false),max_states=infinity,threshold_before_merge=1))' < ") + sasfile; break;
-    	case 10: command += string(" --evaluator 'lmc=lmcount(lm_merged([lm_rhw(),lm_hm(m=1)]),admissible=true)' --search 'astar(lmc,lazy_evaluator=lmc)' < ") + sasfile; break;
-	}
-    gettimeofday(&tp, NULL);
-    startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-    cout << command << endl;
-    error_code = system(command.c_str());
-    gettimeofday(&tp, NULL);
-    currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
-    cout << "Solving Time (" << (currentT - startT) << " ms) with Error Code: " << error_code << endl << endl;
-    if (error_code == 0 || error_code == 2){
-	  foundPlanFileName = planFileName;
-	  //cout << "We have a plan, but we will continue and try to find a better one ..." << endl << endl << endl;
-	  break; // if output file is there, we have a plan
-      //pgb += pgbsteps;
-      //cout << "- new progressionbound: " << pgb << endl;
-      //continue;
-    }
-  	if (does_file_exist(planFileName) || does_file_exist(planFileName + string(".1"))) {
-		foundPlanFileName = planFileName;
-		//cout << "We have a plan, but we will continue and try to find a better one ..." << endl << endl << endl;
-		break; // if output file is there, we have a plan
-      	//pgb += pgbsteps;
-     	//cout << "- new progressionbound: " << pgb << endl;
-		//continue;
-	}
- 
 	
-	if (error_code == 3072 || error_code == 2816 || error_code == 512 || error_code == 1280 || error_code > 10){
-      if (problemType == 3){
-        for (int i = 0; i < parallel; i++){
-          pgbList[i] += pgbsteps;
-        }
-      }
-      pgb += pgbsteps;
-      cout << "- new progressionbound: " << pgb << endl;
+    if(reachability != mtrNO) {
+        htn->calcSCCs();
+        htn->calcSCCGraph();
+
+        // add reachability information to initial task network
+        htn->updateReachability(tnI);
     }
-    else {
-      cout << "- error code: " << error_code << endl;
-      delete[] pgbList;
-      return 0;
-    }
-  }
-  delete[] pgbList;
-  //string infile = sasfile + ".plan";
-  if (! does_file_exist(foundPlanFileName))
-	  foundPlanFileName = foundPlanFileName + ".1";
-  string outfile = planfile;
-  htn->planToHddl(foundPlanFileName, outfile);
-  
-  //string command = "./pandaPIparser/pandaPIparser -c " + outfile + " c-" + outfile;
-  //cerr << command << endl;
-  //error_code = system(command.c_str());
-  //command = "./pandaPIparser/pandaPIparser -v ./models/to/d_00031.hddl ./models/to/p_00031.hddl c-" + outfile;
-  //cerr << command << endl;
-  //error_code = system(command.c_str());
- 
-  return 0;
+
+//    Heuristic *hLMC = new hhLMCount(htn, 0, tnI, lmfFD);
+
+	planningAlgorithm algo = PROGRESSION;
+	if (args_info.progression_given) algo = PROGRESSION;
+	if (args_info.sat_given) algo = SAT;
+	if (args_info.bdd_given) algo = BDD;
+	if (args_info.interactive_given) algo = INTERACTIVE;
+
+
+	if (algo == INTERACTIVE){
+		cout << "Selected Planning Algorihtm: interactive";
+		interactivePlanner(htn,tnI);
+	} else if (algo == PROGRESSION){
+		cout << "Selected Planning Algorithm: progression search";
+	
+		int hLength = args_info.heuristic_given;
+		cout << "Parsing heuristics ..." << endl;
+		cout << "Number of specified heuristics: " << hLength << endl;
+		if (hLength == 0){
+			cout << "No heuristics given, setting default ... " << endl;
+			hLength = 1;
+		}
+    	Heuristic **heuristics = new Heuristic *[hLength];
+		map<pair<string,map<string,string>>, int> heuristics_so_far;
+		for (int i = 0; i < hLength; i++){
+			auto [hName, args] = parse_heuristic_with_arguments_from_braced_expression(args_info.heuristic_arg[i]);
+			
+			if (heuristics_so_far.count({hName, args})){
+				heuristics[i] = heuristics[heuristics_so_far[{hName, args}]];
+				cout << "\tHeuristic duplicate: Nr. " << i << " is the same as " << heuristics_so_far[{hName, args}] << endl;
+				continue;
+			}
+			heuristics_so_far[{hName, args}] = i;
+
+			if (hName == "zero"){
+    			heuristics[i] = new hhZero(htn, i);
+			} else if (hName == "modDepth"){
+				string invertString = (args.count("invert"))?args["invert"]:args["arg1"];
+				bool invert = false;
+				if (invertString == "true" || invertString == "invert") invert = true;
+
+    			heuristics[i] = new hhModDepth(htn, i, invert);
+			} else if (hName == "mixedModDepth"){
+				string invertString = (args.count("invert"))?args["invert"]:args["arg1"];
+				bool invert = false;
+				if (invertString == "true" || invertString == "invert") invert = true;
+
+    			heuristics[i] = new hhMixedModDepth(htn, i, invert);
+			} else if (hName == "cost"){
+				string invertString = (args.count("invert"))?args["invert"]:args["arg1"];
+				bool invert = false;
+				if (invertString == "true" || invertString == "invert") invert = true;
+
+    			heuristics[i] = new hhCost(htn, i, invert);
+			} else if (hName == "rc2"){
+				string subName = (args.count("h"))?args["h"]:args["arg1"];
+			
+				string estimate_string = (args.count("est"))?args["est"]:args["arg2"];
+				eEstimate estimate = estDISTANCE;
+				if (estimate_string == "cost")
+					estimate = estCOSTS;
+				if (estimate_string == "mixed")
+					estimate = estMIXED;
+				
+				string correct_task_count_string = (args.count("taskcount"))?args["taskcount"]:args["arg3"];
+				bool correctTaskCount = true;
+				if (correct_task_count_string == "no")
+					correctTaskCount = false;
+
+				if (subName == "lmc")
+		    		heuristics[i] = new hhRC2<hsLmCut>(htn, i, estimate, correctTaskCount);
+				else if (subName == "add"){
+		    		heuristics[i] = new hhRC2<hsAddFF>(htn, i, estimate, correctTaskCount);
+					((hhRC2<hsAddFF>*)heuristics[i])->sasH->heuristic = sasAdd;
+				} else if (subName == "ff"){
+		    		heuristics[i] = new hhRC2<hsAddFF>(htn, i, estimate, correctTaskCount);
+					((hhRC2<hsAddFF>*)heuristics[i])->sasH->heuristic = sasFF;
+				} else if (subName == "filter")
+		    		heuristics[i] = new hhRC2<hsFilter>(htn, i, estimate, correctTaskCount);
+				else {
+					cout << "No inner heuristic specified for RC. Using FF" << endl;
+		    		heuristics[i] = new hhRC2<hsAddFF>(htn, i, estimate, correctTaskCount);
+					((hhRC2<hsAddFF>*)heuristics[i])->sasH->heuristic = sasFF;
+				}
+			} else if (hName == "dof"){
+#ifndef CMAKE_NO_ILP
+				string type_string = (args.count("type"))?args["type"]:args["arg1"];
+				IloNumVar::Type intType = IloNumVar::Int;
+				IloNumVar::Type boolType = IloNumVar::Bool;
+				if (type_string == "lp"){
+					intType = IloNumVar::Float;
+					boolType = IloNumVar::Float;
+				}
+
+				string mode_string = (args.count("mode"))?args["mode"]:args["arg2"];
+				csSetting mode = cSatisficing;
+				if (mode_string == "optimal")
+					mode = cOptimal;
+
+				string tdg_string = (args.count("tdg"))?args["tdg"]:args["arg3"];
+				csTdg tdg = cTdgAllowUC;
+				if (tdg_string == "uc")
+					tdg = cTdgFull;
+				else if (tdg_string == "none")
+					tdg = cTdgNone;
+			
+				string pg_string = (args.count("pg"))?args["pg"]:args["arg4"];
+				csPg pg = cPgNone;
+				if (pg_string == "full")
+					pg = cPgFull;
+				else if (tdg_string == "relaxed")
+					pg = cPgTimeRelaxed;
+
+				string andorLM_string = (args.count("andOrLM"))?args["andOrLM"]:args["arg5"];
+				csAndOrLms andOrLM = cAndOrLmsNone;
+				if (andorLM_string == "full")
+					andOrLM = cAndOrLmsFull;
+				else if (andorLM_string == "onlyTNi")
+					andOrLM = cAndOrLmsOnlyTnI;
+
+				string externalLM_string = (args.count("externalLM"))?args["externalLM"]:args["arg6"];
+				csAddExternalLms externalLM = cAddExternalLmsNo;
+				if (externalLM_string == "none")
+					externalLM = cAddExternalLmsYes;
+
+				string lmclms_string = (args.count("lmclmc"))?args["lmclmc"]:args["arg7"];
+				csLmcLms lmclms = cLmcLmsFull;
+				if (lmclms_string == "none")
+					lmclms = cLmcLmsNone;
+
+				string netchange_string = (args.count("netchange"))?args["netchange"]:args["arg8"];
+				csNetChange netchange = cNetChangeFull;
+				if (netchange_string == "none")
+					netchange = cNetChangeNone;
+
+
+				heuristics[i] = new hhDOfree(htn,tnI,i,intType,boolType,mode,tdg,pg,andOrLM,lmclms,netchange,externalLM);
+#else
+				cout << "Planner compiled without CPLEX support" << endl;
+				return 1;
+#endif
+			} else {
+				cout << "Heuristic type \"" << hName << "\" is unknown." << endl;
+				return 1;
+			}
+
+			cout << "Heuristic #" << i << " = " << heuristics[i]->getDescription() << endl; 
+		}
+
+		int aStarWeight = args_info.astarweight_arg;
+    	aStar aStarType = gValNone;
+    	if (string(args_info.gValue_arg) == "path") aStarType = gValPathCosts;
+    	if (string(args_info.gValue_arg) == "action") aStarType = gValActionCosts;
+    	if (string(args_info.gValue_arg) == "mixed") aStarType = gValActionPathCosts;
+    	if (string(args_info.gValue_arg) == "none") aStarType = gValNone;
+	
+		bool suboptimalSearch = args_info.suboptimal_flag;
+
+		cout << "Search config:" << endl;
+		cout << " - type: ";
+		switch (aStarType){
+			case gValNone: cout << "greedy"; break;
+			case gValActionCosts: cout << "cost optimal"; break;
+			case gValPathCosts: cout << "path cost"; break;
+			case gValActionPathCosts: cout << "action cost + decomposition cost"; break;
+		}
+		cout << endl;
+		cout << " - weight: " << aStarWeight << endl;
+		cout << " - suboptimal: " << (suboptimalSearch?"true":"false") << endl;
+
+
+		bool noVisitedList = args_info.noVisitedList_flag;
+		bool allowGIcheck = args_info.noGIcheck_flag;
+		bool taskHash = args_info.taskHash_flag;
+		bool taskSequenceHash = args_info.taskSequenceHash_flag;
+		bool topologicalOrdering = args_info.topologicalOrdering_flag;
+		bool orderPairsHash = args_info.noOrderPairs_flag;
+		bool layerHash = args_info.noLayers_flag;
+		bool allowParalleSequencesMode = args_info.noParallelSequences_flag;
+    	
+		VisitedList visi(htn,noVisitedList, suboptimalSearch, taskHash, taskSequenceHash, topologicalOrdering, orderPairsHash, layerHash, allowGIcheck, allowParalleSequencesMode);
+    	PriorityQueueSearch search;
+    	OneQueueWAStarFringe fringe(aStarType, aStarWeight, hLength);
+
+
+		bool printPlan = !args_info.noPlanOutput_flag;
+    	search.search(htn, tnI, timeL, suboptimalSearch, printPlan, heuristics, hLength, visi, fringe);
+	} else if (algo == SAT){
+#ifndef CMAKE_NO_SAT
+		bool block_compression = args_info.blockcompression_flag;
+		bool sat_mutexes = args_info.satmutexes_flag;
+		bool effectLessActionsInSeparateLeaf = args_info.methodPreconditionsInSeparateLeafs_given;
+
+    	sat_pruning pruningMode = SAT_FF;
+    	if (string(args_info.pruning_arg) == "none") pruningMode = SAT_NONE;
+    	if (string(args_info.pruning_arg) == "ff") pruningMode = SAT_FF;
+    	if (string(args_info.pruning_arg) == "h2") pruningMode = SAT_H2;
+
+		extract_invariants_from_parsed_model(htn);
+		if (sat_mutexes) compute_Rintanen_Invariants(htn);
+
+		solve_with_sat_planner(htn, block_compression, sat_mutexes, pruningMode, effectLessActionsInSeparateLeaf);
+#else
+		cout << "Planner compiled without SAT planner support" << endl;
+#endif
+	} else if (algo == BDD){
+#ifndef CMAKE_NO_BDD
+		build_automaton(htn);
+#else
+		cout << "Planner compiled without symbolic planner support" << endl;
+#endif
+	}
+
+    delete htn;
+    
+	
+	return 0;
 }
+
+
+
+
+
+
+
+
+/*
+    long initO, initN;
+    long genO, genN;
+    long initEl = 0;
+    long genEl;
+    long start, end;
+    long tlmEl;
+    long flmEl = 0;
+    long mlmEl = 0;
+    long tlmO, flmO, mlmO, tlmN, flmN, mlmN;
+
+    timeval tp;
+    gettimeofday(&tp, NULL);
+    start = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+    LmCausal* lmc = new LmCausal(htn);
+    lmc->prettyprintAndOrGraph();
+    gettimeofday(&tp, NULL);
+    end = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+    initN = end - start;
+
+    gettimeofday(&tp, NULL);
+    start = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+    LMsInAndOrGraphs* ao = new LMsInAndOrGraphs(htn);
+    gettimeofday(&tp, NULL);
+    end = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+    initO = end - start;
+
+    gettimeofday(&tp, NULL);
+    start = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+	lmc->calcLMs(tnI);
+    gettimeofday(&tp, NULL);
+    end = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+    genN = end - start;
+
+    tlmN = landmark::coutLM(lmc->getLMs(), task, lmc->numLMs);
+    flmN = landmark::coutLM(lmc->getLMs(), fact, lmc->numLMs);
+    mlmN = landmark::coutLM(lmc->getLMs(), METHOD, lmc->numLMs);
+
+    gettimeofday(&tp, NULL);
+    start = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+    ao->generateAndOrLMs(tnI);
+    gettimeofday(&tp, NULL);
+    end = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+    genO = end - start;
+
+    tlmO = landmark::coutLM(ao->getLMs(), task, ao->getNumLMs());
+    flmO = landmark::coutLM(ao->getLMs(), fact, ao->getNumLMs());
+    mlmO = landmark::coutLM(ao->getLMs(), METHOD, ao->getNumLMs());
+
+    if(lmc->numLMs != ao->getNumLMs()) {
+        cout << "AAAAAAAAAAAAAAAAAAAAHHH " << ao->getNumLMs() << " - " << lmc->numLMs << endl;
+        for(int i = 0; i < ao->getNumLMs(); i ++) {
+            ao->getLMs()[i]->printLM();
+        }
+        cout << "----------------------" << endl;
+        for(int i = 0; i < lmc->numLMs; i++) {
+            lmc->landmarks[i]->printLM();
+        }
+    }
+
+    cout << "TIME:" << endl;
+    cout << "Init       : " << initO << " " << initN << " delta " << (initN - initO) << endl;
+    cout << "Generation : " << genO << " " << genN << " delta " << (genN - genO) << endl;
+    cout << "Total      : " << (initO + genO) << " " << (initN + genN) << " delta " << ((initN + genN) - (initO + genO)) << endl;
+
+    gettimeofday(&tp, NULL);
+    start = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+    ao->generateLocalLMs(htn, tnI);
+    gettimeofday(&tp, NULL);
+    end = tp.tv_sec * 1000 + tp.tv_usec / 1000;
+    genEl = end - start;
+
+    tlmEl = landmark::coutLM(ao->getLMs(), task, ao->getNumLMs());
+    flmEl = landmark::coutLM(ao->getLMs(), fact, ao->getNumLMs());
+    mlmEl = landmark::coutLM(ao->getLMs(), METHOD, ao->getNumLMs());
+
+    cout << "LMINFO:[" << s << ";";
+    cout << initEl << ";" << genEl << ";" << (initEl + genEl) << ";";
+    cout << initO << ";" << genO << ";" << (initO + genO) << ";";
+    cout << initN << ";" << genN << ";" << (initN + genN) << ";";
+    cout << tlmEl << ";" << flmEl << ";" << mlmEl << ";";
+    cout << tlmO << ";" << flmO << ";" << mlmO << ";";
+    cout << tlmN << ";" << flmN << ";" << mlmN << ";";
+    cout << "]" << endl;
+
+	//lmc->prettyprintAndOrGraph();
+    for(int i = 0; i < htn->numTasks; i++)
+        cout << i << " " << htn->taskNames[i] << endl;
+    for(int i = 0; i < htn->numStateBits; i++)
+        cout << i << " " << htn->factStrs[i] << endl;
+
+    cout << "AND/OR landmarks" << endl;
+    for(int i = 0; i < lmc->numLMs; i++) {
+        lmc->getLMs()[i]->printLM();
+    }
+    cout << "Local landmarks" << endl;
+    for(int i = 0; i < ao->getNumLMs(); i++) {
+       ao->getLMs()[i]->printLM();
+    }
+
+    cout << "PRINT" << endl;
+    lmc->prettyPrintLMs();
+
+	exit(17);*/
+
