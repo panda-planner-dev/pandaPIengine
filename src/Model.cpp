@@ -5785,6 +5785,7 @@ void Model::calcMinimalProgressionBound(bool to) {
     int* methIndex = new int[methNumMax];
     int* primIndex = new int[primNumMax];
     int** subHeads = new int*[methNumMax];
+    bool** subHeadsFixed = new bool*[methNumMax];
     bool* hasPrimIndezes = new bool[methNumMax];
     int** firstPrimIndezes = new int*[methNumMax];
     int* order = new int[linecount];
@@ -5799,7 +5800,22 @@ void Model::calcMinimalProgressionBound(bool to) {
         primIndex[primNum] = stoi(plan[i].substr(plan[i].find("id") + 3, plan[i].find("]", plan[i].find("id"), 1) - plan[i].find("id") - 3));
         order[i] = primNum;
         heads[i] = stoi(plan[i].substr(plan[i].find("head") + 5, plan[i].find("]", plan[i].find("head"), 1) - plan[i].find("head") - 5));
-        fout << primNum << " " << primitives[primNum] << endl;
+        
+	    for (int j = methNum - 1; j >= 0; j--){
+		  bool repl = false;
+          for (int k = 0; k < numSubTasks[methIndex[j]]; k++){
+            if (subHeadsFixed[j][k] == false && subHeads[j][k] == heads[i]){
+              subHeadsFixed[j][k] = true;
+			  repl = true;
+              break;
+            }
+          }
+          if (repl){
+            break;
+          }
+        }
+	
+		fout << primNum << " " << primitives[primNum] << endl;
         primNum++;
       }
       else if (plan[i].size() > 6 && string("method").compare(plan[i].substr(1, 6)) == 0){
@@ -5808,6 +5824,7 @@ void Model::calcMinimalProgressionBound(bool to) {
         order[i] = methNum + primNumMax;
         heads[i] = stoi(plan[i].substr(plan[i].find("head") + 5, plan[i].find("]", plan[i].find("head"), 1) - plan[i].find("head") - 5));
         subHeads[methNum] = new int[numSubTasks[methIndex[methNum]]];
+        subHeadsFixed[methNum] = new bool[numSubTasks[methIndex[methNum]]];
         int index = plan[i].find("firstPrim");
         hasPrimIndezes[methNum] = false;
         if (index < plan[i].length()){
@@ -5842,7 +5859,8 @@ void Model::calcMinimalProgressionBound(bool to) {
             else {
               subHeads[methNum][j] = stoi(s);
             }
-          }
+          	subHeadsFixed[methNum][j] = false;
+		  }
         }
         methNum++;
       }
@@ -5855,7 +5873,7 @@ void Model::calcMinimalProgressionBound(bool to) {
             break;
           }
           for (int k = 0; k < numSubTasks[methIndex[j]]; k++){
-            if (subHeads[j][k] == from){
+            if (subHeadsFixed[j][k] == false && subHeads[j][k] == from){
               subHeads[j][k] = to;
               repl = true;
               break;
@@ -5884,7 +5902,7 @@ void Model::calcMinimalProgressionBound(bool to) {
         }
       }
       for (int j = numSubTasks[m] - 1 - fntopt; j >= 0; j--){
-        int index = -1;
+	int index = -1;
         for (int k = o + 1; k < linecount - 1; k++){
           if (order[k] == -1){
             continue;
