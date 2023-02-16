@@ -24,6 +24,7 @@ defgroup "planningAlgorithm"
 groupoption "progression" p "progression search" group="planningAlgorithm"
 groupoption "sat" s "translation to SAT" group="planningAlgorithm"
 groupoption "bdd" b "symbolic search" group="planningAlgorithm"
+groupoption "translation" 2 "translation based planner" group="planningAlgorithm"
 groupoption "interactive" I "interactive search" group="planningAlgorithm"
 
 section "Progression Search Options"
@@ -51,3 +52,13 @@ option "blockcompression" B "apply block" flag on
 option "satmutexes" M "encode SAT mutexes" flag on
 option "pruning" P "pruning mode" string values="none","ff","h2" default="ff"
 option "methodPreconditionsInSeparateLeafs" m "if in partial order mode, but method precondition actions into extra leafs. This allows for better encoding of executability, but may increase the size of the PDT" flag off
+
+
+section "Translation Planner Options"
+
+option "downward" - "path to fast downward executable" string default="none"
+option "transtype" - "type of translation to use" string values="push","parallelseq" default="push"
+option "sasfile" - "name of the SAS+ file generated. In planning mode this file will be written and used as a temporary file" string default="output.sas"
+option "pgb" - "the initial value of the progression bound" int
+option "onlyGenerate" - "only generate the translation and don't solv it. This overrides also iterate" flag off
+option "iterate" - "if the initial pgb is unsolvable, increase by one and continue" flag off

@@ -26,6 +26,7 @@
 
 #include "symbolic_search/automaton.h"
 
+#include "translation/translationController.h"
 
 #include "intDataStructures/IntPairHeap.h"
 #include "intDataStructures/bIntSet.h"
@@ -98,7 +99,7 @@ pair<string,map<string,string>> parse_heuristic_with_arguments_from_braced_expre
 
 
 enum planningAlgorithm{
-	PROGRESSION,SAT,BDD,INTERACTIVE
+	PROGRESSION,SAT,BDD,INTERACTIVE,TRANSLATION
 };
 
 
@@ -209,6 +210,7 @@ int main(int argc, char *argv[]) {
 	if (args_info.sat_given) algo = SAT;
 	if (args_info.bdd_given) algo = BDD;
 	if (args_info.interactive_given) algo = INTERACTIVE;
+	if (args_info.translation_given) algo = TRANSLATION;
 
 
 	if (algo == INTERACTIVE){
@@ -413,6 +415,12 @@ int main(int argc, char *argv[]) {
 #else
 		cout << "Planner compiled without symbolic planner support" << endl;
 #endif
+	} else if (algo == TRANSLATION){
+		TranslationType type;
+		if (string(args_info.transtype_arg) == "push") type = Push; 
+		if (string(args_info.transtype_arg) == "parallelseq") type = ParallelSeq; 
+		runTranslationPlanner(htn,type, args_info.pgb_arg, string(args_info.downward_arg), string(args_info.sasfile_arg),
+				args_info.iterate_arg, args_info.onlyGenerate_arg);
 	}
 
     delete htn;

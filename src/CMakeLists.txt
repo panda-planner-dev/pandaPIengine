@@ -54,10 +54,12 @@ include_directories("search")
 include_directories("symbolic_search")
 include_directories("heuristics")
 include_directories("intDataStructures")
+include_directories("translation")
 add_subdirectory(search)
 add_subdirectory(symbolic_search)
 add_subdirectory(heuristics)
 add_subdirectory(intDataStructures)
+add_subdirectory(translation)
 
 
 add_custom_command(
@@ -82,6 +84,7 @@ target_link_libraries(pandaPIengine PUBLIC symbolic_search)
 target_link_libraries(pandaPIengine PUBLIC heuristics)
 target_link_libraries(pandaPIengine PUBLIC hrc)
 target_link_libraries(pandaPIengine PUBLIC hlm)
+target_link_libraries(pandaPIengine PUBLIC translation)
 
 if (BDD)
 	### Build Cudd
