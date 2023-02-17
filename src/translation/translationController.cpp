@@ -59,7 +59,7 @@ bool performOneTranslation(HTNToSASTranslation * translation, TranslationType tr
 	return true;
 }
 
-void printSASToFile(HTNToSASTranslation * translation, TranslationType transtype, string sasfile){
+void printSASToFile(HTNToSASTranslation * translation, TranslationType transtype, string sasfile, bool realCosts){
 	/*
     * Print to file
     */
@@ -69,7 +69,7 @@ void printSASToFile(HTNToSASTranslation * translation, TranslationType transtype
     gettimeofday(&tp, NULL);
     startT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
     cout << "Printing HTN model to file \"" << sasfile << "\" ... ";
-    translation->writeToFastDown(sasfile, transtype == Push);
+    translation->writeToFastDown(sasfile, transtype == Push, realCosts);
     gettimeofday(&tp, NULL);
     currentT = tp.tv_sec * 1000 + tp.tv_usec / 1000;
     cout << " (" << (currentT - startT) << " ms)" << endl;
@@ -120,7 +120,8 @@ int runFD(string sasfile, string solver, string downwardConf, string & planFileN
 void runTranslationPlanner(Model* htn, TranslationType transtype, bool forceTransType,
 		int pgb, int pgbsteps, string downward, string downwardConf, string sasfile,
 		bool iterate,
-		bool onlyGenerate){
+		bool onlyGenerate,
+		bool realCosts){
 	
 	
 	// overriding of type
@@ -218,7 +219,7 @@ void runTranslationPlanner(Model* htn, TranslationType transtype, bool forceTran
 	while (true){
 		// what to do
 		performOneTranslation(translation, transtype, parallel, pgbList);
-		printSASToFile(translation, transtype, sasfile);
+		printSASToFile(translation, transtype, sasfile, realCosts);
 		if (onlyGenerate) break;
 
 

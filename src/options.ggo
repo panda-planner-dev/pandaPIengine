@@ -17,6 +17,7 @@ option "seed" S "specify the random seed" int default="42"
 option "timelimit" t "specify timelimit in seconds" int default="1800"
 option "noPlanOutput" N "don't output the plan [default=print plan]" flag off
 option "writeInputToHDDL" - "don't run the engine at all. Output the given SAS+ planning problem as HDDL again." flag off
+option "heuristicHelp" - "will print the help page for the heuristics" flag off
 
 section "Planner Selection" sectiondesc="default=progression"
 
@@ -29,7 +30,7 @@ groupoption "interactive" I "interactive search" group="planningAlgorithm"
 
 section "Progression Search Options"
 
-option "heuristic" H "specify heuristics. The first heuristic in the list is the one used for search. Starting from the second, all other heuristics are used as tiebreakers. If you specify the same heuristic twice, it will only be computed once." string multiple default="rc2(ff)"
+option "heuristic" H "specify heuristics. If you want to know how to specify a heuristic, use --heuristicHelp. The first heuristic in the list is the one used for search. Starting from the second, all other heuristics are used as tiebreakers. If you specify the same heuristic twice, it will only be computed once." string multiple default="rc2(ff)"
 option "mainHeuristicAsTiebreaker" - "use the first heuristic as the first tie-breaker. The first " flag off
 option "astarweight" w "weight of the heuristic for A*" int default="1"
 option "gValue" g "g value" string values="path","action","mixed","none" default="path"
@@ -65,3 +66,4 @@ option "pgb" - "the initial value of the progression bound. If zero, the minimum
 option "pgbsteps" - "step size of the progression bound" int default="1"
 option "onlyGenerate" - "only generate the translation and don't solv it. This overrides also iterate" flag off
 option "iterate" - "if the initial pgb is unsolvable, increase by one and continue" flag off
+option "realCosts" - "if enabled use the actual cost in the encoded model. Default is off, then all operators have unit cost." flag off

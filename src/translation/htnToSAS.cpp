@@ -2205,7 +2205,7 @@ int HTNToSASTranslation::htnToCond(int pgb) {
 
 
 ////////////////////////////// writer 
-void HTNToSASTranslation::writeToFastDown(string sasName, bool hasCondEff) {
+void HTNToSASTranslation::writeToFastDown(string sasName, bool hasCondEff, bool realCosts) {
     ofstream sasfile;
     sasfile.open (sasName);
     // version
@@ -2215,7 +2215,10 @@ void HTNToSASTranslation::writeToFastDown(string sasName, bool hasCondEff) {
     sasfile <<  endl;
     // metric
     sasfile << "begin_metric" << endl;
-    sasfile << "1" << endl;
+	if (realCosts)
+	    sasfile << "1" << endl;
+	else
+	    sasfile << "0" << endl;
     sasfile << "end_metric" << endl;
     sasfile <<  endl;
 

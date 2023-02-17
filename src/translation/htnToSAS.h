@@ -27,7 +27,7 @@ class HTNToSASTranslation{
 	int htnToStrips(int pgb);
 
 	// write the model to file
-	void writeToFastDown(string sasName, bool hasCondEff);
+	void writeToFastDown(string sasName, bool hasCondEff, bool realCosts);
 	
 	// plan verification
 	void planToHddl(string infile, string outfile);
