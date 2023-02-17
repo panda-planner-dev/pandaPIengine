@@ -105,6 +105,56 @@ enum planningAlgorithm{
 
 void speed_test();
 
+
+void printHeuristicHelp(){
+	cout << "Each heuristic is to be specified as a single string." << endl;
+	cout << "The following heuristics are available" << endl;
+	cout << "" << endl;
+	cout << "  zero" << endl;
+	cout << "  modDepth" << endl;
+	cout << "  mixedModDepth" << endl;
+	cout << "  cost" << endl;
+	cout << "  rc2" << endl;
+	cout << "  dof" << endl;
+	cout << "" << endl;
+	cout << "Arguments are given to the heuristics in normal braces. E.g. use cost(invert)" << endl;
+	cout << "Multiple arguments must be separated by semicolons." << endl;
+	cout << "By default the arguments can just be given in order. It is also possible to provide them using the key=value syntax." << endl;
+	cout << "The name of the argument is given in braces" << endl;
+	cout << "" << endl;
+	cout << "- The modDepth, mixedModDepth, and cost heuristics all have only one optional argument \"invert\" (or invert=true)." << endl;
+	cout << "  If provided the heuristic value will be multiplied with -1." << endl;
+	cout << "" << endl;
+	cout << "- The rc2 heuristic has the following arguments:" << endl;
+	cout << "  1. The inner heuristic (key: h). If you don't provide one, this will default to ff. You may choose one of" << endl;
+	cout << "    - ff (the FF heuristic)" << endl;
+	cout << "    - add (the additive heuristic)" << endl;
+	cout << "    - lmc (the LM-cut heuristic)" << endl;
+	cout << "    - filter (0 if goal is reachable, infinity if goal is not reachable under delete relaxation)" << endl;
+	cout << "  2. What to estimate (key: est). There are three possible values. The default is distance" << endl;
+	cout << "    - distance (estimate number of actions and methods to apply)" << endl;
+	cout << "    - cost (estimate cost of actions to apply)" << endl;
+	cout << "    - mixed (estimate cost of actions plus number of methods to apply)" << endl;
+	cout << "  3. Correct Task Count (key: taskcount). This option is on by default." << endl;
+	cout << "     If on, the heuristic is improved by counting the minimally implied cost/count " << endl;
+	cout << "     of actions that occur more than once in the current task network." << endl;
+	cout << "     To turn it off, pass no as the third argument" << endl;
+	cout << "" << endl;
+	cout << "- The dof (delete and order free relaxation) heuristic requires that pandaPIengine is compiled with CPLEX support." << endl;
+	cout << "  It has the following 8 arguments." << endl;
+	cout << "  1. Type (key: type). Default is ilp. Can be set to lp. Determines whether the problem is solved as an ILP or LP" << endl;
+	cout << "  2. Mode (key: mode). Default is satisficing. Can be set to optimal to make the heuristic optimal." << endl;
+	cout << "  3. TDG (key: tdg). Default allowUC (allow unconnected). Can be set to uc (full encoding, no unconnected parts) or none." << endl;
+	cout << "  4. PG (key: pg). Default is none. Can be set to full or relaxed to enable full or relaxed planning graph." << endl;
+	cout << "  5. And/Or Landmarks (key: andOrLM). Default is None." << endl;
+	cout << "     Can be set to full or onlyTNi to include all landmarks or only those derivable from the initial task network" << endl;
+	cout << "  6. External landmarks (key: externalLM). Default is no. With none can be set to use external landmarks." << endl;
+	cout << "  7. LM-Cut (key: lmclmc). Default is full. Can be set to none to not include LM-Cut landmarks" << endl;
+	cout << "  8. Netchange Constraints (key: netchange). Default is full. Can be set to none to not include net-change constraints" << endl;
+}
+
+
+
 int main(int argc, char *argv[]) {
 	//speed_test();
 	//return 42;
@@ -116,6 +166,10 @@ int main(int argc, char *argv[]) {
 
 	gengetopt_args_info args_info;
 	if (cmdline_parser(argc, argv, &args_info) != 0) return 1;
+	if (args_info.heuristicHelp_given){
+		printHeuristicHelp();
+		return 0;
+	}
 
 	// set debug mode
 	if (args_info.debug_given) setDebugMode(true);
@@ -425,7 +479,8 @@ int main(int argc, char *argv[]) {
 
 		runTranslationPlanner(htn,type, args_info.forceTransType_flag, args_info.pgb_arg, args_info.pgbsteps_arg,
 				string(args_info.downward_arg), string(args_info.downwardConf_arg), string(args_info.sasfile_arg),
-				args_info.iterate_flag, args_info.onlyGenerate_flag);
+				args_info.iterate_flag, args_info.onlyGenerate_flag,
+				args_info.realCosts_flag);
 	}
 
     delete htn;
