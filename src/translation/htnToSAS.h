@@ -9,7 +9,7 @@ class HTNToSASTranslation{
 
 	public:
 	
-	HTNToSASTranslation(Model* model): htn(model){};
+	HTNToSASTranslation(Model* model): htn(model), numEmptyTasks(0) {};
 	// model preparation
 	void reorderTasks(bool warning);
 	void sasPlus();
