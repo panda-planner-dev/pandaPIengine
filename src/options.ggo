@@ -57,8 +57,11 @@ option "methodPreconditionsInSeparateLeafs" m "if in partial order mode, but met
 section "Translation Planner Options"
 
 option "downward" - "path to fast downward executable" string default="none"
-option "transtype" - "type of translation to use" string values="push","parallelseq" default="push"
+option "downwardConf" - "configuration given to fast downward. This has two special values that are expanded to proper configurations. Use ehc-ff() for enforced hill climbing with FF and lazy-cea() for lazy-greedy search with the context enhanced additive heuristic." string default="ehc-ff()"
+option "transtype" - "type of translation to use" string values="push","parallelseq","to","postrips","pocond" default="push"
+option "forceTransType" - "by default, pandaPIengine will switch to a getter encoding if it detects the prerequisites for it in the problem. This flag disables this behaviour and always uses the given encoding." flag off
 option "sasfile" - "name of the SAS+ file generated. In planning mode this file will be written and used as a temporary file" string default="output.sas"
-option "pgb" - "the initial value of the progression bound" int
+option "pgb" - "the initial value of the progression bound. If zero, the minimum progression bound will be computed and used instead. This is the default behaviour!" int default="0"
+option "pgbsteps" - "step size of the progression bound" int default="1"
 option "onlyGenerate" - "only generate the translation and don't solv it. This overrides also iterate" flag off
 option "iterate" - "if the initial pgb is unsolvable, increase by one and continue" flag off

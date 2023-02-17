@@ -418,9 +418,14 @@ int main(int argc, char *argv[]) {
 	} else if (algo == TRANSLATION){
 		TranslationType type;
 		if (string(args_info.transtype_arg) == "push") type = Push; 
-		if (string(args_info.transtype_arg) == "parallelseq") type = ParallelSeq; 
-		runTranslationPlanner(htn,type, args_info.pgb_arg, string(args_info.downward_arg), string(args_info.sasfile_arg),
-				args_info.iterate_arg, args_info.onlyGenerate_arg);
+		if (string(args_info.transtype_arg) == "parallelseq") type = ParallelSeq;
+		if (string(args_info.transtype_arg) == "to") type = TO;
+		if (string(args_info.transtype_arg) == "postrips") type = BaseStrips;
+		if (string(args_info.transtype_arg) == "pocond") type = BaseCondEffects;
+
+		runTranslationPlanner(htn,type, args_info.forceTransType_flag, args_info.pgb_arg, args_info.pgbsteps_arg,
+				string(args_info.downward_arg), string(args_info.downwardConf_arg), string(args_info.sasfile_arg),
+				args_info.iterate_flag, args_info.onlyGenerate_flag);
 	}
 
     delete htn;

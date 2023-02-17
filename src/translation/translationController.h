@@ -5,11 +5,12 @@
 
 
 enum TranslationType{
-	ParallelSeq, Push
+	ParallelSeq, Push, TO, BaseStrips, BaseCondEffects
 };
 
 
-void runTranslationPlanner(Model* htn, TranslationType transtype, int pgb, string downward, string sasfile,
+void runTranslationPlanner(Model* htn, TranslationType transtype, bool forceTransType,
+		int pgb, int pgbsteps, string downward, string downwardConf, string sasfile,
 		bool iterate,
 		bool onlyGenerate);
 

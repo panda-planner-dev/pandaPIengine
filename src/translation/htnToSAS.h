@@ -14,11 +14,23 @@ class HTNToSASTranslation{
 	void reorderTasks(bool warning);
 	void sasPlus();
 	
+	// bounds
+	void calcMinimalProgressionBound(bool to);
+	int minProgressionBound();
+	int maxProgressionBound();
+	
 	// actual translation
 	int htnToCondSorted(int pgb);
+	int tohtnToStrips(int pgb);
+	int htnPS(int numSeq, int* pgbList);
+	int htnToCond(int pgb);
+	int htnToStrips(int pgb);
 
 	// write the model to file
 	void writeToFastDown(string sasName, bool hasCondEff);
+	
+	// plan verification
+	void planToHddl(string infile, string outfile);
 
 
 	private:
@@ -123,24 +135,13 @@ class HTNToSASTranslation{
 
 
 
-	void calcMinimalProgressionBound(bool to);
-	// translation to strips
-	void tohtnToStrips(int pgb);
-	int htnToCond(int pgb);
-	int htnPS(int numSeq, int* pgbList);
-	int htnToStrips(int pgb);
-	int minProgressionBound();
-	int maxProgressionBound();
 	
 	void printActionsToFile(string file);
 	void printStateBitsToFile(string file);
-	bool parallelSequences();
   int calculatePrecsAndAdds(int* s, int* p, int* a, string tasks, int** conv);
 
   void checkFastDownwardPlan(string domain, string plan);
 
-	// plan verification
-	void planToHddl(string infile, string outfile);
 
 
 };

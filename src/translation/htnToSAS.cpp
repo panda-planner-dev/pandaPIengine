@@ -302,6 +302,7 @@ int HTNToSASTranslation::calculatePrecsAndAdds(int* s, int* p, int* a, string ta
 
 
 void HTNToSASTranslation::reorderTasks(bool warning){
+  if (warning) cout << "Warn" << endl;
   firstNumTOPrimTasks = new int[htn->numMethods];
   subTasksInOrder = new int*[htn->numMethods];
   hasNoLastTask = new bool[htn->numMethods];
@@ -360,7 +361,7 @@ void HTNToSASTranslation::reorderTasks(bool warning){
           if (not valueSet){
   			subs[j] = k;
   			valueSet = true;
-  		} else {
+  		} else if (warning){
   			cout << "ATTENTION: Instance is not of the parallel sequences type. Search with the PSeq encoding might be incomplete." << endl;
   		}
         }
@@ -946,6 +947,1259 @@ int HTNToSASTranslation::htnToCondSorted(int pgb) {
   }
   return numActionsTrans;
 }
+
+
+int HTNToSASTranslation::tohtnToStrips(int pgb) {
+  // number of translated variables
+  numVarsTrans = htn->numVars + 1 + pgb;
+  // indizes for variables
+  firstVarIndex = 0;
+  headIndex = htn->numVars;
+  firstTaskIndex = htn->numVars + 1;
+  varNamesTrans = new string[numVarsTrans];
+  numInvalidTransActions = 0;
+
+
+  // indizes for names
+  firstIndexTrans = new int[numVarsTrans];
+  lastIndexTrans = new int[numVarsTrans];
+
+  for (int i = 0; i < htn->numVars; i++){
+    firstIndexTrans[firstVarIndex+ i] = htn->firstIndex[i];
+    lastIndexTrans[firstVarIndex+i] = htn->lastIndex[i];
+  }
+
+  firstIndexTrans[headIndex] = lastIndexTrans[headIndex - 1] + 1;
+  lastIndexTrans[headIndex] = firstIndexTrans[headIndex] + pgb;
+
+  for (int i = 0; i < pgb; i++){
+    firstIndexTrans[firstTaskIndex + i] = lastIndexTrans[firstTaskIndex + i - 1] + 1;
+    lastIndexTrans[firstTaskIndex + i] = firstIndexTrans[firstTaskIndex + i] + htn->numTasks;
+	//cout << firstIndexTrans[firstTaskIndex + i] << " " << lastIndexTrans[firstTaskIndex + i] << endl;
+  }
+
+  numStateBitsTrans = lastIndexTrans[numVarsTrans - 1] + 1;
+
+  factStrsTrans = new string[numStateBitsTrans];
+
+
+  varNamesTrans[headIndex] = "varHead";
+  for (int i = firstTaskIndex; i < numVarsTrans ; i++){
+    varNamesTrans[i] = "varTasksHead" + to_string(i);
+  }
+  for (int i = 0; i < htn->numVars; i++){
+    varNamesTrans[firstVarIndex + i] = htn->varNames[i];
+  }
+
+
+  for (int i = 0; i < htn->numStateBits; i++){
+    factStrsTrans[firstIndexTrans[firstVarIndex] + i] = htn->factStrs[i];
+  }
+  factStrsTrans[firstIndexTrans[headIndex]] = "ppoint(head, finish)";
+  for (int i = 0; i < pgb; i++){
+    factStrsTrans[i + firstIndexTrans[headIndex] + 1] = string("ppoint(head, point")+ to_string(i) + ')';
+  }
+  for (int i = firstTaskIndex; i < numVarsTrans; i++){
+    factStrsTrans[firstIndexTrans[i]] = string("ptask(point") + to_string(i-firstTaskIndex) + string(", noTask)")    ;
+    for (int j = 0; j < lastIndexTrans[i] - firstIndexTrans[i]; j++){
+      factStrsTrans[firstIndexTrans[i]+j + 1] = string("ptask(point") + to_string(i - firstTaskIndex) + string(", task") + to_string(j) + ')';
+    }
+  }
+
+  // Initial state
+  s0SizeTrans = numVarsTrans-headIndex;
+  s0ListTrans = new int[s0SizeTrans];
+  s0ListTrans[0] = firstIndexTrans[headIndex] + 1;
+  s0ListTrans[1] = firstIndexTrans[firstTaskIndex] + htn->initialTask + 1;
+  for (int i = 1; i < s0SizeTrans - 1; i++){
+    s0ListTrans[i + 1] = firstIndexTrans[firstTaskIndex + i];
+  }
+
+  // Goal state
+  gSizeTrans = 1;
+  gListTrans = new int[gSizeTrans];
+  gListTrans[0] = firstIndexTrans[headIndex];
+
+  // transformed actions and methods
+  numActionsTrans = htn->numActions * pgb + htn->numMethods * pgb;
+  firstMethodIndex = htn->numActions * pgb;
+  actionCostsTrans = new int[numActionsTrans];
+  invalidTransActions = new bool[numActionsTrans];
+  for (int i = 0; i < numActionsTrans; i++) {
+    invalidTransActions[i] = false;
+  }
+  for (int i = 0; i < htn->numActions; i++) {
+    for (int j = 0; j < pgb; j++){
+      actionCostsTrans[i * pgb + j] = htn->actionCosts[i];
+    }
+  }
+  for (int i = firstMethodIndex; i < numActionsTrans; i++) {
+    actionCostsTrans[i] = 0;
+    int method = (i-firstMethodIndex)/pgb;
+    //cout << "ACC " << i << " " << method << " " << firstNumTOPrimTasks[method] << " " << numSubTasks[method] << " " << firstNumTOPrimTasks[method] << endl;
+    if (firstNumTOPrimTasks[method] > 0){
+        for (int k = 0; k < firstNumTOPrimTasks[method]; k++){
+  		  //cout << "C " << method << " " << numMethods << " " << numSubTasks[method] << " " << 1 << " " << k << " = " << subTasksInOrder[method][numSubTasks[method] - 1 - k] << endl;
+      	  actionCostsTrans[i] += htn->actionCosts[subTasksInOrder[method][htn->numSubTasks[method] - 1 - k]];
+  	  }
+    }
+  }
+
+  // transformed actions
+  numPrecsTrans = new int[numActionsTrans];
+  numAddsTrans = new int[numActionsTrans];
+  for (int i = 0; i < htn->numActions; i++) {
+    for (int j = 0; j < pgb; j++){
+      numPrecsTrans[i * pgb + j] = htn->numPrecs[i] + 2;
+      numAddsTrans[i * pgb + j] = htn->numAdds[i] + 2;
+    }
+  }
+
+  for (int i = 0; i < htn->numMethods; i++) {
+    for (int j = 0; j < pgb; j++){
+      if (htn->numSubTasks[i] + j - firstNumTOPrimTasks[i] > pgb){
+        invalidTransActions[firstMethodIndex + i * pgb + j] = true;
+      }
+      numPrecsTrans[firstMethodIndex + i * pgb + j] = 2;
+      if (htn->numSubTasks[i] - firstNumTOPrimTasks[i] == 0){
+        numAddsTrans[firstMethodIndex + i * pgb + j] = 2;
+      }
+      else if (htn->numSubTasks[i] - firstNumTOPrimTasks[i] == 1){
+        numAddsTrans[firstMethodIndex + i * pgb + j] = 1;
+      }
+      else {
+        numAddsTrans[firstMethodIndex + i * pgb + j] = htn->numSubTasks[i] - firstNumTOPrimTasks[i] + 1;
+      }
+    }
+  }
+
+  // invalid Methods
+  numInvalidTransActions = 0;
+  for (int i = 0; i < numActionsTrans; i++) {
+    if (invalidTransActions[i]){
+      numInvalidTransActions++;
+    }
+  }
+
+  //precs, dels, adds
+  precListsTrans = new int*[numActionsTrans];
+  for (int i = 0; i < numActionsTrans; i++) {
+    precListsTrans[i] = new int[numPrecsTrans[i]];
+  }
+  addListsTrans = new int*[numActionsTrans];
+  for (int i = 0; i < numActionsTrans; i++) {
+    addListsTrans[i] = new int[numAddsTrans[i]];
+  }
+
+  //precs, dels, adds for actions
+  for (int i = 0; i < htn->numActions; i++) {
+    for (int j = 0; j < pgb; j++){
+      for (int k = 0; k < htn->numPrecs[i]; k++){
+        precListsTrans[i * pgb + j][k] = htn->precLists[i][k];
+      }
+      precListsTrans[i * pgb + j][numPrecsTrans[i * pgb + j] - 1] = firstIndexTrans[headIndex] + 1 + j;
+      precListsTrans[i * pgb + j][numPrecsTrans[i * pgb + j] - 2] = firstIndexTrans[firstTaskIndex + j] + 1 + i;
+      for (int k = 0; k < htn->numAdds[i]; k++){
+        addListsTrans[i * pgb + j][k] = htn->addLists[i][k];
+      }
+      addListsTrans[i * pgb + j][numAddsTrans[i * pgb + j] - 1] = firstIndexTrans[headIndex] + j;
+      addListsTrans[i * pgb + j][numAddsTrans[i * pgb + j] - 2] = firstIndexTrans[firstTaskIndex + j];
+    }
+  }
+  taskToKill = new int[htn->numMethods];
+  for (int i = 0; i < htn->numTasks; i++){
+    for (int j =0; j < htn->numMethodsForTask[i]; j++){
+      taskToKill[htn->taskToMethods[i][j]] = i + 1;
+    }
+  }
+  //precs, dels, adds for methods
+  for (int i = 0; i < htn->numMethods; i++) {
+      for (int j = 0; j < pgb; j++){
+          if (invalidTransActions[firstMethodIndex + i * pgb + j]){
+              continue;
+          }
+          precListsTrans[firstMethodIndex + i * pgb + j][0] = firstIndexTrans[headIndex] + 1 + j;
+          precListsTrans[firstMethodIndex + i * pgb + j][1] = firstIndexTrans[firstTaskIndex + j] + taskToKill[i];
+          if (htn->numSubTasks[i] - firstNumTOPrimTasks[i] == 0){
+            addListsTrans[firstMethodIndex + i * pgb + j][1] = firstIndexTrans[firstTaskIndex + j];
+            addListsTrans[firstMethodIndex + i * pgb + j][0] = firstIndexTrans[headIndex] + j;
+            continue;
+          }
+          if (htn->numSubTasks[i] - firstNumTOPrimTasks[i] == 1){
+            addListsTrans[firstMethodIndex + i * pgb + j][0] = firstIndexTrans[firstTaskIndex + j] + 1 + subTasksInOrder[i][0];
+            continue;
+          }
+          for (int k = 0; k < htn->numSubTasks[i] - firstNumTOPrimTasks[i]; k++){
+            addListsTrans[firstMethodIndex + i * pgb + j][k] = firstIndexTrans[firstTaskIndex + j + k] + 1 + subTasksInOrder[i][k];
+          }
+          addListsTrans[firstMethodIndex + i * pgb + j][numAddsTrans[firstMethodIndex + i * pgb + j] - 1] = firstIndexTrans[headIndex] + j + htn->numSubTasks[i] - firstNumTOPrimTasks[i];
+      }
+  }
+  // names
+  actionNamesTrans = new string[numActionsTrans];
+  for (int i = 0; i < htn->numActions; i++) {
+      for (int j = 0; j < pgb; j++){
+          actionNamesTrans[i * pgb + j] = "primitive(id[" + to_string(i)  + "],head[" + to_string(j) + "]): " + htn->taskNames[i];
+      }
+  }
+  for (int i = 0; i < htn->numMethods; i++) {
+      for (int j = 0; j < pgb; j++){
+          actionNamesTrans[firstMethodIndex + i * pgb + j] = "method(id[" + to_string(i) + "],head[" + to_string(j);
+          if (htn->numSubTasks[i] - firstNumTOPrimTasks[i] > 0){
+            actionNamesTrans[firstMethodIndex + i * pgb + j] += "],subtasks[" + to_string(j);
+            for (int k = 1; k < htn->numSubTasks[i] - firstNumTOPrimTasks[i]; k++){
+              actionNamesTrans[firstMethodIndex + i * pgb + j] += ',' + to_string(j + k);
+            }
+          }
+          
+  		if (firstNumTOPrimTasks[i] > 0){
+            actionNamesTrans[firstMethodIndex + i * pgb + j] += "],firstPrim[" + to_string(subTasksInOrder[i][htn->numSubTasks[i] - 1]);
+            for (int k = 1; k < firstNumTOPrimTasks[i]; k++){
+              actionNamesTrans[firstMethodIndex + i * pgb + j] += ',' + to_string(subTasksInOrder[i][htn->numSubTasks[i] - 1 - k]);
+            }
+          }
+          actionNamesTrans[firstMethodIndex + i * pgb + j] += "]): " + htn->methodNames[i];
+  		//cout << "output " << i << " " << j << " " << firstMethodIndex + i * pgb + j << " " << " " << firstNumTOPrimTasks[i] << actionNamesTrans[firstMethodIndex + i * pgb + j] << endl;
+      }
+  }
+  return numActionsTrans;
+}
+
+
+int HTNToSASTranslation::htnPS(int numSeq, int* pgbList) {
+  // number of variables: one head counter per sequence, the sequences themselves and constraints between sequences
+  int pgb = 0;
+  numVarsTrans = htn->numVars + numSeq + 1 + numSeq * (numSeq - 1);
+  for (int i = 0; i < numSeq; i++){
+    numVarsTrans += pgbList[i];
+    if (pgb < pgbList[i]){
+      pgb = pgbList[i];
+    }
+  }
+  // relevant indezes
+  firstVarIndex = 0;
+  headIndex = htn->numVars + 1;
+  firstConstraintIndex = htn->numVars + numSeq + 1;
+  firstTaskIndex = htn->numVars + numSeq + 1 + numSeq * (numSeq - 1);
+  varNamesTrans = new string[numVarsTrans];
+
+  firstIndexTrans = new int[numVarsTrans];
+  lastIndexTrans = new int[numVarsTrans];
+  int* taskIndezes = new int[numSeq];
+  
+  
+  for (int i = 0; i < htn->numVars; i++){
+    firstIndexTrans[firstVarIndex + i] = htn->firstIndex[i];
+    lastIndexTrans[firstVarIndex + i] = htn->lastIndex[i];
+  }
+  // special var for first task
+  firstIndexTrans[headIndex - 1] = lastIndexTrans[headIndex - 2] + 1;
+  lastIndexTrans[headIndex - 1] = firstIndexTrans[headIndex - 1] + 1;
+  for (int i = 0; i < numSeq; i++){
+    firstIndexTrans[headIndex + i] = lastIndexTrans[headIndex - 1 + i] + 1;
+    lastIndexTrans[headIndex + i] = firstIndexTrans[headIndex + i] + pgbList[i];
+  }
+  for (int i = 0; i < numSeq * (numSeq - 1); i++){
+    firstIndexTrans[firstConstraintIndex + i] = lastIndexTrans[firstConstraintIndex + i - 1] + 1;
+    lastIndexTrans[firstConstraintIndex + i] = firstIndexTrans[firstConstraintIndex + i] + 1;
+  }
+  int index = firstTaskIndex;
+  for (int i = 0; i < numSeq; i++){
+    taskIndezes[i] = index;
+    for (int j = 0; j < pgbList[i]; j++){
+      firstIndexTrans[index] = lastIndexTrans[index - 1] + 1;
+      lastIndexTrans[index] = firstIndexTrans[index] + htn->numTasks;
+      index++;
+    }
+  }
+  numStateBitsTrans = lastIndexTrans[numVarsTrans - 1] + 1;
+
+  factStrsTrans = new string[numStateBitsTrans];
+  
+  // variable names
+  varNamesTrans[headIndex - 1] = "var" + to_string(headIndex - 1) + ",Top";
+
+  index = headIndex;
+  for (int i = 0; i < numSeq; i++){
+    varNamesTrans[index] = "var" + to_string(index) + ",sequence" + to_string(i);
+    index++;
+  }
+
+  index = firstTaskIndex;
+  for (int i = 0; i < numSeq; i++){
+    for (int j = 0; j < pgbList[i]; j++){
+      varNamesTrans[index] = "var" + to_string(index) + ",sequence" + to_string(i) + "head" + to_string(j);
+      index++;
+    }
+  }
+  index = firstConstraintIndex;
+  for (int i = 0; i < numSeq; i++){
+    for (int j = 0; j < numSeq - 1; j++){
+      varNamesTrans[index] = "var" + to_string(index) + ",sequence" + to_string(i) + "constrains" + to_string(j);
+      index++;
+    }
+  }
+  for (int i = 0; i < htn->numVars; i++){
+    varNamesTrans[firstVarIndex + i] = htn->varNames[i];
+  }
+
+  // state bit names
+  for (int i = 0; i < htn->numStateBits; i++){
+    factStrsTrans[firstIndexTrans[firstVarIndex] + i] = htn->factStrs[i];
+  }
+  factStrsTrans[firstIndexTrans[headIndex - 1]] = "+top[done]";
+  factStrsTrans[firstIndexTrans[headIndex - 1] + 1] = "+top[active]";
+
+  index = firstIndexTrans[headIndex];
+  for (int i = 0; i < numSeq; i++){
+    factStrsTrans[index] = "+sequence[done]";
+    index++;
+    for (int j = 0; j < pgbList[i]; j++){
+      factStrsTrans[index] = string("+sequence[head")+ to_string(j) + ']';
+      index++;
+    }
+  }
+  index = firstIndexTrans[firstConstraintIndex];
+  for (int i = 0; i < numSeq; i++){
+    for (int j = 0; j < numSeq; j++){
+      if (j == i){
+        continue;
+      }
+      factStrsTrans[index] = string("+unconstrained[sequence") + to_string(i) + string(",sequence") + to_string(j) + ']';
+      index++;
+      factStrsTrans[index] = string("+constrained[sequence") + to_string(i) + string(",sequence") + to_string(j) + ']';
+      index++;
+    }
+  }
+  index = firstIndexTrans[firstTaskIndex];
+  for (int i = 0; i < numSeq; i++){
+    for (int j = 0; j < pgbList[i]; j++){
+      factStrsTrans[index] = string("+task[sequence") + to_string(i)  + string(",head") + to_string(j) + string(",noTask]");
+      index++;
+      for (int k = 0; k < htn->numTasks; k++){
+        factStrsTrans[index] = string("+task[sequence") + to_string(i)  + string(",head") + to_string(j) + string(",task") + to_string(k) + ']';
+        index++;
+      }
+    }
+  }
+  // Initial state
+  s0SizeTrans = numVarsTrans - headIndex + 1;
+  s0ListTrans = new int[s0SizeTrans];
+  s0ListTrans[0] = firstIndexTrans[headIndex - 1] + 1;
+  for (int i = 1; i < s0SizeTrans; i++){
+    s0ListTrans[i] = firstIndexTrans[headIndex + i - 1];
+  }
+
+  // Goal state
+  gSizeTrans = 1 + numSeq;
+  gListTrans = new int[gSizeTrans];
+  gListTrans[0] = firstIndexTrans[headIndex - 1];
+  for (int i = 0; i < numSeq; i++){
+    gListTrans[i + 1] = firstIndexTrans[headIndex + i];
+  }
+  
+  // transformed actions and methods
+  numActionsTrans = htn->numActions * pgb * numSeq + htn->numMethods * pgb * numSeq;
+  firstMethodIndex = htn->numActions * pgb * numSeq;
+
+  actionCostsTrans = new int[numActionsTrans];
+  invalidTransActions = new bool[numActionsTrans];
+  for (int i = 0; i < numActionsTrans; i++) {
+    invalidTransActions[i] = false;
+  }
+  numInvalidTransActions = 0;
+  
+  numPrecsTrans = new int[numActionsTrans];
+  numAddsTrans = new int[numActionsTrans];
+  precListsTrans = new int*[numActionsTrans];
+  addListsTrans = new int*[numActionsTrans];
+
+  actionNamesTrans = new string[numActionsTrans];
+
+  // actions
+  index = 0;
+  for (int i = 0; i < htn->numActions; i++) {
+    for (int j = 0; j < pgb; j++){
+      for (int k = 0; k < numSeq; k++){
+        actionCostsTrans[index] = htn->actionCosts[i];
+        if (j >= pgbList[k]){
+          invalidTransActions[index] = true;
+          numInvalidTransActions++;
+          index++;
+          continue;
+        }
+        numPrecsTrans[index] = htn->numPrecs[i] + 2 + numSeq - 1;
+        numAddsTrans[index] = htn->numAdds[i] + 2;
+        if (j == 0){
+          numAddsTrans[index] += numSeq - 1;
+        }
+        precListsTrans[index] = new int[numPrecsTrans[index]];
+        addListsTrans[index] = new int[numAddsTrans[index]];
+        for (int l = 0; l < htn->numPrecs[i]; l++){
+          precListsTrans[index][l] = htn->precLists[i][l];
+        }
+        for (int l = 0; l < htn->numAdds[i]; l++){
+          addListsTrans[index][l] = htn->addLists[i][l];
+        }
+        for (int l = 0; l < numSeq - 1; l++){
+          int off = 0;
+          if (l >= k){
+            off = 1;
+          }
+          precListsTrans[index][htn->numPrecs[i] + 2 + l] = firstIndexTrans[firstConstraintIndex + (l + off) * (numSeq - 1) + k - 1 + off];
+          if (j == 0){
+            addListsTrans[index][htn->numAdds[i] + 2 + l] = firstIndexTrans[firstConstraintIndex + (numSeq - 1) * k + l];
+          }
+        }
+        precListsTrans[index][htn->numPrecs[i]] = firstIndexTrans[headIndex + k] + 1 + j;
+        precListsTrans[index][htn->numPrecs[i] + 1] = firstIndexTrans[taskIndezes[k] + j] + 1 + i;
+        addListsTrans[index][htn->numAdds[i]] = firstIndexTrans[headIndex + k] + j;
+        addListsTrans[index][htn->numAdds[i] + 1] = firstIndexTrans[taskIndezes[k] + j];
+
+        actionNamesTrans[index] = "primitive(id[" + to_string(i)  + "],head[" + to_string(k * pgb + j) + "]): " + htn->taskNames[i];
+        index++;
+      }
+    }
+  }
+  
+  taskToKill = new int[htn->numMethods];
+  for (int i = 0; i < htn->numTasks; i++){
+    for (int j = 0; j < htn->numMethodsForTask[i]; j++){
+      taskToKill[htn->taskToMethods[i][j]] = i + 1;
+    }
+  }
+
+  // methods
+  index = firstMethodIndex;
+  for (int i = 0; i < htn->numMethods; i++) {
+    for (int j = 0; j < pgb; j++){
+      for (int k = 0; k < numSeq; k++){
+        actionCostsTrans[index] = 0;
+        if (htn->numSubTasks[i] + j > pgbList[k] && !(taskToKill[i] == htn->initialTask + 1)){
+          invalidTransActions[index] = true;
+          numInvalidTransActions++;
+          index++;
+          continue;
+        }
+        numPrecsTrans[index] = 2 + numSeq - 1;
+        if (htn->numSubTasks[i] == 0){
+          numAddsTrans[index] = 2;
+          if (j == 0){
+            numAddsTrans[index] += numSeq - 1;
+          }
+        }
+        else if (htn->numSubTasks[i] == 1){
+          numAddsTrans[index] = 1;
+        }
+        else {
+          numAddsTrans[index] = htn->numSubTasks[i] + 1;
+        }
+        // one top method
+        if (taskToKill[i] == htn->initialTask + 1){
+          if (j == 0 && k == 0){
+            numPrecsTrans[index] = 1;
+            numAddsTrans[index] = numSeq * (numSeq + 1) + 1;
+            precListsTrans[index] = new int[numPrecsTrans[index]];
+            addListsTrans[index] = new int[numAddsTrans[index]];
+            precListsTrans[index][0] = firstIndexTrans[headIndex - 1] + 1;
+            addListsTrans[index][0] = firstIndexTrans[headIndex - 1];
+            for (int l = 0; l < numSeq; l++){
+              addListsTrans[index][1 + l] = firstIndexTrans[headIndex + l] + 1;
+              addListsTrans[index][1 + l + numSeq] = firstIndexTrans[taskIndezes[l]] + subTasksInOrder[i][l] + 1;
+              for (int m = 0; m < numSeq - 1; m++){
+                addListsTrans[index][1 + 2 * numSeq + l * (numSeq - 1) + m] = firstIndexTrans[firstConstraintIndex + l * (numSeq - 1) + m];
+              }
+            }
+            for (int l = 0; l < htn->numOrderings[i] / 2; l++){
+              int off = 0;
+              if (htn->ordering[i][2 * l] < htn->ordering[i][2 * l + 1]){
+                off = 1;
+              }
+              int order = htn->ordering[i][2 * l] * (numSeq - 1) + htn->ordering[i][2 * l + 1] - off;
+              addListsTrans[index][1 + 2 * numSeq + order] = firstIndexTrans[firstConstraintIndex + order] + 1;
+            }
+          }
+          else {
+            invalidTransActions[index] = true;
+            numInvalidTransActions++;
+          }
+          actionNamesTrans[index] = "method(id[" + to_string(i) + "],head[" + to_string(k * pgb + j);
+          actionNamesTrans[index] += "],subtasks[" + to_string(0);
+          for (int l = 1; l < htn->numSubTasks[i]; l++){
+            actionNamesTrans[index] += ',' + to_string(l * pgb);
+          }
+          actionNamesTrans[index] += "]): " + htn->methodNames[i];
+          index++;
+          continue;
+        }
+        precListsTrans[index] = new int[numPrecsTrans[index]];
+        addListsTrans[index] = new int[numAddsTrans[index]];
+
+        precListsTrans[index][0] = firstIndexTrans[headIndex + k] + 1 + j;
+        precListsTrans[index][1] = firstIndexTrans[taskIndezes[k] + j] + taskToKill[i];
+        for (int l = 0; l < numSeq - 1; l++){
+          int off = 0;
+          if (l >= k){
+            off = 1;
+          }
+          precListsTrans[index][2 + l] = firstIndexTrans[firstConstraintIndex + (l + off) * (numSeq - 1) + k - 1 + off];
+          if (j == 0 && htn->numSubTasks[i] == 0){
+            addListsTrans[index][2 + l] = firstIndexTrans[firstConstraintIndex + (numSeq - 1) * k + l];
+          }
+        }
+        if (htn->numSubTasks[i] == 0){
+          addListsTrans[index][0] = firstIndexTrans[headIndex] + j;
+          addListsTrans[index][1] = firstIndexTrans[taskIndezes[k] + j];
+        }
+        else if (htn->numSubTasks[i] == 1){
+          addListsTrans[index][0] = firstIndexTrans[taskIndezes[k] + j] + 1 + subTasksInOrder[i][0];
+        }
+        else {
+          for (int l = 0; l < htn->numSubTasks[i]; l++){
+            addListsTrans[index][l] = firstIndexTrans[taskIndezes[k] + j + l] + 1 + subTasksInOrder[i][l];
+          }
+          addListsTrans[index][numAddsTrans[index] - 1] = firstIndexTrans[headIndex + k] + j + htn->numSubTasks[i];
+        }
+
+        actionNamesTrans[index] = "method(id[" + to_string(i) + "],head[" + to_string(k * pgb + j);
+        if (htn->numSubTasks[i] > 0){
+          actionNamesTrans[index] += "],subtasks[" + to_string(k * pgb + j);
+          for (int l = 1; l < htn->numSubTasks[i]; l++){
+            actionNamesTrans[index] += ',' + to_string(k * pgb + j + l);
+          }
+        }
+        actionNamesTrans[index] += "]): " + htn->methodNames[i];
+        
+        index++;
+      }
+    }
+  }
+  delete[] taskIndezes;
+  return numActionsTrans;
+}
+
+int HTNToSASTranslation::htnToStrips(int pgb) {
+  // number of translated variables
+  int n = pgb * (pgb - 1);
+  numVarsTrans = htn->numVars + 2 * pgb + n;
+
+  // indizes for variables
+  firstVarIndex = 0;
+  firstTaskIndex = htn->numVars;
+  firstConstraintIndex = htn->numVars + pgb;
+  firstStackIndex = firstConstraintIndex + n;
+
+  // indizes for names
+  firstIndexTrans = new int[numVarsTrans];
+  lastIndexTrans = new int[numVarsTrans];
+
+  for (int i = 0; i < htn->numVars; i++){
+    firstIndexTrans[firstVarIndex+ i] = htn->firstIndex[i];
+    lastIndexTrans[firstVarIndex+i] = htn->lastIndex[i];
+  }
+  
+  for (int i = 0; i < pgb; i++){
+    firstIndexTrans[firstTaskIndex + i] = lastIndexTrans[firstTaskIndex + i - 1] + 1;
+    lastIndexTrans[firstTaskIndex + i] = firstIndexTrans[firstTaskIndex + i] + htn->numTasks+1;
+  }
+
+  for (int i = 0; i < n; i++){
+    firstIndexTrans[firstConstraintIndex + i] = lastIndexTrans[firstConstraintIndex + i - 1] + 1;
+    lastIndexTrans[firstConstraintIndex + i] = firstIndexTrans[firstConstraintIndex + i] + 1;
+  }
+
+  for (int i = 0; i < pgb; i++){
+    firstIndexTrans[firstStackIndex + i] = lastIndexTrans[firstStackIndex + i - 1] + 1;
+    lastIndexTrans[firstStackIndex + i] = firstIndexTrans[firstStackIndex + i] + 1;
+  }
+
+  varNamesTrans = new string[numVarsTrans];
+  
+
+  numStateBitsTrans = lastIndexTrans[numVarsTrans - 1] + 1;
+
+  factStrsTrans = new string[numStateBitsTrans];
+  for (int i = 0; i < htn->numStateBits; i++){
+    factStrsTrans[firstIndexTrans[firstVarIndex] + i] = htn->factStrs[i];
+  }
+  for (int i = firstTaskIndex; i < firstConstraintIndex; i++){
+    factStrsTrans[firstIndexTrans[i]] = string("+task[head") + to_string(i-firstTaskIndex) + string(",noTask]")    ;
+    factStrsTrans[firstIndexTrans[i] + 1] = string("+task[head") + to_string(i-firstTaskIndex) + string(",emptyTask]")    ;
+    for (int j = 0; j < lastIndexTrans[i] - firstIndexTrans[i] -1 ; j++){
+      factStrsTrans[firstIndexTrans[i]+j + 1] = string("+task[head") + to_string(i - firstTaskIndex) + string(",task") + to_string(j) + ']';
+    }
+  }
+  int j = 0;
+  int k = 0;
+  for (int i = firstConstraintIndex; i < firstStackIndex; i++){
+    j++;
+    if (k == j) {
+      j++;
+    }
+    if (j == pgb) {
+      j = 0;
+      k++;
+    }
+    factStrsTrans[firstIndexTrans[i]] = string("+no_Constraint[")+ to_string(k) + ',' + to_string(j) + ']';
+    factStrsTrans[firstIndexTrans[i] + 1] = string("+Constraint[") + to_string(k) + ',' + to_string(j) + ']';
+  }
+  for (int i = 0; i < pgb; i++){
+    factStrsTrans[firstIndexTrans[i + firstStackIndex]] = string("+free[head")+ to_string(i) + ']';
+    factStrsTrans[firstIndexTrans[i + firstStackIndex] + 1] = string("+occupied[head")+ to_string(i) + ']';
+  }
+  for (int i = 0; i < numVarsTrans; i++){
+      varNamesTrans[i] = "var_" + to_string(i);
+  }
+
+  
+  // Initial state
+  s0SizeTrans = numVarsTrans-firstTaskIndex;
+  s0ListTrans = new int[s0SizeTrans];
+  s0ListTrans[0] = firstIndexTrans[firstTaskIndex] + htn->initialTask + 2;
+  for (int i = 1; i < s0SizeTrans; i++){
+    s0ListTrans[i] = firstIndexTrans[firstTaskIndex + i];
+  }
+  s0ListTrans[firstStackIndex - firstTaskIndex] = firstIndexTrans[firstStackIndex] + 1;
+
+  // goal state
+  gSizeTrans = pgb;
+  gListTrans = new int[pgb];
+  for (int i = 0; i < pgb; i++){
+    gListTrans[i] = firstIndexTrans[firstTaskIndex + i];
+  }
+
+  // empty tasks
+  numEmptyTasks = pgb;
+  emptyTaskNames = new string[numEmptyTasks];
+  numEmptyTaskPrecs = new int[numEmptyTasks];
+  numEmptyTaskAdds = new int[numEmptyTasks];
+  emptyTaskPrecs = new int*[numEmptyTasks];
+  emptyTaskAdds = new int*[numEmptyTasks];
+  for (int i = 0; i < pgb; i++){
+    numEmptyTaskPrecs[i] = pgb;
+    numEmptyTaskAdds[i] = pgb + 1;
+    emptyTaskPrecs[i] = new int[pgb];
+    emptyTaskAdds[i] = new int[pgb + 1];
+    emptyTaskAdds[i][pgb] = firstIndexTrans[firstStackIndex + i];
+    for (int k = 0; k < pgb; k++){
+      if (k < i){
+        emptyTaskPrecs[i][k] = firstIndexTrans[firstConstraintIndex + k * (pgb - 1) + i - 1];
+        emptyTaskAdds[i][k] = firstIndexTrans[firstConstraintIndex + i * (pgb - 1) + k];
+      }
+      else if (i == k){
+        emptyTaskPrecs[i][k] = firstIndexTrans[firstTaskIndex + i] + 1;
+        emptyTaskAdds[i][k] = firstIndexTrans[firstTaskIndex + i];
+      }
+      else {
+        emptyTaskPrecs[i][k] = firstIndexTrans[firstConstraintIndex + k * (pgb - 1) + i];
+        emptyTaskAdds[i][k] = firstIndexTrans[firstConstraintIndex + i * (pgb - 1) + k - 1];
+      }
+    }
+    emptyTaskNames[i] = string("emptyTask(head ") + to_string(i) + ')';
+  }
+  
+  // transformed actions and methods
+  methodIndexes = new int[htn->numMethods + 1];
+  methodIndexes[0] = 0;
+  for (int i = 1; i < htn->numMethods + 1; i++){     
+    int off = 1;
+    if (hasNoLastTask[i - 1]){
+      off = 0;
+    }
+    int m = bin(pgb - 1, htn->numSubTasks[i - 1] - off);
+    if (m < 1){
+      m = 1;
+    }
+    if (m == INT_MAX){
+      return -1;
+    }
+    if (htn->numSubTasks[i - 1] <= 1){
+      m = 1;
+    }
+    methodIndexes[i] = methodIndexes[i - 1] + m;
+  }
+  
+  numMethodsTrans = methodIndexes[htn->numMethods];
+  numMethodsTrans *= pgb;
+  numActionsTrans = htn->numActions * pgb + numMethodsTrans;
+  firstMethodIndex = htn->numActions * pgb;
+  actionCostsTrans = new int[numActionsTrans];
+  invalidTransActions = new bool[numActionsTrans];
+  for (int i = 0; i < numActionsTrans; i++) {
+    invalidTransActions[i] = false;
+  }
+  for (int i = 0; i < htn->numActions; i++) {
+    for (int j = 0; j < pgb; j++){
+      actionCostsTrans[i * pgb + j] = htn->actionCosts[i];
+    }
+  }
+  for (int i = firstMethodIndex; i < numActionsTrans; i++) {
+    actionCostsTrans[i] = 0;
+  }
+  
+  // transformed actions
+  numPrecsTrans = new int[numActionsTrans];
+  numAddsTrans = new int[numActionsTrans];
+  numDelsTrans = new int[numActionsTrans];
+  precListsTrans = new int*[numActionsTrans];
+  addListsTrans = new int*[numActionsTrans];
+  actionNamesTrans = new string[numActionsTrans];
+
+  for (int i = 0; i < htn->numActions; i++) {
+    for (int j = 0; j < pgb; j++){
+      int index = i * pgb + j;
+      numPrecsTrans[index] = htn->numPrecs[i] + pgb;
+      numAddsTrans[index] = htn->numAdds[i] + pgb + 1;
+      precListsTrans[index] = new int[numPrecsTrans[index]];
+      addListsTrans[index] = new int[numAddsTrans[index]];
+      for (int l = 0; l < htn->numPrecs[i]; l++){
+        precListsTrans[index][l] = htn->precLists[i][l];
+      }
+      for (int l = 0; l < htn->numAdds[i]; l++){
+        addListsTrans[index][l] = htn->addLists[i][l];
+      }
+      for (int l = 0; l < pgb; l++){
+        if (l < j){
+          precListsTrans[index][htn->numPrecs[i] + l] = firstIndexTrans[firstConstraintIndex + l * (pgb - 1) + j - 1];
+        }
+        else if (j == l){
+          precListsTrans[index][htn->numPrecs[i] + l] = firstIndexTrans[firstTaskIndex + j] + 2 + i;
+        }
+        else {
+          precListsTrans[index][htn->numPrecs[i] + l] = firstIndexTrans[firstConstraintIndex + l * (pgb - 1) + j];
+        }
+      }
+      actionNamesTrans[index] = "primitive(id[" + to_string(i) + "],head[" + to_string(j) + "]): " + htn->taskNames[i];
+      addListsTrans[index][htn->numAdds[i]] = firstIndexTrans[firstTaskIndex + j];
+      addListsTrans[index][numAddsTrans[index] - 1] = firstIndexTrans[firstStackIndex + j];
+      for (int k = 0; k < pgb - 1; k++){
+        addListsTrans[index][htn->numAdds[i] + 1 + k] = firstIndexTrans[firstConstraintIndex + j * (pgb - 1) + k];
+      }
+    }
+  }
+
+  taskToKill = new int[htn->numMethods];
+  for (int i = 0; i < htn->numTasks; i++){
+    for (int j = 0; j < htn->numMethodsForTask[i]; j++){
+      taskToKill[htn->taskToMethods[i][j]] = i + 2;
+    }
+  }
+  // transformed methods
+  for (int i = 0; i < htn->numMethods; i++) {
+    int* subs = new int[htn->numSubTasks[i]];
+    for (int j = 0; j < pgb; j++){
+      for (int k = 0; k < (methodIndexes[i + 1] - methodIndexes[i]); k++){
+        int index = firstMethodIndex + methodIndexes[i] * pgb + j * (methodIndexes[i + 1] - methodIndexes[i]) + k;
+        int inv = 0;
+        if (htn->numSubTasks[i] == 1){
+          numAddsTrans[index] = 1;
+          numPrecsTrans[index] = pgb;
+        }
+        else if (htn->numSubTasks[i] == 0){
+          numAddsTrans[index] = pgb + 1;
+          numPrecsTrans[index] = pgb;
+        }
+        else {
+          if (hasNoLastTask[i]){
+            inv = 1;
+            combination(subs, pgb - 1, htn->numSubTasks[i], k);
+            numAddsTrans[index] = htn->numSubTasks[i] * 3 + 1 + htn->numOrderings[i] / 2;
+            numPrecsTrans[index] = htn->numSubTasks[i] + 1 + pgb + subs[htn->numSubTasks[i] - 1];
+          }
+          else {
+            combination(subs, pgb - 1, htn->numSubTasks[i] - 1, k);
+            numAddsTrans[index] = htn->numSubTasks[i] * 2 - 1 + htn->numOrderings[i] / 2;
+            numPrecsTrans[index] = htn->numSubTasks[i] + pgb + subs[htn->numSubTasks[i] - 2];
+          }
+        }
+        precListsTrans[index] = new int[numPrecsTrans[index]];
+        addListsTrans[index] = new int[numAddsTrans[index]];
+        if (htn->numSubTasks[i] + inv > pgb){
+          invalidTransActions[index] = true;
+          continue;
+        }
+        for (int m = 0; m < pgb; m++){
+          if (m < j){
+            precListsTrans[index][m] = firstIndexTrans[firstConstraintIndex + m * (pgb - 1) + j - 1];
+          }
+          else if (j == m){
+            precListsTrans[index][m] = firstIndexTrans[firstTaskIndex + m] + taskToKill[i];
+          }
+          else {
+            precListsTrans[index][m] = firstIndexTrans[firstConstraintIndex + m * (pgb - 1) + j];
+          }
+        }
+        if (htn->numSubTasks[i] == 0){
+          addListsTrans[index][0] = firstIndexTrans[firstTaskIndex + j];
+          addListsTrans[index][pgb] = firstIndexTrans[firstStackIndex + j];
+          for (int m = 0; m < pgb - 1; m++){
+            addListsTrans[index][1 + m] = firstIndexTrans[firstConstraintIndex + j * (pgb - 1) + m];
+          }
+        }
+        else if (htn->numSubTasks[i] == 1){
+          addListsTrans[index][0] = firstIndexTrans[firstTaskIndex + j] + 2 + subTasksInOrder[i][0];
+        }
+        else {
+          if (hasNoLastTask[i]){
+            addListsTrans[index][0] = firstIndexTrans[firstTaskIndex + j] + 1;
+            for (int m = 0; m < subs[htn->numSubTasks[i] - 1] + 1; m++){
+              int off = 0;
+              if (m >= j){
+                off = 1;
+              }
+              precListsTrans[index][htn->numSubTasks[i] + pgb + m] = firstIndexTrans[firstStackIndex + m + off] + 1;
+            }
+            for (int m = 0; m < htn->numSubTasks[i]; m++){
+              int off = 0;
+              if (subs[m] >= j){
+                off = 1;
+                subs[m]++;
+              }
+              precListsTrans[index][m + pgb] = firstIndexTrans[firstTaskIndex + subs[m]];
+              precListsTrans[index][htn->numSubTasks[i] + pgb + subs[m] - off] = firstIndexTrans[firstStackIndex + subs[m]];
+              addListsTrans[index][m + 1] = firstIndexTrans[firstTaskIndex + subs[m]] + 2 + subTasksInOrder[i][m];
+              addListsTrans[index][m + htn->numSubTasks[i] + 1] = firstIndexTrans[firstConstraintIndex + (subs[m]) * (pgb - 1) + j - 1 + off] + 1;
+              addListsTrans[index][m + htn->numSubTasks[i] * 2 + 1] = firstIndexTrans[firstStackIndex + (subs[m])] + 1;
+            }
+            for (int m = 0; m < htn->numOrderings[i] / 2; m++){
+              int first = 0;
+              int free = htn->ordering[i][2 * m];
+              int constrained = htn->ordering[i][2 * m + 1];
+              if (subs[constrained] >= subs[free]){
+                first = 1;
+              }
+              addListsTrans[index][m + htn->numSubTasks[i] * 3 + 1] = lastIndexTrans[firstConstraintIndex + subs[free] * (pgb - 1) + subs[constrained] - first];
+            }
+          }
+          else {
+            addListsTrans[index][0] = firstIndexTrans[firstTaskIndex + j] + subTasksInOrder[i][0] + 2;
+            for (int m = 0; m < subs[htn->numSubTasks[i] - 2] + 1; m++){
+              int off = 0;
+              if (m >= j){
+                off = 1;
+              }
+              precListsTrans[index][htn->numSubTasks[i] + pgb - 1 + m] = firstIndexTrans[firstStackIndex + m + off] + 1;
+            }
+            for (int m = 0; m < htn->numSubTasks[i] - 1; m++){
+              int off = 0;
+              if (subs[m] >= j){
+                off = 1;
+                subs[m]++;
+              }
+              precListsTrans[index][m + pgb] = firstIndexTrans[firstTaskIndex + subs[m]];
+              precListsTrans[index][htn->numSubTasks[i] + pgb - 1 + subs[m] - off] = firstIndexTrans[firstStackIndex + subs[m]];
+              addListsTrans[index][m + 1] = firstIndexTrans[firstTaskIndex + subs[m]] + 2 + subTasksInOrder[i][m + 1];
+              addListsTrans[index][m + htn->numSubTasks[i]] = firstIndexTrans[firstStackIndex + subs[m]] + 1;
+            }
+            for (int m = 0; m < htn->numOrderings[i] / 2; m++){
+              int first = 0;
+              int free = htn->ordering[i][2 * m] - 1;
+              int constrained = htn->ordering[i][2 * m + 1] - 1;
+              if (constrained == -1){
+                if (j >= subs[free]){
+                  first = 1;
+                }
+                addListsTrans[index][m + htn->numSubTasks[i] * 2 - 1] = lastIndexTrans[firstConstraintIndex + subs[free] * (pgb - 1) + j - first];
+              }
+              else {
+                if (subs[constrained] >= subs[free]){
+                  first = 1;
+                }
+                addListsTrans[index][m + htn->numSubTasks[i] * 2 - 1] = lastIndexTrans[firstConstraintIndex + subs[free] * (pgb - 1) + subs[constrained] - first];
+              }
+            }
+          }
+        }
+        string name = "method(id[" + to_string(i) + "],head[" + to_string(j) + "],subtasks[";
+        if (hasNoLastTask[i]){
+          for (int l = 0; l < htn->numSubTasks[i]; l++){
+            name += to_string(subs[l]);
+            if (l < htn->numSubTasks[i] - 1){
+              name += ",";
+            }
+          }
+        }
+        else {
+          for (int l = 0; l < htn->numSubTasks[i]; l++){
+            if (l == 0){
+              name += to_string(j);
+            }
+            else {
+              name += to_string(subs[l - 1]);
+            }
+            if (l < htn->numSubTasks[i] - 1){
+              name += ",";
+            }
+          }
+        }
+        name += "]): " + htn->methodNames[i];
+        actionNamesTrans[index] = name;
+      }
+    }
+    delete[] subs;
+  }
+
+  numInvalidTransActions = 0;
+  for (int i = 0; i < numActionsTrans; i++) {
+    if (invalidTransActions[i]){
+      numInvalidTransActions++;
+    }
+  }
+  return numActionsTrans;
+}
+
+
+int HTNToSASTranslation::htnToCond(int pgb) {
+  // number of translated variables
+  int n = pgb * (pgb - 1);
+  numVarsTrans = htn->numVars + pgb * 2 + n;
+
+  // indizes for variables
+  firstVarIndex = 0;
+  firstTaskIndex = htn->numVars;
+  firstConstraintIndex = htn->numVars + pgb;
+  firstStackIndex = firstConstraintIndex + n;
+
+  // indizes for names
+  firstIndexTrans = new int[numVarsTrans];
+  lastIndexTrans = new int[numVarsTrans];
+
+  for (int i = 0; i < htn->numVars; i++){
+    firstIndexTrans[firstVarIndex+ i] = htn->firstIndex[i];
+    lastIndexTrans[firstVarIndex + i] = htn->lastIndex[i];
+  }
+  
+  for (int i = 0; i < pgb; i++){
+    firstIndexTrans[firstTaskIndex + i] = lastIndexTrans[firstTaskIndex + i - 1] + 1;
+    lastIndexTrans[firstTaskIndex + i] = firstIndexTrans[firstTaskIndex + i] + htn->numTasks;
+  }
+
+  for (int i = 0; i < n; i++){
+    firstIndexTrans[firstConstraintIndex + i] = lastIndexTrans[firstConstraintIndex + i - 1] + 1;
+    lastIndexTrans[firstConstraintIndex + i] = firstIndexTrans[firstConstraintIndex + i] + 1;
+  }
+
+  for (int i = 0; i < pgb; i++){
+    firstIndexTrans[firstStackIndex + i] = lastIndexTrans[firstStackIndex + i - 1] + 1;
+    lastIndexTrans[firstStackIndex + i] = firstIndexTrans[firstStackIndex + i] + 1;
+  }
+
+  varNamesTrans = new string[numVarsTrans];
+  for (int i = 0; i < numVarsTrans; i++){
+      varNamesTrans[i] = "var_" + to_string(i);
+  }
+
+  numStateBitsTrans = lastIndexTrans[numVarsTrans - 1] + 1;
+
+  factStrsTrans = new string[numStateBitsTrans];
+  
+  for (int i = 0; i < htn->numStateBits; i++){
+    factStrsTrans[firstIndexTrans[firstVarIndex] + i] = htn->factStrs[i];
+  }
+  
+  for (int i = firstTaskIndex; i < firstConstraintIndex; i++){
+    factStrsTrans[firstIndexTrans[i]] = string("+task[point") + to_string(i-firstTaskIndex) + string(",noTask]")    ;
+    for (int j = 0; j < lastIndexTrans[i] - firstIndexTrans[i]; j++){
+        factStrsTrans[firstIndexTrans[i]+j + 1] = string("+task[point") + to_string(i - firstTaskIndex) + string(",task") + to_string(j) + ']';
+    }
+  }
+  
+  int j = 0;
+  int k = 0;
+  
+  for (int i = firstConstraintIndex; i < numVarsTrans; i++){
+    j++;
+    if (k == j) {
+      j++;
+    }
+    if (j == pgb) {
+      j = 0;
+      k++;
+    }
+    factStrsTrans[firstIndexTrans[i]] = string("+no_Constraint[")+ to_string(k) + ',' + to_string(j) + ']';
+    factStrsTrans[firstIndexTrans[i] + 1] = string("+Constraint[") + to_string(k) + ',' + to_string(j) + ']';
+  }
+  
+  for (int i = 0; i < pgb; i++){
+    factStrsTrans[firstIndexTrans[i + firstStackIndex]] = string("+free[head")+ to_string(i) + ']';
+    factStrsTrans[firstIndexTrans[i + firstStackIndex] + 1] = string("+occupied[head")+ to_string(i) + ']';
+  }
+  
+  // Initial state
+  s0SizeTrans = numVarsTrans-firstTaskIndex;
+  s0ListTrans = new int[s0SizeTrans];
+  s0ListTrans[0] = firstIndexTrans[firstTaskIndex] + htn->initialTask + 1;
+  for (int i = 1; i < s0SizeTrans; i++){
+    s0ListTrans[i] = firstIndexTrans[firstTaskIndex + i];
+  }
+  
+  s0ListTrans[firstStackIndex - firstTaskIndex] = firstIndexTrans[firstStackIndex] + 1;
+
+  // goal state
+  gSizeTrans = pgb;
+  gListTrans = new int[pgb];
+  for (int i = 0; i < pgb; i++){
+    gListTrans[i] = firstIndexTrans[firstTaskIndex + i];
+  }
+
+  // transformed actions and methods
+  methodIndexes = new int[htn->numMethods + 1];
+  methodIndexes[0] = 0;
+  for (int i = 1; i < htn->numMethods + 1; i++){
+    int m = bin(pgb - 1, htn->numSubTasks[i - 1] - 1);
+    if (m < 1){
+      m = 1;
+    }
+    if (m == INT_MAX){
+      return -1;
+    }
+    methodIndexes[i] = methodIndexes[i - 1] + m;
+  }
+  
+  numMethodsTrans = methodIndexes[htn->numMethods];
+  numMethodsTrans *= pgb;
+  numActionsTrans = htn->numActions * pgb + numMethodsTrans;
+  firstMethodIndex = htn->numActions * pgb;
+  actionCostsTrans = new int[numActionsTrans];
+  invalidTransActions = new bool[numActionsTrans];
+  for (int i = 0; i < numActionsTrans; i++) {
+    invalidTransActions[i] = false;
+  }
+  for (int i = 0; i < htn->numActions; i++) {
+    for (int j = 0; j < pgb; j++){
+      actionCostsTrans[i * pgb + j] = htn->actionCosts[i];
+    }
+  }
+  for (int i = firstMethodIndex; i < numActionsTrans; i++) {
+    actionCostsTrans[i] = 0;
+  }
+  
+  // conditional adds
+  numConditionalEffectsTrans = new int[numActionsTrans];
+  effectConditionsTrans = new int**[numActionsTrans];
+  numEffectConditionsTrans = new int*[numActionsTrans];
+  effectsTrans = new int*[numActionsTrans];
+  for (int i = 0; i < firstMethodIndex; i++) {
+    numConditionalEffectsTrans[i] = 0;
+    effectConditionsTrans[i] = nullptr;
+    numEffectConditionsTrans[i] = nullptr;
+    effectsTrans[i] = nullptr;
+  }
+  for (int i = 0; i < htn->numMethods; i++) {
+    for (int j = 0; j < pgb; j++){
+      for (int k = 0; k < (methodIndexes[i + 1] - methodIndexes[i]); k++){
+        int index = firstMethodIndex + methodIndexes[i] * pgb + j * (methodIndexes[i + 1] - methodIndexes[i]) + k;
+        if (htn->numSubTasks[i] > 1){
+          numConditionalEffectsTrans[index] = (htn->numSubTasks[i] - 1) * (pgb - 1) + htn->numOrderings[i] / 2;
+          effectConditionsTrans[index] = new int*[numConditionalEffectsTrans[index]];
+          numEffectConditionsTrans[index] = new int[numConditionalEffectsTrans[index]];
+          effectsTrans[index] = new int[numConditionalEffectsTrans[index]];
+          for (int l = 0; l < numConditionalEffectsTrans[index]; l++){
+            numEffectConditionsTrans[index][l] = 1;
+            effectConditionsTrans[index][l] = new int[numEffectConditionsTrans[index][l]];
+          }
+        }
+        else {
+          numConditionalEffectsTrans[index] = 0;
+          effectConditionsTrans[index] = nullptr;
+          numEffectConditionsTrans[index] = nullptr;
+          effectsTrans[index] = nullptr;
+        }
+      }
+    }
+  }
+
+  // transformed actions
+  numPrecsTrans = new int[numActionsTrans];
+  numAddsTrans = new int[numActionsTrans];
+  numDelsTrans = new int[numActionsTrans];
+  precListsTrans = new int*[numActionsTrans];
+  addListsTrans = new int*[numActionsTrans];
+  delListsTrans = new int*[numActionsTrans];
+  for (int i = 0; i < htn->numActions; i++) {
+    for (int j = 0; j < pgb; j++){
+      int index = i * pgb + j;
+      numPrecsTrans[index] = htn->numPrecs[i] + pgb;
+      numAddsTrans[index] = htn->numAdds[i] + pgb + 1;
+      precListsTrans[index] = new int[numPrecsTrans[index]];
+      addListsTrans[index] = new int[numAddsTrans[index]];
+      
+      for (int k = 0; k < htn->numPrecs[i]; k++){
+        precListsTrans[index][k] = htn->precLists[i][k];
+      }
+      for (int k = 0; k < htn->numAdds[i]; k++){
+        addListsTrans[index][k] = htn->addLists[i][k];
+      }
+      for (int k = 0; k < pgb; k++){
+        if (k < j){
+          precListsTrans[index][htn->numPrecs[i] + k] = firstIndexTrans[firstConstraintIndex + k * (pgb - 1) + j - 1];
+        }
+        else if (j == k){
+          precListsTrans[index][htn->numPrecs[i] + k] = firstIndexTrans[firstTaskIndex + j] + 1 + i;
+        }
+        else {
+          precListsTrans[index][htn->numPrecs[i] + k] = firstIndexTrans[firstConstraintIndex + k * (pgb - 1) + j];
+        }
+      }
+      for (int k = 0; k < pgb - 1; k++){
+        addListsTrans[index][htn->numAdds[i] + k] = firstIndexTrans[firstConstraintIndex + j * (pgb - 1) + k];
+      }
+      addListsTrans[index][htn->numAdds[i] + pgb - 1] = firstIndexTrans[firstTaskIndex + j];
+      addListsTrans[index][htn->numAdds[i] + pgb] = firstIndexTrans[firstStackIndex + j];
+    }
+  }    
+
+ 
+  taskToKill = new int[htn->numMethods];
+  for (int i = 0; i < htn->numTasks; i++){
+      for (int j = 0; j < htn->numMethodsForTask[i]; j++){
+          taskToKill[htn->taskToMethods[i][j]] = i + 1;
+      }
+  }
+  
+  // transformed methods
+  for (int i = 0; i < htn->numMethods; i++) {
+    int* subs = new int[htn->numSubTasks[i] -1];
+    for (int j = 0; j < pgb; j++){
+      for (int k = 0; k < (methodIndexes[i + 1] - methodIndexes[i]); k++){
+        int index = firstMethodIndex + methodIndexes[i] * pgb + j * (methodIndexes[i + 1] - methodIndexes[i]) + k;
+        if (htn->numSubTasks[i] == 0){
+          numAddsTrans[index] = pgb + 1;
+          numPrecsTrans[index] = pgb + 1;
+        }
+        else if (htn->numSubTasks[i] == 1){
+          numAddsTrans[index] = 1;
+          numPrecsTrans[index] = pgb;
+        }
+        else {
+          combination(subs, pgb - 1, htn->numSubTasks[i] - 1, k);
+          numAddsTrans[index] = htn->numSubTasks[i] * 2 - 1;
+          numPrecsTrans[index] = htn->numSubTasks[i] + pgb + subs[htn->numSubTasks[i] - 2];
+        }
+        
+        precListsTrans[index] = new int[numPrecsTrans[index]];
+        addListsTrans[index] = new int[numAddsTrans[index]];
+        
+        if (htn->numSubTasks[i] > pgb){
+          invalidTransActions[index] = true;
+          continue;
+        }
+        
+        for (int l = 0; l < pgb; l++){
+          if (l < j){
+            precListsTrans[index][l] = firstIndexTrans[firstConstraintIndex + l * (pgb - 1) + j - 1];
+          }
+          else if (j == l){
+            precListsTrans[index][l] = firstIndexTrans[firstTaskIndex + j] + taskToKill[i];
+          }
+          else {
+            precListsTrans[index][l] = firstIndexTrans[firstConstraintIndex + l * (pgb - 1) + j];
+          }
+        }
+        
+        if (htn->numSubTasks[i] == 0){
+          addListsTrans[index][0] = firstIndexTrans[firstTaskIndex + j];
+          for (int l = 0; l < pgb - 1; l++){
+            addListsTrans[index][l + 1] = firstIndexTrans[firstConstraintIndex + j * (pgb - 1) + l];
+          }
+          addListsTrans[index][pgb] = firstIndexTrans[firstStackIndex + j];
+        }
+        else if (htn->numSubTasks[i] == 1){
+          addListsTrans[index][0] = firstIndexTrans[firstTaskIndex + j] + 1 + subTasksInOrder[i][0];
+        }
+        else {
+          addListsTrans[index][0] = firstIndexTrans[firstTaskIndex + j] + 1 + subTasksInOrder[i][0];
+          for (int m = 0; m < subs[htn->numSubTasks[i] - 2] + 1; m++){
+            int off = 0;
+            if (m >= j){
+              off = 1;
+            }
+            precListsTrans[index][htn->numSubTasks[i] + pgb - 1 + m] = firstIndexTrans[firstStackIndex + m + off] + 1;
+          }
+          for (int l = 0; l < htn->numSubTasks[i] - 1; l++){
+            int off = 0;
+            if (subs[l] >= j){
+              off = 1;
+              subs[l]++;
+            }
+            precListsTrans[index][l + pgb] = firstIndexTrans[firstTaskIndex + subs[l]];
+            precListsTrans[index][htn->numSubTasks[i] + pgb - 1 + subs[l] - off] = firstIndexTrans[firstStackIndex + subs[l]];
+            addListsTrans[index][l + 1] = firstIndexTrans[firstTaskIndex + subs[l]] + 1 + subTasksInOrder[i][l + 1];
+            addListsTrans[index][l + htn->numSubTasks[i]] = firstIndexTrans[firstStackIndex + subs[l]] + 1;
+            
+            for (int m = 0; m < pgb - 1; m++){
+              effectConditionsTrans[index][l * (pgb - 1) + m][0] = firstIndexTrans[firstConstraintIndex + j * (pgb - 1) + m] + 1;
+              effectsTrans[index][l * (pgb - 1) + m] = firstIndexTrans[firstConstraintIndex + subs[l] * (pgb - 1) + m] + 1;
+            }
+          }
+          for (int l = 0; l < htn->numOrderings[i] / 2; l++){
+            int first = htn->ordering[i][2 * l] - 1;
+            int second = htn->ordering[i][2 * l + 1] - 1;
+            if (first < 0){
+              first = j;
+            }
+            else {
+              first = subs[first];
+            }
+            if (second < 0){
+              second = j;
+            }
+            else {
+              second = subs[second];
+            }
+            effectConditionsTrans[index][(pgb - 1) * (htn->numSubTasks[i] - 1) + l][0] = firstIndexTrans[firstConstraintIndex + first * (pgb - 1) + second];
+            effectsTrans[index][(pgb - 1) * (htn->numSubTasks[i] - 1) + l] = firstIndexTrans[firstConstraintIndex + first * (pgb - 1) + second] + 1;
+          }
+        }
+      }
+    }
+    delete[] subs;
+  }
+  numInvalidTransActions = 0;
+  for (int i = 0; i < numActionsTrans; i++) {
+    if (invalidTransActions[i]){
+      numInvalidTransActions++;
+    }
+  }
+  
+  // names
+  actionNamesTrans = new string[numActionsTrans];
+  for (int i = 0; i < htn->numActions; i++) {
+    for (int j = 0; j < pgb; j++){
+      actionNamesTrans[i * pgb + j] = "primitive(id[" + to_string(i) + "],head[" + to_string(j) + "]): " + htn->taskNames[i];
+    }
+  }
+  for (int i = 0; i < htn->numMethods; i++) {
+    int* subs = new int[htn->numSubTasks[i] - 1];
+    for (int j = 0; j < pgb; j++){
+      for (int k = 0; k < (methodIndexes[i + 1] - methodIndexes[i]); k++){
+        int index = firstMethodIndex + methodIndexes[i] * pgb + j * (methodIndexes[i + 1] - methodIndexes[i]) + k;
+        if (invalidTransActions[index]){
+          continue;
+        }
+        actionNamesTrans[index] = "method(id[" + to_string(i) + "],head[" + to_string(j);
+        if (htn->numSubTasks[i] > 0){
+          combination(subs, pgb - 1, htn->numSubTasks[i] - 1, k);
+          actionNamesTrans[index] += "],subtasks[" + to_string(j);
+          for (int l = 0; l < htn->numSubTasks[i] - 1; l++){
+            int off = subs[l];
+            if (off >= j){
+              off++;
+            }
+            if (l < htn->numSubTasks[i] - 1){
+              actionNamesTrans[index] += ",";
+            }
+            actionNamesTrans[index] += to_string(off);
+          }
+          actionNamesTrans[index] += "]): ";
+          actionNamesTrans[index] += htn->methodNames[i];
+        }
+      }
+    }
+  }
+  return 0;
+}
+
 
 
 
