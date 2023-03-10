@@ -29,10 +29,9 @@ groupoption "interactive" I "interactive search" group="planningAlgorithm"
 
 section "Progression Search Options"
 
-option "heuristic" H "specify heuristics. The first heuristic in the list is the one used for search. Starting from the second, all other heuristics are used as tiebreakers. If you specify the same heuristic twice, it will only be computed once." string multiple default="rc2(ff)"
-option "mainHeuristicAsTiebreaker" - "use the first heuristic as the first tie-breaker. The first " flag off
-option "astarweight" w "weight of the heuristic for A*" int default="1"
-option "gValue" g "g value" string values="path","action","mixed","none" default="path"
+option "heuristic" H "specify heuristics. The first heuristic in the list is the one used for search. Starting from the second, all other heuristics are used as tie-breakers. If you specify the same heuristic twice, it will only be computed once." string multiple default="rc2(ff)"
+option "astarweight" w "weight of the heuristic for weighted A* (also called greedy-A*). The default is 1, which yields the normal optimal A* algorithm." int default="1"
+option "gValue" g "g value. You can select\npath = one for each applied action and performed decomposition\n\naction = summed cost of the applied actions\n\nmixed = summed cost of the applied actions plus 1 for every applied decomposition\n\nnone = constant zero.\n" string values="path","action","mixed","none" default="path"
 option "suboptimal" - "suboptimal search (early goal test and visited lists ignores costs)" flag off
 
 section "Visited List Options"
