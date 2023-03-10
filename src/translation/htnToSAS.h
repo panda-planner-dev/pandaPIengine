@@ -9,7 +9,7 @@ class HTNToSASTranslation{
 
 	public:
 	
-	HTNToSASTranslation(Model* model): htn(model){};
+	HTNToSASTranslation(Model* model): htn(model), numEmptyTasks(0) {};
 	// model preparation
 	void reorderTasks(bool warning);
 	void sasPlus();
@@ -27,7 +27,7 @@ class HTNToSASTranslation{
 	int htnToStrips(int pgb);
 
 	// write the model to file
-	void writeToFastDown(string sasName, bool hasCondEff);
+	void writeToFastDown(string sasName, bool hasCondEff, bool realCosts);
 	
 	// plan verification
 	void planToHddl(string infile, string outfile);
