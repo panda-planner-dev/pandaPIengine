@@ -117,11 +117,15 @@ void printHeuristicHelp(){
 	cout << "  rc2" << endl;
 	cout << "  dof" << endl;
 	cout << "" << endl;
-	cout << "Arguments are given to the heuristics in normal braces. E.g. use cost(invert)" << endl;
-	cout << "Multiple arguments must be separated by semicolons." << endl;
-	cout << "By default the arguments can just be given in order. It is also possible to provide them using the key=value syntax." << endl;
-	cout << "The name of the argument is given in braces" << endl;
+	cout << "Arguments are given to the heuristics in normal braces. E.g. use cost(invert) to pass the argument 'invert' to the heuristic 'cost'." << endl;
+	cout << "We explain below which arguments (like 'invert') exist for each heuristic. Multiple arguments must be separated by semicolons. " << endl;
+	cout << "By default the arguments can just be given in order. It is also possible to provide them using the key=value syntax. The name" << endl;
+	cout << "of the argument is given in braces" << endl;
 	cout << "" << endl;
+	cout << "- zero is a heuristic that returns always zero." << endl;
+	cout << "- cost is a heuristic that return the action costs of the actions taken leading to the current search node" << endl;
+	cout << "  (not including actions present in the current (remaining) task network)" << endl;
+	cout << "- modDepth and mixedModDepth are as explained in the planner helptext, as possible values for -g" << endl;
 	cout << "- The modDepth, mixedModDepth, and cost heuristics all have only one optional argument \"invert\" (or invert=true)." << endl;
 	cout << "  If provided the heuristic value will be multiplied with -1." << endl;
 	cout << "" << endl;
@@ -130,7 +134,7 @@ void printHeuristicHelp(){
 	cout << "    - ff (the FF heuristic)" << endl;
 	cout << "    - add (the additive heuristic)" << endl;
 	cout << "    - lmc (the LM-cut heuristic)" << endl;
-	cout << "    - filter (0 if goal is reachable, infinity if goal is not reachable under delete relaxation)" << endl;
+	cout << "    - filter (0 if the HTN goal is reachable under delete relaxation, infinity otherwise)" << endl;
 	cout << "  2. What to estimate (key: est). There are three possible values. The default is distance" << endl;
 	cout << "    - distance (estimate number of actions and methods to apply)" << endl;
 	cout << "    - cost (estimate cost of actions to apply)" << endl;
@@ -140,7 +144,7 @@ void printHeuristicHelp(){
 	cout << "     of actions that occur more than once in the current task network." << endl;
 	cout << "     To turn it off, pass no as the third argument" << endl;
 	cout << "" << endl;
-	cout << "- The dof (delete and order free relaxation) heuristic requires that pandaPIengine is compiled with CPLEX support." << endl;
+	cout << "- The dof (delete- and order-free relaxation) heuristic requires that pandaPIengine is compiled with CPLEX support." << endl;
 	cout << "  It has the following 8 arguments." << endl;
 	cout << "  1. Type (key: type). Default is ilp. Can be set to lp. Determines whether the problem is solved as an ILP or LP" << endl;
 	cout << "  2. Mode (key: mode). Default is satisficing. Can be set to optimal to make the heuristic optimal." << endl;
@@ -149,7 +153,7 @@ void printHeuristicHelp(){
 	cout << "  5. And/Or Landmarks (key: andOrLM). Default is None." << endl;
 	cout << "     Can be set to full or onlyTNi to include all landmarks or only those derivable from the initial task network" << endl;
 	cout << "  6. External landmarks (key: externalLM). Default is no. With none can be set to use external landmarks." << endl;
-	cout << "  7. LM-Cut (key: lmclmc). Default is full. Can be set to none to not include LM-Cut landmarks" << endl;
+	cout << "  7. LM-cut (key: lmclmc). Default is full. Can be set to none to not include LM-cut landmarks" << endl;
 	cout << "  8. Netchange Constraints (key: netchange). Default is full. Can be set to none to not include net-change constraints" << endl;
 }
 
@@ -431,9 +435,9 @@ int main(int argc, char *argv[]) {
 
 		bool noVisitedList = args_info.noVisitedList_flag;
 		bool allowGIcheck = args_info.noGIcheck_flag;
-		bool taskHash = args_info.taskHash_flag;
-		bool taskSequenceHash = args_info.taskSequenceHash_flag;
-		bool topologicalOrdering = args_info.topologicalOrdering_flag;
+		bool taskHash = args_info.noTaskHash_flag;
+		bool taskSequenceHash = args_info.noTaskSequenceHash_flag;
+		bool topologicalOrdering = args_info.noTopologicalOrdering_flag;
 		bool orderPairsHash = args_info.noOrderPairs_flag;
 		bool layerHash = args_info.noLayers_flag;
 		bool allowParalleSequencesMode = args_info.noParallelSequences_flag;
