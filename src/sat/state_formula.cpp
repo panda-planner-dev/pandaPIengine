@@ -103,7 +103,7 @@ void generate_state_transition_formula(void* solver, sat_capsule & capsule, vect
 #endif
 	
 		int afterClauses = get_number_of_clauses();
-		cout << "Timestep clauses " << afterClauses - beforeClauses << " from " << blocks[time].size() << " actions." << endl;
+		//cout << "Timestep clauses " << afterClauses - beforeClauses << " from " << blocks[time].size() << " actions." << endl;
 	}
 
 
