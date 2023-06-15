@@ -454,6 +454,7 @@ int main(int argc, char *argv[]) {
 		bool block_compression = args_info.blockcompression_flag;
 		bool sat_mutexes = args_info.satmutexes_flag;
 		bool effectLessActionsInSeparateLeaf = args_info.methodPreconditionsInSeparateLeafs_given;
+		bool optimisingMode = args_info.optimisation_given;
 
     	sat_pruning pruningMode = SAT_FF;
     	if (string(args_info.pruning_arg) == "none") pruningMode = SAT_NONE;
@@ -463,7 +464,7 @@ int main(int argc, char *argv[]) {
 		extract_invariants_from_parsed_model(htn);
 		if (sat_mutexes) compute_Rintanen_Invariants(htn);
 
-		solve_with_sat_planner(htn, block_compression, sat_mutexes, pruningMode, effectLessActionsInSeparateLeaf);
+		solve_with_sat_planner(htn, block_compression, sat_mutexes, pruningMode, effectLessActionsInSeparateLeaf, optimisingMode);
 #else
 		cout << "Planner compiled without SAT planner support" << endl;
 #endif

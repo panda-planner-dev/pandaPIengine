@@ -995,12 +995,13 @@ void solve_with_sat_planner_time_interleave(Model * htn, bool block_compression,
 
 
 
-void solve_with_sat_planner(Model * htn, bool block_compression, bool sat_mutexes, sat_pruning pruningMode, bool effectLessActionsInSeparateLeaf){
+void solve_with_sat_planner(Model * htn, bool block_compression, bool sat_mutexes, sat_pruning pruningMode, bool effectLessActionsInSeparateLeaf, bool optimise){
 	// prepare helper data structured (used for SOG)
 	htn->calcSCCs();
 	htn->constructSCCGraph();
 	htn->analyseSCCcyclicity();
 	
+	optimisePlan = optimise;
 	
 	// start actual planner
 	cout << endl << endl;
@@ -1018,6 +1019,7 @@ void solve_with_sat_planner(Model * htn, bool block_compression, bool sat_mutexe
 		case SAT_FF: cout << "ff" << endl; break;
 		case SAT_H2: cout << "h2" << endl; break;
 	}
+	cout << "Optimise Plan Cost: " << (optimisePlan?"yes":"no") << endl;
 
 	cout << endl << endl;
 	

@@ -57,6 +57,7 @@ option "blockcompression" B "apply block compression" flag on
 option "satmutexes" M "encode SAT mutexes" flag on
 option "pruning" P "pruning mode" string values="none","ff","h2" default="ff"
 option "methodPreconditionsInSeparateLeafs" m "if in partial order mode, put method precondition actions into extra leafs. This allows for better encoding of executability, but may increase the size of the PDT" flag off
+option "optimisation" o "after finding the first plan, continue search to find plans of lower cost" flag on
 
 
 section "Translation Planner Options"
