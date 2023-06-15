@@ -75,6 +75,7 @@ public:
   // State getStateFrom(const BDD & bdd) const;
   BDD getStateBDD(const std::vector<int> &state) const;
   BDD getStateBDD(const int *state_bits, int state_bits_size) const;
+  BDD getStateBDD(std::vector<bool> state_vec) const;
 
   BDD getPartialStateBDD(const std::vector<std::pair<int, int>> &state) const;
   BDD getPartialStateBDD(const int *state_bits, int state_bits_size) const;

@@ -1,9 +1,10 @@
 #ifndef sog_h_INCLUDED
 #define sog_h_INCLUDED
 
+#include <stdint.h>
+#include <fstream>
 #include "../flags.h" // defines flags
 #include "../Model.h"
-#include <fstream>
 
 struct PDT;
 

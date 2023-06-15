@@ -1,6 +1,7 @@
 #ifndef PANDAPIENGINE_VISITEDLIST_H
 #define PANDAPIENGINE_VISITEDLIST_H
 
+#include <stdint.h>
 #include "../ProgressionNetwork.h"
 #include <unordered_map>
 #include "../intDataStructures/HashTable.h"
