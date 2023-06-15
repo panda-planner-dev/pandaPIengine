@@ -183,6 +183,29 @@ BDD SymVariables::getStateBDD(const int *state_bits,
 }
 
 
+
+BDD SymVariables::getStateBDD(std::vector<bool> state_vec) const {
+  BDD res = oneBDD();
+  unordered_set<int> contained_vars;
+  for (int i = 0; i < state_vec.size(); i++) {
+	if (state_vec[i] == false) continue;
+    int var = model->varOfStateBit[i];
+    int val = i - model->firstIndex[var];
+    res = res * preconditionBDDs[var_order[var]][val];
+    contained_vars.insert(var);
+  }
+
+  for (int var = 0; var < model->numVars; ++var) {
+    if (contained_vars.count(var) == 0) {
+      res *= preconditionBDDs[var_order[var]][1];
+    }
+  }
+
+
+  return res;
+}
+
+
 BDD SymVariables::getPartialStateBDD(const int *state_bits,
                               int state_bits_size) const {
   BDD res = oneBDD();
