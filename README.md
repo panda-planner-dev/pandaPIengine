@@ -11,7 +11,7 @@ pandaPIengine is a versatile HTN planning engine. To use the engine, you first n
 
 ### Compiling pandaPIengine
 
-To compile pandaPIengine perform the following commands:
+To compile pandaPIengine, you need to have gengetopt (tested with version 2.23) install. To compile pandaPIengine, you need to perform the following commands:
 
 ```
 mkdir build
