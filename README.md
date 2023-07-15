@@ -26,6 +26,15 @@ For the latter two, you can pass the arguments `-DSAT=ON` or `-DBDD=ON`. For the
 
 If you have a grounded HTN planning problem as a *.sas file, you can simply run `build/pandaPIengine FILE.sas`. pandaPIengine has a reasonable default configuration (Greedy best first search with the RC-FF heuristic and visited lists). If you want to customise pandaPIenigne, please run `build/pandaPIengine -h` to see the available options.
 
+The simplest way to use the full pandaPI stack is the following -- assuming that your domain file is `domain.hddl` and your problem file is `problem.hddl`.
+
+```
+./pandaPIparser domain.hddl problem.hddl domain-problem.htn
+./pandaPIgrounder domain-problem.htn domain-problem.sas
+./pandaPIengine domain-problem.sas
+```
+
+
 ### A Simple Script for Running the Planner (All Components)
 
 As described above, you'll need to run the pandaPIengine based on an SAS file produced by the grounder, which is in term based on a file produced by a parser. We've created a simple script (*problemSolver.sh*) that calls the entire chain of (the involved three) executables, and all the output produced is piped into appropriately named files. 
