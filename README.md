@@ -34,6 +34,17 @@ The simplest way to use the full pandaPI stack is the following -- assuming that
 ./pandaPIengine domain-problem.sas
 ```
 
+*Note* pandaPIgrounder changes the model, i.e., it adds and combines methods, and adds and changes actions. The plan that the pandaPIengine finds is valid with respect to that changed model. This means the plan that pandaPIengine finds is not valid with respect to the original HDDL model that was put into the parser.
+
+To obtain a valid plan w.r.t. the original HDDL model, you need to translate the plan back to the original model. You can do this using the pandaPIparser. For that you have to write the plan that is produced by the pandaPIengine to a file and then convert it. The simplest way to do this is the following:
+
+```
+./pandaPIengine domain-problem.sas | tee plan.original
+./pandaPIparser -c plan.original plan.actual
+```
+
+The file `plan.actual` will then contain the valid HDDL-compliant plan.
+
 
 ### A Simple Script for Running the Planner (All Components)
 
