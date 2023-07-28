@@ -10,7 +10,8 @@ class PlanExecution {
         unordered_set<int> getState(int pos) {return this->stateSeq[pos];}
         boost::dynamic_bitset<> getStateBits(int pos) {return stateSeqBits[pos];}
         bool isPropTrue(int pos, int prop) {return stateSeq[pos].count(prop);}
-        bool isExecutable() {return executable;}
+        bool isExecutable() const {return executable;}
+        int getStateSeqLen() const {return stateSeq.size();}
 
     private:
         bool executable;

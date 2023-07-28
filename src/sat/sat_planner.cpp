@@ -14,6 +14,7 @@
 #include <signal.h>
 #include <fstream>
 #include <iomanip>
+#include <cmath>
 
 #include <sys/sysinfo.h>
 #include "stdlib.h"
@@ -21,13 +22,16 @@
 #include "string.h"
 
 
-bool optimisePlan = true;
+bool optimisePlan = false;
 bool costMode = false;
 int currentMaximumCost;
 int costFactor = 1000;
+bool useLogCostsForOptimisation = true;
+
+int* originalActionCosts;
 
 
-int printSolution(void * solver, Model * htn, PDT* pdt, MatchingData & matching){
+pair<int,int> printSolution(void * solver, Model * htn, PDT* pdt, MatchingData & matching){
 	vector<PDT*> leafs;
 	pdt->getLeafs(leafs);
 
@@ -60,6 +64,7 @@ int printSolution(void * solver, Model * htn, PDT* pdt, MatchingData & matching)
 	
 	int currentID = 0;
 	int solutionCost = 0;
+	int trueSolutionCost = 0;
 	
 	cout << "==>" << endl;
 	/// extract the primitive plan
@@ -74,6 +79,7 @@ int printSolution(void * solver, Model * htn, PDT* pdt, MatchingData & matching)
 					leaf->outputID = currentID++;
 					std::cout << leaf->outputID << " " << htn->taskNames[leaf->possiblePrimitives[pIndex]] << endl;
 					solutionCost += htn->actionCosts[leaf->possiblePrimitives[pIndex]];
+					trueSolutionCost += originalActionCosts[leaf->possiblePrimitives[pIndex]];
 #ifndef NDEBUG
 					cout << "Assigning " << leaf->outputID << " to atom " << prim << endl;
 #endif
@@ -112,8 +118,8 @@ int printSolution(void * solver, Model * htn, PDT* pdt, MatchingData & matching)
 	// out decompositions
 	pdt->printDecomposition(htn);
 	cout << "<==" << endl;
-	cout << "Total cost of solution: " << solutionCost << endl;
-	return solutionCost;
+	cout << "Total cost of solution: " << solutionCost << " true cost: " << trueSolutionCost << endl;
+	return {solutionCost,trueSolutionCost};
 }
 
 void printVariableTruth(void* solver, Model * htn, sat_capsule & capsule){
@@ -677,6 +683,7 @@ void optimise_with_sat_planner_linear_bound_increase(Model * htn, bool block_com
 
 	costMode = true;
 	currentMaximumCost = currentCost - 1;
+	int lastImprovedDepth = depth;
 
 	while (true){
 		void* solver = ipasir_init();
@@ -710,16 +717,23 @@ void optimise_with_sat_planner_linear_bound_increase(Model * htn, bool block_com
 #ifndef NDEBUG
 			printVariableTruth(solver, htn, capsule);
 #endif
-			int cost = printSolution(solver,htn,pdt,matching);
+			auto [apparentCost,trueCost] = printSolution(solver,htn,pdt,matching);
 			ipasir_release(solver);
-			if (cost < 1000)
+			if (apparentCost < 1000)
 				costFactor = 1; // try to get a better resolution ...
-			currentMaximumCost = cost - 1;
+			currentMaximumCost = apparentCost - costFactor;
+			lastImprovedDepth = depth;
 			pdt = new PDT(htn);
 		} else {
 			depth++;
 			ipasir_release(solver);
-			//return;
+
+			// if we stay too long on this depth, try smaller steps
+			if (depth + 15 < lastImprovedDepth){
+				depth = lastImprovedDepth;
+				costFactor = 1;
+				currentMaximumCost += 999; // reset to a higher cost level
+			}
 		}
 	}
 }
@@ -768,10 +782,10 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn, bool block_compre
 #ifndef NDEBUG
 			printVariableTruth(solver, htn, capsule);
 #endif
-			int cost = printSolution(solver,htn,pdt,matching);
+			auto [apparentCost,trueCost] = printSolution(solver,htn,pdt,matching);
 			ipasir_release(solver);
 			if (optimisePlan)
-				optimise_with_sat_planner_linear_bound_increase(htn, block_compression, sat_mutexes, pruningMode, effectLessActionsInSeparateLeaf, capsule, pdt, depth, cost);
+				optimise_with_sat_planner_linear_bound_increase(htn, block_compression, sat_mutexes, pruningMode, effectLessActionsInSeparateLeaf, capsule, pdt, depth, apparentCost);
 			return;
 		} else {
 			depth++;
@@ -981,12 +995,13 @@ void solve_with_sat_planner_time_interleave(Model * htn, bool block_compression,
 
 
 
-void solve_with_sat_planner(Model * htn, bool block_compression, bool sat_mutexes, sat_pruning pruningMode, bool effectLessActionsInSeparateLeaf){
+void solve_with_sat_planner(Model * htn, bool block_compression, bool sat_mutexes, sat_pruning pruningMode, bool effectLessActionsInSeparateLeaf, bool optimise){
 	// prepare helper data structured (used for SOG)
 	htn->calcSCCs();
 	htn->constructSCCGraph();
 	htn->analyseSCCcyclicity();
 	
+	optimisePlan = optimise;
 	
 	// start actual planner
 	cout << endl << endl;
@@ -1004,12 +1019,24 @@ void solve_with_sat_planner(Model * htn, bool block_compression, bool sat_mutexe
 		case SAT_FF: cout << "ff" << endl; break;
 		case SAT_H2: cout << "h2" << endl; break;
 	}
+	cout << "Optimise Plan Cost: " << (optimisePlan?"yes":"no") << endl;
 
 	cout << endl << endl;
 	
 	// compute transitive closures of all methods
 	htn->computeTransitiveClosureOfMethodOrderings();
 	htn->buildOrderingDatastructures();
+
+	
+	originalActionCosts = new int[htn->numActions];
+	for (int i = 0; i < htn->numActions; i++) originalActionCosts[i] = htn->actionCosts[i];
+
+	if (useLogCostsForOptimisation){
+		for (int i = 0; i < htn->numActions; i++)
+			if (htn->actionCosts[i] != 0){
+				htn->actionCosts[i] = 1 + log(htn->actionCosts[i]);
+			}
+	}
 
 
 	//solve_with_sat_planner_time_interleave(htn, block_compression, sat_mutexes, pruningMode);

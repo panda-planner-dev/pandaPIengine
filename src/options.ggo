@@ -17,6 +17,7 @@ option "seed" S "specify the random seed" int default="42"
 option "timelimit" t "specify timelimit in seconds" int default="1800"
 option "noPlanOutput" N "don't output the plan [default=print plan]" flag off
 option "writeInputToHDDL" - "don't run the engine at all. Output the given SAS+ planning problem as HDDL again." flag off
+option "heuristicHelp" - "will print the help page for the heuristics" flag off
 
 section "Planner Selection" sectiondesc="default=progression"
 
@@ -24,21 +25,27 @@ defgroup "planningAlgorithm"
 groupoption "progression" p "progression search" group="planningAlgorithm"
 groupoption "sat" s "translation to SAT" group="planningAlgorithm"
 groupoption "bdd" b "symbolic search" group="planningAlgorithm"
+groupoption "translation" 2 "translation-based planner" group="planningAlgorithm"
 groupoption "interactive" I "interactive search" group="planningAlgorithm"
 
 section "Progression Search Options"
 
-option "heuristic" H "specify a heuristic" string multiple default="rc2(ff)"
-option "astarweight" w "weight of the heuristic for A*" int default="1"
-option "gValue" g "g value" string values="path","action","mixed","none" default="path"
+option "heuristic" H "specify heuristics. If you want to know how to specify a heuristic, use --heuristicHelp. The first heuristic in the list is the one used for search. Starting from the second, all other heuristics are used as tie-breakers. If you specify the same heuristic twice, it will only be computed once. If all tie-breakers are equal, a random number selected per search node is used as the final tie-breaker." string multiple default="rc2(ff)"
+option "astarweight" w "weight of the heuristic for weighted A* (also called greedy-A*). The default is 1, which yields the standard A* algorithm." int default="1"
+option "gValue" g "g value. You can select\npath: one for each applied action and performed decomposition\nmixed: summed cost of the applied actions plus 1 for every applied decomposition\naction: summed cost of the applied actions\nnone: constant zero.\n" string values="path","action","mixed","none" default="path"
 option "suboptimal" - "suboptimal search (early goal test and visited lists ignores costs)" flag off
+
+text "If you want to perform BFS, you need to run A* with the zero heuristic and select the gValue as path."
+text "If you want to perform DFS, you need to run A* with the inverted modDepth heuristic and select the gValue as none."
+text "Note that in both cases, we only simulate BFS and DFS using the standard sorted search queue, which incurs an additional log-time (in the size of the queue) factor."
+
 
 section "Visited List Options"
 
 option "noVisitedList" V "disable visited lists [default=with lists]" flag off
-option "taskHash" T "disable task hashing [default=with task hash]" flag on
-option "taskSequenceHash" Q "disable task sequence hashing [default=with task sequence hash]" flag on
-option "topologicalOrdering" O "disable visited checking with task sequences, this makes totally-ordered visited lists incomplete [default=with order]" flag on
+option "noTaskHash" T "disable task hashing [default=with task hash]" flag on
+option "noTaskSequenceHash" Q "disable task sequence hashing [default=with task sequence hash]" flag on
+option "noTopologicalOrdering" O "disable visited checking with task sequences, this makes totally-ordered visited lists incomplete [default=with order]" flag on
 option "noLayers" - "disable layer hashing [default=with layer hash]" flag on
 option "noOrderPairs" - "disable order pairs hashing [default=with order pairs hash]" flag on
 option "noParallelSequences" - "disable optimisation for parallel sequences [default=with optimisation]" flag on
@@ -46,7 +53,22 @@ option "noGIcheck" - "disable GI-complete equivalence checking for partially ord
 
 section "SAT Planner Options"
 
-option "blockcompression" B "apply block" flag on
+option "blockcompression" B "apply block compression" flag on
 option "satmutexes" M "encode SAT mutexes" flag on
 option "pruning" P "pruning mode" string values="none","ff","h2" default="ff"
-option "methodPreconditionsInSeparateLeafs" m "if in partial order mode, but method precondition actions into extra leafs. This allows for better encoding of executability, but may increase the size of the PDT" flag off
+option "methodPreconditionsInSeparateLeafs" m "if in partial order mode, put method precondition actions into extra leafs. This allows for better encoding of executability, but may increase the size of the PDT" flag off
+option "optimisation" o "after finding the first plan, continue search to find plans of lower cost" flag on
+
+
+section "Translation Planner Options"
+
+option "downward" - "path to fast downward executable" string default="none"
+option "downwardConf" - "configuration given to fast downward. This has two special values that are expanded to proper configurations. Use ehc-ff() for enforced hill climbing with FF and lazy-cea() for lazy-greedy search with the context enhanced additive heuristic." string default="ehc-ff()"
+option "transtype" - "type of translation to use" string values="push","parallelseq","to","postrips","pocond" default="push"
+option "forceTransType" - "by default, pandaPIengine will switch to a getter encoding if it detects the prerequisites for it in the problem. This flag disables this behaviour and always uses the given encoding." flag off
+option "sasfile" - "name of the SAS+ file generated. In planning mode this file will be written and used as a temporary file" string default="output.sas"
+option "pgb" - "the initial value of the progression bound. If zero, the minimum progression bound will be computed and used instead. This is the default behaviour!" int default="0"
+option "pgbsteps" - "step size of the progression bound" int default="1"
+option "onlyGenerate" - "only generate the translation and don't solv it. This overrides also iterate" flag off
+option "iterate" - "if the initial pgb is unsolvable, increase by one and continue" flag off
+option "realCosts" - "if enabled use the actual cost in the encoded model. Default is off, then all operators have unit cost." flag off

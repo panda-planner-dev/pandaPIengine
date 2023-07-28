@@ -242,6 +242,9 @@ namespace progression {
 			int **reachable = nullptr;
 
 			void writeToPDDL(string dName, string pName);
+
+	
+
 			bool isMethodTotallyOrdered(int method);
 			void computeTransitiveClosureOfMethodOrderings();
 			void buildOrderingDatastructures();

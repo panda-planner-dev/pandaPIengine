@@ -26,9 +26,12 @@
 
 #include "symbolic_search/automaton.h"
 
+#include "translation/translationController.h"
 
 #include "intDataStructures/IntPairHeap.h"
 #include "intDataStructures/bIntSet.h"
+
+#include "heuristics/hhSimple.h"
 
 #include "heuristics/rcHeuristics/RCModelFactory.h"
 #include "heuristics/landmarks/lmExtraction/LmFdConnector.h"
@@ -96,11 +99,65 @@ pair<string,map<string,string>> parse_heuristic_with_arguments_from_braced_expre
 
 
 enum planningAlgorithm{
-	PROGRESSION,SAT,BDD,INTERACTIVE
+	PROGRESSION,SAT,BDD,INTERACTIVE,TRANSLATION
 };
 
 
 void speed_test();
+
+
+void printHeuristicHelp(){
+	cout << "Each heuristic is to be specified as a single string." << endl;
+	cout << "The following heuristics are available" << endl;
+	cout << "" << endl;
+	cout << "  zero" << endl;
+	cout << "  modDepth" << endl;
+	cout << "  mixedModDepth" << endl;
+	cout << "  cost" << endl;
+	cout << "  rc2" << endl;
+	cout << "  dof" << endl;
+	cout << "" << endl;
+	cout << "Arguments are given to the heuristics in normal braces. E.g. use cost(invert) to pass the argument 'invert' to the heuristic 'cost'." << endl;
+	cout << "We explain below which arguments (like 'invert') exist for each heuristic. Multiple arguments must be separated by semicolons. " << endl;
+	cout << "By default the arguments can just be given in order. It is also possible to provide them using the key=value syntax. The name" << endl;
+	cout << "of the argument is given in braces" << endl;
+	cout << "" << endl;
+	cout << "- zero is a heuristic that returns always zero." << endl;
+	cout << "- cost is a heuristic that return the action costs of the actions taken leading to the current search node" << endl;
+	cout << "  (not including actions present in the current (remaining) task network)" << endl;
+	cout << "- modDepth and mixedModDepth are as explained in the planner helptext, as possible values for -g" << endl;
+	cout << "- The modDepth, mixedModDepth, and cost heuristics all have only one optional argument \"invert\" (or invert=true)." << endl;
+	cout << "  If provided the heuristic value will be multiplied with -1." << endl;
+	cout << "" << endl;
+	cout << "- The rc2 heuristic has the following arguments:" << endl;
+	cout << "  1. The inner heuristic (key: h). If you don't provide one, this will default to ff. You may choose one of" << endl;
+	cout << "    - ff (the FF heuristic)" << endl;
+	cout << "    - add (the additive heuristic)" << endl;
+	cout << "    - lmc (the LM-cut heuristic)" << endl;
+	cout << "    - filter (0 if the HTN goal is reachable under delete relaxation, infinity otherwise)" << endl;
+	cout << "  2. What to estimate (key: est). There are three possible values. The default is distance" << endl;
+	cout << "    - distance (estimate number of actions and methods to apply)" << endl;
+	cout << "    - cost (estimate cost of actions to apply)" << endl;
+	cout << "    - mixed (estimate cost of actions plus number of methods to apply)" << endl;
+	cout << "  3. Correct Task Count (key: taskcount). This option is on by default." << endl;
+	cout << "     If on, the heuristic is improved by counting the minimally implied cost/count " << endl;
+	cout << "     of actions that occur more than once in the current task network." << endl;
+	cout << "     To turn it off, pass no as the third argument" << endl;
+	cout << "" << endl;
+	cout << "- The dof (delete- and order-free relaxation) heuristic requires that pandaPIengine is compiled with CPLEX support." << endl;
+	cout << "  It has the following 8 arguments." << endl;
+	cout << "  1. Type (key: type). Default is ilp. Can be set to lp. Determines whether the problem is solved as an ILP or LP" << endl;
+	cout << "  2. Mode (key: mode). Default is satisficing. Can be set to optimal to make the heuristic optimal." << endl;
+	cout << "  3. TDG (key: tdg). Default allowUC (allow unconnected). Can be set to uc (full encoding, no unconnected parts) or none." << endl;
+	cout << "  4. PG (key: pg). Default is none. Can be set to full or relaxed to enable full or relaxed planning graph." << endl;
+	cout << "  5. And/Or Landmarks (key: andOrLM). Default is None." << endl;
+	cout << "     Can be set to full or onlyTNi to include all landmarks or only those derivable from the initial task network" << endl;
+	cout << "  6. External landmarks (key: externalLM). Default is no. With none can be set to use external landmarks." << endl;
+	cout << "  7. LM-cut (key: lmclmc). Default is full. Can be set to none to not include LM-cut landmarks" << endl;
+	cout << "  8. Netchange Constraints (key: netchange). Default is full. Can be set to none to not include net-change constraints" << endl;
+}
+
+
 
 int main(int argc, char *argv[]) {
 	//speed_test();
@@ -113,6 +170,10 @@ int main(int argc, char *argv[]) {
 
 	gengetopt_args_info args_info;
 	if (cmdline_parser(argc, argv, &args_info) != 0) return 1;
+	if (args_info.heuristicHelp_given){
+		printHeuristicHelp();
+		return 0;
+	}
 
 	// set debug mode
 	if (args_info.debug_given) setDebugMode(true);
@@ -207,6 +268,7 @@ int main(int argc, char *argv[]) {
 	if (args_info.sat_given) algo = SAT;
 	if (args_info.bdd_given) algo = BDD;
 	if (args_info.interactive_given) algo = INTERACTIVE;
+	if (args_info.translation_given) algo = TRANSLATION;
 
 
 	if (algo == INTERACTIVE){
@@ -223,11 +285,37 @@ int main(int argc, char *argv[]) {
 			hLength = 1;
 		}
     	Heuristic **heuristics = new Heuristic *[hLength];
+		map<pair<string,map<string,string>>, int> heuristics_so_far;
 		for (int i = 0; i < hLength; i++){
 			auto [hName, args] = parse_heuristic_with_arguments_from_braced_expression(args_info.heuristic_arg[i]);
-		
+			
+			if (heuristics_so_far.count({hName, args})){
+				heuristics[i] = heuristics[heuristics_so_far[{hName, args}]];
+				cout << "\tHeuristic duplicate: Nr. " << i << " is the same as " << heuristics_so_far[{hName, args}] << endl;
+				continue;
+			}
+			heuristics_so_far[{hName, args}] = i;
+
 			if (hName == "zero"){
     			heuristics[i] = new hhZero(htn, i);
+			} else if (hName == "modDepth"){
+				string invertString = (args.count("invert"))?args["invert"]:args["arg1"];
+				bool invert = false;
+				if (invertString == "true" || invertString == "invert") invert = true;
+
+    			heuristics[i] = new hhModDepth(htn, i, invert);
+			} else if (hName == "mixedModDepth"){
+				string invertString = (args.count("invert"))?args["invert"]:args["arg1"];
+				bool invert = false;
+				if (invertString == "true" || invertString == "invert") invert = true;
+
+    			heuristics[i] = new hhMixedModDepth(htn, i, invert);
+			} else if (hName == "cost"){
+				string invertString = (args.count("invert"))?args["invert"]:args["arg1"];
+				bool invert = false;
+				if (invertString == "true" || invertString == "invert") invert = true;
+
+    			heuristics[i] = new hhCost(htn, i, invert);
 			} else if (hName == "rc2"){
 				string subName = (args.count("h"))?args["h"]:args["arg1"];
 			
@@ -347,14 +435,14 @@ int main(int argc, char *argv[]) {
 
 		bool noVisitedList = args_info.noVisitedList_flag;
 		bool allowGIcheck = args_info.noGIcheck_flag;
-		bool taskHash = args_info.taskHash_flag;
-		bool taskSequenceHash = args_info.taskSequenceHash_flag;
-		bool topologicalOrdering = args_info.topologicalOrdering_flag;
+		bool taskHash = args_info.noTaskHash_flag;
+		bool taskSequenceHash = args_info.noTaskSequenceHash_flag;
+		bool topologicalOrdering = args_info.noTopologicalOrdering_flag;
 		bool orderPairsHash = args_info.noOrderPairs_flag;
 		bool layerHash = args_info.noLayers_flag;
 		bool allowParalleSequencesMode = args_info.noParallelSequences_flag;
     	
-		VisitedList visi(htn,noVisitedList, taskHash, taskSequenceHash, topologicalOrdering, orderPairsHash, layerHash, allowGIcheck, allowParalleSequencesMode);
+		VisitedList visi(htn,noVisitedList, suboptimalSearch, taskHash, taskSequenceHash, topologicalOrdering, orderPairsHash, layerHash, allowGIcheck, allowParalleSequencesMode);
     	PriorityQueueSearch search;
     	OneQueueWAStarFringe fringe(aStarType, aStarWeight, hLength);
 
@@ -366,6 +454,7 @@ int main(int argc, char *argv[]) {
 		bool block_compression = args_info.blockcompression_flag;
 		bool sat_mutexes = args_info.satmutexes_flag;
 		bool effectLessActionsInSeparateLeaf = args_info.methodPreconditionsInSeparateLeafs_given;
+		bool optimisingMode = args_info.optimisation_given;
 
     	sat_pruning pruningMode = SAT_FF;
     	if (string(args_info.pruning_arg) == "none") pruningMode = SAT_NONE;
@@ -375,7 +464,7 @@ int main(int argc, char *argv[]) {
 		extract_invariants_from_parsed_model(htn);
 		if (sat_mutexes) compute_Rintanen_Invariants(htn);
 
-		solve_with_sat_planner(htn, block_compression, sat_mutexes, pruningMode, effectLessActionsInSeparateLeaf);
+		solve_with_sat_planner(htn, block_compression, sat_mutexes, pruningMode, effectLessActionsInSeparateLeaf, optimisingMode);
 #else
 		cout << "Planner compiled without SAT planner support" << endl;
 #endif
@@ -385,6 +474,18 @@ int main(int argc, char *argv[]) {
 #else
 		cout << "Planner compiled without symbolic planner support" << endl;
 #endif
+	} else if (algo == TRANSLATION){
+		TranslationType type;
+		if (string(args_info.transtype_arg) == "push") type = Push; 
+		if (string(args_info.transtype_arg) == "parallelseq") type = ParallelSeq;
+		if (string(args_info.transtype_arg) == "to") type = TO;
+		if (string(args_info.transtype_arg) == "postrips") type = BaseStrips;
+		if (string(args_info.transtype_arg) == "pocond") type = BaseCondEffects;
+
+		runTranslationPlanner(htn,type, args_info.forceTransType_flag, args_info.pgb_arg, args_info.pgbsteps_arg,
+				string(args_info.downward_arg), string(args_info.downwardConf_arg), string(args_info.sasfile_arg),
+				args_info.iterate_flag, args_info.onlyGenerate_flag,
+				args_info.realCosts_flag);
 	}
 
     delete htn;

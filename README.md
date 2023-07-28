@@ -11,7 +11,7 @@ pandaPIengine is a versatile HTN planning engine. To use the engine, you first n
 
 ### Compiling pandaPIengine
 
-To compile pandaPIengine perform the following commands:
+To compile pandaPIengine, you need to have gengetopt (tested with version 2.23) install. To compile pandaPIengine, you need to perform the following commands:
 
 ```
 mkdir build
@@ -25,6 +25,26 @@ For the latter two, you can pass the arguments `-DSAT=ON` or `-DBDD=ON`. For the
 ### Using pandaPIengine
 
 If you have a grounded HTN planning problem as a *.sas file, you can simply run `build/pandaPIengine FILE.sas`. pandaPIengine has a reasonable default configuration (Greedy best first search with the RC-FF heuristic and visited lists). If you want to customise pandaPIenigne, please run `build/pandaPIengine -h` to see the available options.
+
+The simplest way to use the full pandaPI stack is the following -- assuming that your domain file is `domain.hddl` and your problem file is `problem.hddl`.
+
+```
+./pandaPIparser domain.hddl problem.hddl domain-problem.htn
+./pandaPIgrounder domain-problem.htn domain-problem.sas
+./pandaPIengine domain-problem.sas
+```
+
+*Note* pandaPIgrounder changes the model, i.e., it adds and combines methods, and adds and changes actions. The plan that the pandaPIengine finds is valid with respect to that changed model. This means the plan that pandaPIengine finds is not valid with respect to the original HDDL model that was put into the parser.
+
+To obtain a valid plan w.r.t. the original HDDL model, you need to translate the plan back to the original model. You can do this using the pandaPIparser. For that you have to write the plan that is produced by the pandaPIengine to a file and then convert it. The simplest way to do this is the following:
+
+```
+./pandaPIengine domain-problem.sas | tee plan.original
+./pandaPIparser -c plan.original plan.actual
+```
+
+The file `plan.actual` will then contain the valid HDDL-compliant plan.
+
 
 ### A Simple Script for Running the Planner (All Components)
 

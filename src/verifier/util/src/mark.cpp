@@ -69,8 +69,8 @@ bool MethodPrecMarker::isMethodPrecSat(int t, int pos, PlanExecution *execution)
             }
         }
     } else {
-        for (size_t mIndex = 0; mIndex < this->htn->numMethodsForTask[task]; mIndex++) {
-            int m = this->htn->taskToMethods[task][mIndex];
+        for (size_t mIndex = 0; mIndex < this->htn->numMethodsForTask[t]; mIndex++) {
+            int m = this->htn->taskToMethods[t][mIndex];
             if (this->htn->numSubTasks[m] == 1) {
                 int subTask = this->htn->subTasks[m][0];
                 if (!this->marked[subTask]) continue;

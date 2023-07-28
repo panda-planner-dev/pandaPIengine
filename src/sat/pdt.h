@@ -1,6 +1,7 @@
 #ifndef pdt_h_INCLUDED
 #define pdt_h_INCLUDED
 
+#include <stdint.h>
 #include "../flags.h" // defines flags
 #include "../Model.h"
 #include "sog.h"

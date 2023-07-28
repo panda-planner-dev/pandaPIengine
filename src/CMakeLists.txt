@@ -54,10 +54,12 @@ include_directories("search")
 include_directories("symbolic_search")
 include_directories("heuristics")
 include_directories("intDataStructures")
+include_directories("translation")
 add_subdirectory(search)
 add_subdirectory(symbolic_search)
 add_subdirectory(heuristics)
 add_subdirectory(intDataStructures)
+add_subdirectory(translation)
 
 
 add_custom_command(
@@ -82,6 +84,7 @@ target_link_libraries(pandaPIengine PUBLIC symbolic_search)
 target_link_libraries(pandaPIengine PUBLIC heuristics)
 target_link_libraries(pandaPIengine PUBLIC hrc)
 target_link_libraries(pandaPIengine PUBLIC hlm)
+target_link_libraries(pandaPIengine PUBLIC translation)
 
 if (BDD)
 	### Build Cudd
@@ -104,11 +107,11 @@ if (CPLEX_SOURCE_DIR)
 	target_link_libraries(pandaPIengine PUBLIC ilpheuristics)
 endif (CPLEX_SOURCE_DIR)
 
-if (SAT)
+# if (SAT)
 	add_subdirectory(sat)
 	include_directories("sat")
 	target_link_libraries(pandaPIengine PUBLIC sat)
-endif (SAT)
+# endif (SAT)
 
 ## must be added *after* SAT due to the use of the printMemory function, which is currently defined in the SAT module ... this is probably not a good idea.
 target_link_libraries(pandaPIengine PUBLIC intDataStructures)

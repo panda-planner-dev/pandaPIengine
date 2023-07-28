@@ -4,7 +4,7 @@
 #include <bitset>
 #include "pdt.h"
 #include "ipasir.h"
-#include "../Util.h"
+#include "Util.h"
 
 void printMemory();
 
@@ -675,12 +675,12 @@ void PDT::printDecomposition(Model * htn){
 	if (outputTask < htn->numActions) return;
 	
 	cout << outputID << " " << htn->taskNames[outputTask] << " -> " << 
-		htn->methodNames[outputMethod];
+		htn->methodNames[outputMethod] << endl;
 
 	// output children
 	for (PDT* & child : children){
 		int sub = child->getNextOutputTask();
-		if (sub != -1) cout << " " << sub;
+		if (sub != -1) cout << "- " << sub << " " << htn->taskNames[child->outputTask] << endl;
 	}
 	cout << endl;
 

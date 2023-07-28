@@ -45,11 +45,14 @@ struct gengetopt_args_info
   char * plan_arg;	/**< @brief the path to the input plan file.  */
   char * plan_orig;	/**< @brief the path to the input plan file original value given at command line.  */
   const char *plan_help; /**< @brief the path to the input plan file help description.  */
+  int optimizeDepth_flag;	/**< @brief calculating optimal depth (default=off).  */
+  const char *optimizeDepth_help; /**< @brief calculating optimal depth help description.  */
   
   unsigned int help_given ;	/**< @brief Whether help was given.  */
   unsigned int version_given ;	/**< @brief Whether version was given.  */
   unsigned int htn_given ;	/**< @brief Whether htn was given.  */
   unsigned int plan_given ;	/**< @brief Whether plan was given.  */
+  unsigned int optimizeDepth_given ;	/**< @brief Whether optimizeDepth was given.  */
 
   char **inputs ; /**< @brief unnamed options (options without names) */
   unsigned inputs_num ; /**< @brief unnamed options number */
