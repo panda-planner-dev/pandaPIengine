@@ -41,32 +41,47 @@ const char *gengetopt_args_info_help[] = {
   "  -t, --timelimit=INT           specify timelimit in seconds  (default=`1800')",
   "  -N, --noPlanOutput            don't output the plan [default=print plan]\n                                  (default=off)",
   "      --writeInputToHDDL        don't run the engine at all. Output the given\n                                  SAS+ planning problem as HDDL again.\n                                  (default=off)",
+  "      --heuristicHelp           will print the help page for the heuristics\n                                  (default=off)",
   "\nPlanner Selection:",
   "  default=progression",
   "\n Group: planningAlgorithm",
   "  -p, --progression             progression search",
   "  -s, --sat                     translation to SAT",
   "  -b, --bdd                     symbolic search",
+  "  -2, --translation             translation-based planner",
   "  -I, --interactive             interactive search",
   "\nProgression Search Options:",
-  "  -H, --heuristic=STRING        specify a heuristic  (default=`rc2(ff)')",
-  "  -w, --astarweight=INT         weight of the heuristic for A*  (default=`1')",
-  "  -g, --gValue=STRING           g value  (possible values=\"path\", \"action\",\n                                  \"mixed\", \"none\" default=`path')",
+  "  -H, --heuristic=STRING        specify heuristics. If you want to know how to\n                                  specify a heuristic, use --heuristicHelp. The\n                                  first heuristic in the list is the one used\n                                  for search. Starting from the second, all\n                                  other heuristics are used as tie-breakers. If\n                                  you specify the same heuristic twice, it will\n                                  only be computed once. If all tie-breakers\n                                  are equal, a random number selected per\n                                  search node is used as the final tie-breaker.\n                                  (default=`rc2(ff)')",
+  "  -w, --astarweight=INT         weight of the heuristic for weighted A* (also\n                                  called greedy-A*). The default is 1, which\n                                  yields the standard A* algorithm.\n                                  (default=`1')",
+  "  -g, --gValue=STRING           g value. You can select\n                                  path: one for each applied action and\n                                  performed decomposition\n                                  mixed: summed cost of the applied actions\n                                  plus 1 for every applied decomposition\n                                  action: summed cost of the applied actions\n                                  none: constant zero.\n                                    (possible values=\"path\", \"action\",\n                                  \"mixed\", \"none\" default=`path')",
   "      --suboptimal              suboptimal search (early goal test and visited\n                                  lists ignores costs)  (default=off)",
+  "If you want to perform BFS, you need to run A* with the zero heuristic and\nselect the gValue as path.If you want to perform DFS, you need to run A* with\nthe inverted modDepth heuristic and select the gValue as none.Note that in both\ncases, we only simulate BFS and DFS using the standard sorted search queue,\nwhich incurs an additional log-time (in the size of the queue) factor.",
   "\nVisited List Options:",
   "  -V, --noVisitedList           disable visited lists [default=with lists]\n                                  (default=off)",
-  "  -T, --taskHash                disable task hashing [default=with task hash]\n                                  (default=on)",
-  "  -Q, --taskSequenceHash        disable task sequence hashing [default=with\n                                  task sequence hash]  (default=on)",
-  "  -O, --topologicalOrdering     disable visited checking with task sequences,\n                                  this makes totally-ordered visited lists\n                                  incomplete [default=with order]  (default=on)",
+  "  -T, --noTaskHash              disable task hashing [default=with task hash]\n                                  (default=on)",
+  "  -Q, --noTaskSequenceHash      disable task sequence hashing [default=with\n                                  task sequence hash]  (default=on)",
+  "  -O, --noTopologicalOrdering   disable visited checking with task sequences,\n                                  this makes totally-ordered visited lists\n                                  incomplete [default=with order]  (default=on)",
   "      --noLayers                disable layer hashing [default=with layer hash]\n                                  (default=on)",
   "      --noOrderPairs            disable order pairs hashing [default=with order\n                                  pairs hash]  (default=on)",
   "      --noParallelSequences     disable optimisation for parallel sequences\n                                  [default=with optimisation]  (default=on)",
   "      --noGIcheck               disable GI-complete equivalence checking for\n                                  partially ordered task networks [default=with\n                                  GI-complete checking]  (default=on)",
   "\nSAT Planner Options:",
-  "  -B, --blockcompression        apply block  (default=on)",
+  "  -B, --blockcompression        apply block compression  (default=on)",
   "  -M, --satmutexes              encode SAT mutexes  (default=on)",
   "  -P, --pruning=STRING          pruning mode  (possible values=\"none\",\n                                  \"ff\", \"h2\" default=`ff')",
-  "  -m, --methodPreconditionsInSeparateLeafs\n                                if in partial order mode, but method\n                                  precondition actions into extra leafs. This\n                                  allows for better encoding of executability,\n                                  but may increase the size of the PDT\n                                  (default=off)",
+  "  -m, --methodPreconditionsInSeparateLeafs\n                                if in partial order mode, put method\n                                  precondition actions into extra leafs. This\n                                  allows for better encoding of executability,\n                                  but may increase the size of the PDT\n                                  (default=off)",
+  "  -o, --optimisation            after finding the first plan, continue search\n                                  to find plans of lower cost  (default=on)",
+  "\nTranslation Planner Options:",
+  "      --downward=STRING         path to fast downward executable\n                                  (default=`none')",
+  "      --downwardConf=STRING     configuration given to fast downward. This has\n                                  two special values that are expanded to\n                                  proper configurations. Use ehc-ff() for\n                                  enforced hill climbing with FF and lazy-cea()\n                                  for lazy-greedy search with the context\n                                  enhanced additive heuristic.\n                                  (default=`ehc-ff()')",
+  "      --transtype=STRING        type of translation to use  (possible\n                                  values=\"push\", \"parallelseq\", \"to\",\n                                  \"postrips\", \"pocond\" default=`push')",
+  "      --forceTransType          by default, pandaPIengine will switch to a\n                                  getter encoding if it detects the\n                                  prerequisites for it in the problem. This\n                                  flag disables this behaviour and always uses\n                                  the given encoding.  (default=off)",
+  "      --sasfile=STRING          name of the SAS+ file generated. In planning\n                                  mode this file will be written and used as a\n                                  temporary file  (default=`output.sas')",
+  "      --pgb=INT                 the initial value of the progression bound. If\n                                  zero, the minimum progression bound will be\n                                  computed and used instead. This is the\n                                  default behaviour!  (default=`0')",
+  "      --pgbsteps=INT            step size of the progression bound\n                                  (default=`1')",
+  "      --onlyGenerate            only generate the translation and don't solv\n                                  it. This overrides also iterate\n                                  (default=off)",
+  "      --iterate                 if the initial pgb is unsolvable, increase by\n                                  one and continue  (default=off)",
+  "      --realCosts               if enabled use the actual cost in the encoded\n                                  model. Default is off, then all operators\n                                  have unit cost.  (default=off)",
     0
 };
 
@@ -114,6 +129,7 @@ free_cmd_list(void)
 
 const char *cmdline_parser_gValue_values[] = {"path", "action", "mixed", "none", 0}; /*< Possible values for gValue. */
 const char *cmdline_parser_pruning_values[] = {"none", "ff", "h2", 0}; /*< Possible values for pruning. */
+const char *cmdline_parser_transtype_values[] = {"push", "parallelseq", "to", "postrips", "pocond", 0}; /*< Possible values for transtype. */
 
 static char *
 gengetopt_strdup (const char *s);
@@ -128,18 +144,20 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->timelimit_given = 0 ;
   args_info->noPlanOutput_given = 0 ;
   args_info->writeInputToHDDL_given = 0 ;
+  args_info->heuristicHelp_given = 0 ;
   args_info->progression_given = 0 ;
   args_info->sat_given = 0 ;
   args_info->bdd_given = 0 ;
+  args_info->translation_given = 0 ;
   args_info->interactive_given = 0 ;
   args_info->heuristic_given = 0 ;
   args_info->astarweight_given = 0 ;
   args_info->gValue_given = 0 ;
   args_info->suboptimal_given = 0 ;
   args_info->noVisitedList_given = 0 ;
-  args_info->taskHash_given = 0 ;
-  args_info->taskSequenceHash_given = 0 ;
-  args_info->topologicalOrdering_given = 0 ;
+  args_info->noTaskHash_given = 0 ;
+  args_info->noTaskSequenceHash_given = 0 ;
+  args_info->noTopologicalOrdering_given = 0 ;
   args_info->noLayers_given = 0 ;
   args_info->noOrderPairs_given = 0 ;
   args_info->noParallelSequences_given = 0 ;
@@ -148,6 +166,17 @@ void clear_given (struct gengetopt_args_info *args_info)
   args_info->satmutexes_given = 0 ;
   args_info->pruning_given = 0 ;
   args_info->methodPreconditionsInSeparateLeafs_given = 0 ;
+  args_info->optimisation_given = 0 ;
+  args_info->downward_given = 0 ;
+  args_info->downwardConf_given = 0 ;
+  args_info->transtype_given = 0 ;
+  args_info->forceTransType_given = 0 ;
+  args_info->sasfile_given = 0 ;
+  args_info->pgb_given = 0 ;
+  args_info->pgbsteps_given = 0 ;
+  args_info->onlyGenerate_given = 0 ;
+  args_info->iterate_given = 0 ;
+  args_info->realCosts_given = 0 ;
   args_info->planningAlgorithm_group_counter = 0 ;
 }
 
@@ -161,6 +190,7 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->timelimit_orig = NULL;
   args_info->noPlanOutput_flag = 0;
   args_info->writeInputToHDDL_flag = 0;
+  args_info->heuristicHelp_flag = 0;
   args_info->heuristic_arg = NULL;
   args_info->heuristic_orig = NULL;
   args_info->astarweight_arg = 1;
@@ -169,9 +199,9 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->gValue_orig = NULL;
   args_info->suboptimal_flag = 0;
   args_info->noVisitedList_flag = 0;
-  args_info->taskHash_flag = 1;
-  args_info->taskSequenceHash_flag = 1;
-  args_info->topologicalOrdering_flag = 1;
+  args_info->noTaskHash_flag = 1;
+  args_info->noTaskSequenceHash_flag = 1;
+  args_info->noTopologicalOrdering_flag = 1;
   args_info->noLayers_flag = 1;
   args_info->noOrderPairs_flag = 1;
   args_info->noParallelSequences_flag = 1;
@@ -181,6 +211,23 @@ void clear_args (struct gengetopt_args_info *args_info)
   args_info->pruning_arg = gengetopt_strdup ("ff");
   args_info->pruning_orig = NULL;
   args_info->methodPreconditionsInSeparateLeafs_flag = 0;
+  args_info->optimisation_flag = 1;
+  args_info->downward_arg = gengetopt_strdup ("none");
+  args_info->downward_orig = NULL;
+  args_info->downwardConf_arg = gengetopt_strdup ("ehc-ff()");
+  args_info->downwardConf_orig = NULL;
+  args_info->transtype_arg = gengetopt_strdup ("push");
+  args_info->transtype_orig = NULL;
+  args_info->forceTransType_flag = 0;
+  args_info->sasfile_arg = gengetopt_strdup ("output.sas");
+  args_info->sasfile_orig = NULL;
+  args_info->pgb_arg = 0;
+  args_info->pgb_orig = NULL;
+  args_info->pgbsteps_arg = 1;
+  args_info->pgbsteps_orig = NULL;
+  args_info->onlyGenerate_flag = 0;
+  args_info->iterate_flag = 0;
+  args_info->realCosts_flag = 0;
   
 }
 
@@ -196,28 +243,41 @@ void init_args_info(struct gengetopt_args_info *args_info)
   args_info->timelimit_help = gengetopt_args_info_help[5] ;
   args_info->noPlanOutput_help = gengetopt_args_info_help[6] ;
   args_info->writeInputToHDDL_help = gengetopt_args_info_help[7] ;
-  args_info->progression_help = gengetopt_args_info_help[11] ;
-  args_info->sat_help = gengetopt_args_info_help[12] ;
-  args_info->bdd_help = gengetopt_args_info_help[13] ;
-  args_info->interactive_help = gengetopt_args_info_help[14] ;
-  args_info->heuristic_help = gengetopt_args_info_help[16] ;
+  args_info->heuristicHelp_help = gengetopt_args_info_help[8] ;
+  args_info->progression_help = gengetopt_args_info_help[12] ;
+  args_info->sat_help = gengetopt_args_info_help[13] ;
+  args_info->bdd_help = gengetopt_args_info_help[14] ;
+  args_info->translation_help = gengetopt_args_info_help[15] ;
+  args_info->interactive_help = gengetopt_args_info_help[16] ;
+  args_info->heuristic_help = gengetopt_args_info_help[18] ;
   args_info->heuristic_min = 0;
   args_info->heuristic_max = 0;
-  args_info->astarweight_help = gengetopt_args_info_help[17] ;
-  args_info->gValue_help = gengetopt_args_info_help[18] ;
-  args_info->suboptimal_help = gengetopt_args_info_help[19] ;
-  args_info->noVisitedList_help = gengetopt_args_info_help[21] ;
-  args_info->taskHash_help = gengetopt_args_info_help[22] ;
-  args_info->taskSequenceHash_help = gengetopt_args_info_help[23] ;
-  args_info->topologicalOrdering_help = gengetopt_args_info_help[24] ;
-  args_info->noLayers_help = gengetopt_args_info_help[25] ;
-  args_info->noOrderPairs_help = gengetopt_args_info_help[26] ;
-  args_info->noParallelSequences_help = gengetopt_args_info_help[27] ;
-  args_info->noGIcheck_help = gengetopt_args_info_help[28] ;
-  args_info->blockcompression_help = gengetopt_args_info_help[30] ;
-  args_info->satmutexes_help = gengetopt_args_info_help[31] ;
-  args_info->pruning_help = gengetopt_args_info_help[32] ;
-  args_info->methodPreconditionsInSeparateLeafs_help = gengetopt_args_info_help[33] ;
+  args_info->astarweight_help = gengetopt_args_info_help[19] ;
+  args_info->gValue_help = gengetopt_args_info_help[20] ;
+  args_info->suboptimal_help = gengetopt_args_info_help[21] ;
+  args_info->noVisitedList_help = gengetopt_args_info_help[24] ;
+  args_info->noTaskHash_help = gengetopt_args_info_help[25] ;
+  args_info->noTaskSequenceHash_help = gengetopt_args_info_help[26] ;
+  args_info->noTopologicalOrdering_help = gengetopt_args_info_help[27] ;
+  args_info->noLayers_help = gengetopt_args_info_help[28] ;
+  args_info->noOrderPairs_help = gengetopt_args_info_help[29] ;
+  args_info->noParallelSequences_help = gengetopt_args_info_help[30] ;
+  args_info->noGIcheck_help = gengetopt_args_info_help[31] ;
+  args_info->blockcompression_help = gengetopt_args_info_help[33] ;
+  args_info->satmutexes_help = gengetopt_args_info_help[34] ;
+  args_info->pruning_help = gengetopt_args_info_help[35] ;
+  args_info->methodPreconditionsInSeparateLeafs_help = gengetopt_args_info_help[36] ;
+  args_info->optimisation_help = gengetopt_args_info_help[37] ;
+  args_info->downward_help = gengetopt_args_info_help[39] ;
+  args_info->downwardConf_help = gengetopt_args_info_help[40] ;
+  args_info->transtype_help = gengetopt_args_info_help[41] ;
+  args_info->forceTransType_help = gengetopt_args_info_help[42] ;
+  args_info->sasfile_help = gengetopt_args_info_help[43] ;
+  args_info->pgb_help = gengetopt_args_info_help[44] ;
+  args_info->pgbsteps_help = gengetopt_args_info_help[45] ;
+  args_info->onlyGenerate_help = gengetopt_args_info_help[46] ;
+  args_info->iterate_help = gengetopt_args_info_help[47] ;
+  args_info->realCosts_help = gengetopt_args_info_help[48] ;
   
 }
 
@@ -363,6 +423,16 @@ cmdline_parser_release (struct gengetopt_args_info *args_info)
   free_string_field (&(args_info->gValue_orig));
   free_string_field (&(args_info->pruning_arg));
   free_string_field (&(args_info->pruning_orig));
+  free_string_field (&(args_info->downward_arg));
+  free_string_field (&(args_info->downward_orig));
+  free_string_field (&(args_info->downwardConf_arg));
+  free_string_field (&(args_info->downwardConf_orig));
+  free_string_field (&(args_info->transtype_arg));
+  free_string_field (&(args_info->transtype_orig));
+  free_string_field (&(args_info->sasfile_arg));
+  free_string_field (&(args_info->sasfile_orig));
+  free_string_field (&(args_info->pgb_orig));
+  free_string_field (&(args_info->pgbsteps_orig));
   
   
   for (i = 0; i < args_info->inputs_num; ++i)
@@ -461,12 +531,16 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "noPlanOutput", 0, 0 );
   if (args_info->writeInputToHDDL_given)
     write_into_file(outfile, "writeInputToHDDL", 0, 0 );
+  if (args_info->heuristicHelp_given)
+    write_into_file(outfile, "heuristicHelp", 0, 0 );
   if (args_info->progression_given)
     write_into_file(outfile, "progression", 0, 0 );
   if (args_info->sat_given)
     write_into_file(outfile, "sat", 0, 0 );
   if (args_info->bdd_given)
     write_into_file(outfile, "bdd", 0, 0 );
+  if (args_info->translation_given)
+    write_into_file(outfile, "translation", 0, 0 );
   if (args_info->interactive_given)
     write_into_file(outfile, "interactive", 0, 0 );
   write_multiple_into_file(outfile, args_info->heuristic_given, "heuristic", args_info->heuristic_orig, 0);
@@ -478,12 +552,12 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "suboptimal", 0, 0 );
   if (args_info->noVisitedList_given)
     write_into_file(outfile, "noVisitedList", 0, 0 );
-  if (args_info->taskHash_given)
-    write_into_file(outfile, "taskHash", 0, 0 );
-  if (args_info->taskSequenceHash_given)
-    write_into_file(outfile, "taskSequenceHash", 0, 0 );
-  if (args_info->topologicalOrdering_given)
-    write_into_file(outfile, "topologicalOrdering", 0, 0 );
+  if (args_info->noTaskHash_given)
+    write_into_file(outfile, "noTaskHash", 0, 0 );
+  if (args_info->noTaskSequenceHash_given)
+    write_into_file(outfile, "noTaskSequenceHash", 0, 0 );
+  if (args_info->noTopologicalOrdering_given)
+    write_into_file(outfile, "noTopologicalOrdering", 0, 0 );
   if (args_info->noLayers_given)
     write_into_file(outfile, "noLayers", 0, 0 );
   if (args_info->noOrderPairs_given)
@@ -500,6 +574,28 @@ cmdline_parser_dump(FILE *outfile, struct gengetopt_args_info *args_info)
     write_into_file(outfile, "pruning", args_info->pruning_orig, cmdline_parser_pruning_values);
   if (args_info->methodPreconditionsInSeparateLeafs_given)
     write_into_file(outfile, "methodPreconditionsInSeparateLeafs", 0, 0 );
+  if (args_info->optimisation_given)
+    write_into_file(outfile, "optimisation", 0, 0 );
+  if (args_info->downward_given)
+    write_into_file(outfile, "downward", args_info->downward_orig, 0);
+  if (args_info->downwardConf_given)
+    write_into_file(outfile, "downwardConf", args_info->downwardConf_orig, 0);
+  if (args_info->transtype_given)
+    write_into_file(outfile, "transtype", args_info->transtype_orig, cmdline_parser_transtype_values);
+  if (args_info->forceTransType_given)
+    write_into_file(outfile, "forceTransType", 0, 0 );
+  if (args_info->sasfile_given)
+    write_into_file(outfile, "sasfile", args_info->sasfile_orig, 0);
+  if (args_info->pgb_given)
+    write_into_file(outfile, "pgb", args_info->pgb_orig, 0);
+  if (args_info->pgbsteps_given)
+    write_into_file(outfile, "pgbsteps", args_info->pgbsteps_orig, 0);
+  if (args_info->onlyGenerate_given)
+    write_into_file(outfile, "onlyGenerate", 0, 0 );
+  if (args_info->iterate_given)
+    write_into_file(outfile, "iterate", 0, 0 );
+  if (args_info->realCosts_given)
+    write_into_file(outfile, "realCosts", 0, 0 );
   
 
   i = EXIT_SUCCESS;
@@ -691,6 +787,7 @@ reset_group_planningAlgorithm(struct gengetopt_args_info *args_info)
   args_info->progression_given = 0 ;
   args_info->sat_given = 0 ;
   args_info->bdd_given = 0 ;
+  args_info->translation_given = 0 ;
   args_info->interactive_given = 0 ;
 
   args_info->planningAlgorithm_group_counter = 0;
@@ -1682,18 +1779,20 @@ cmdline_parser_internal (
         { "timelimit",	1, NULL, 't' },
         { "noPlanOutput",	0, NULL, 'N' },
         { "writeInputToHDDL",	0, NULL, 0 },
+        { "heuristicHelp",	0, NULL, 0 },
         { "progression",	0, NULL, 'p' },
         { "sat",	0, NULL, 's' },
         { "bdd",	0, NULL, 'b' },
+        { "translation",	0, NULL, '2' },
         { "interactive",	0, NULL, 'I' },
         { "heuristic",	1, NULL, 'H' },
         { "astarweight",	1, NULL, 'w' },
         { "gValue",	1, NULL, 'g' },
         { "suboptimal",	0, NULL, 0 },
         { "noVisitedList",	0, NULL, 'V' },
-        { "taskHash",	0, NULL, 'T' },
-        { "taskSequenceHash",	0, NULL, 'Q' },
-        { "topologicalOrdering",	0, NULL, 'O' },
+        { "noTaskHash",	0, NULL, 'T' },
+        { "noTaskSequenceHash",	0, NULL, 'Q' },
+        { "noTopologicalOrdering",	0, NULL, 'O' },
         { "noLayers",	0, NULL, 0 },
         { "noOrderPairs",	0, NULL, 0 },
         { "noParallelSequences",	0, NULL, 0 },
@@ -1702,6 +1801,17 @@ cmdline_parser_internal (
         { "satmutexes",	0, NULL, 'M' },
         { "pruning",	1, NULL, 'P' },
         { "methodPreconditionsInSeparateLeafs",	0, NULL, 'm' },
+        { "optimisation",	0, NULL, 'o' },
+        { "downward",	1, NULL, 0 },
+        { "downwardConf",	1, NULL, 0 },
+        { "transtype",	1, NULL, 0 },
+        { "forceTransType",	0, NULL, 0 },
+        { "sasfile",	1, NULL, 0 },
+        { "pgb",	1, NULL, 0 },
+        { "pgbsteps",	1, NULL, 0 },
+        { "onlyGenerate",	0, NULL, 0 },
+        { "iterate",	0, NULL, 0 },
+        { "realCosts",	0, NULL, 0 },
         { 0,  0, 0, 0 }
       };
 
@@ -1710,7 +1820,7 @@ cmdline_parser_internal (
       custom_opterr = opterr;
       custom_optopt = optopt;
 
-      c = custom_getopt_long (argc, argv, "hdS:t:NpsbIH:w:g:VTQOBMP:m", long_options, &option_index);
+      c = custom_getopt_long (argc, argv, "hdS:t:Npsb2IH:w:g:VTQOBMP:mo", long_options, &option_index);
 
       optarg = custom_optarg;
       optind = custom_optind;
@@ -1817,6 +1927,21 @@ cmdline_parser_internal (
             goto failure;
         
           break;
+        case '2':	/* translation-based planner.  */
+        
+          if (args_info->planningAlgorithm_group_counter && override)
+            reset_group_planningAlgorithm (args_info);
+          args_info->planningAlgorithm_group_counter += 1;
+        
+          if (update_arg( 0 , 
+               0 , &(args_info->translation_given),
+              &(local_args_info.translation_given), optarg, 0, 0, ARG_NO,
+              check_ambiguity, override, 0, 0,
+              "translation", '2',
+              additional_error))
+            goto failure;
+        
+          break;
         case 'I':	/* interactive search.  */
         
           if (args_info->planningAlgorithm_group_counter && override)
@@ -1832,7 +1957,7 @@ cmdline_parser_internal (
             goto failure;
         
           break;
-        case 'H':	/* specify a heuristic.  */
+        case 'H':	/* specify heuristics. If you want to know how to specify a heuristic, use --heuristicHelp. The first heuristic in the list is the one used for search. Starting from the second, all other heuristics are used as tie-breakers. If you specify the same heuristic twice, it will only be computed once. If all tie-breakers are equal, a random number selected per search node is used as the final tie-breaker..  */
         
           if (update_multiple_arg_temp(&heuristic_list, 
               &(local_args_info.heuristic_given), optarg, 0, "rc2(ff)", ARG_STRING,
@@ -1841,7 +1966,7 @@ cmdline_parser_internal (
             goto failure;
         
           break;
-        case 'w':	/* weight of the heuristic for A*.  */
+        case 'w':	/* weight of the heuristic for weighted A* (also called greedy-A*). The default is 1, which yields the standard A* algorithm..  */
         
         
           if (update_arg( (void *)&(args_info->astarweight_arg), 
@@ -1853,7 +1978,12 @@ cmdline_parser_internal (
             goto failure;
         
           break;
-        case 'g':	/* g value.  */
+        case 'g':	/* g value. You can select
+        path: one for each applied action and performed decomposition
+        mixed: summed cost of the applied actions plus 1 for every applied decomposition
+        action: summed cost of the applied actions
+        none: constant zero.
+.  */
         
         
           if (update_arg( (void *)&(args_info->gValue_arg), 
@@ -1878,9 +2008,9 @@ cmdline_parser_internal (
         case 'T':	/* disable task hashing [default=with task hash].  */
         
         
-          if (update_arg((void *)&(args_info->taskHash_flag), 0, &(args_info->taskHash_given),
-              &(local_args_info.taskHash_given), optarg, 0, 0, ARG_FLAG,
-              check_ambiguity, override, 1, 0, "taskHash", 'T',
+          if (update_arg((void *)&(args_info->noTaskHash_flag), 0, &(args_info->noTaskHash_given),
+              &(local_args_info.noTaskHash_given), optarg, 0, 0, ARG_FLAG,
+              check_ambiguity, override, 1, 0, "noTaskHash", 'T',
               additional_error))
             goto failure;
         
@@ -1888,9 +2018,9 @@ cmdline_parser_internal (
         case 'Q':	/* disable task sequence hashing [default=with task sequence hash].  */
         
         
-          if (update_arg((void *)&(args_info->taskSequenceHash_flag), 0, &(args_info->taskSequenceHash_given),
-              &(local_args_info.taskSequenceHash_given), optarg, 0, 0, ARG_FLAG,
-              check_ambiguity, override, 1, 0, "taskSequenceHash", 'Q',
+          if (update_arg((void *)&(args_info->noTaskSequenceHash_flag), 0, &(args_info->noTaskSequenceHash_given),
+              &(local_args_info.noTaskSequenceHash_given), optarg, 0, 0, ARG_FLAG,
+              check_ambiguity, override, 1, 0, "noTaskSequenceHash", 'Q',
               additional_error))
             goto failure;
         
@@ -1898,14 +2028,14 @@ cmdline_parser_internal (
         case 'O':	/* disable visited checking with task sequences, this makes totally-ordered visited lists incomplete [default=with order].  */
         
         
-          if (update_arg((void *)&(args_info->topologicalOrdering_flag), 0, &(args_info->topologicalOrdering_given),
-              &(local_args_info.topologicalOrdering_given), optarg, 0, 0, ARG_FLAG,
-              check_ambiguity, override, 1, 0, "topologicalOrdering", 'O',
+          if (update_arg((void *)&(args_info->noTopologicalOrdering_flag), 0, &(args_info->noTopologicalOrdering_given),
+              &(local_args_info.noTopologicalOrdering_given), optarg, 0, 0, ARG_FLAG,
+              check_ambiguity, override, 1, 0, "noTopologicalOrdering", 'O',
               additional_error))
             goto failure;
         
           break;
-        case 'B':	/* apply block.  */
+        case 'B':	/* apply block compression.  */
         
         
           if (update_arg((void *)&(args_info->blockcompression_flag), 0, &(args_info->blockcompression_given),
@@ -1937,12 +2067,22 @@ cmdline_parser_internal (
             goto failure;
         
           break;
-        case 'm':	/* if in partial order mode, but method precondition actions into extra leafs. This allows for better encoding of executability, but may increase the size of the PDT.  */
+        case 'm':	/* if in partial order mode, put method precondition actions into extra leafs. This allows for better encoding of executability, but may increase the size of the PDT.  */
         
         
           if (update_arg((void *)&(args_info->methodPreconditionsInSeparateLeafs_flag), 0, &(args_info->methodPreconditionsInSeparateLeafs_given),
               &(local_args_info.methodPreconditionsInSeparateLeafs_given), optarg, 0, 0, ARG_FLAG,
               check_ambiguity, override, 1, 0, "methodPreconditionsInSeparateLeafs", 'm',
+              additional_error))
+            goto failure;
+        
+          break;
+        case 'o':	/* after finding the first plan, continue search to find plans of lower cost.  */
+        
+        
+          if (update_arg((void *)&(args_info->optimisation_flag), 0, &(args_info->optimisation_given),
+              &(local_args_info.optimisation_given), optarg, 0, 0, ARG_FLAG,
+              check_ambiguity, override, 1, 0, "optimisation", 'o',
               additional_error))
             goto failure;
         
@@ -1963,6 +2103,18 @@ cmdline_parser_internal (
             if (update_arg((void *)&(args_info->writeInputToHDDL_flag), 0, &(args_info->writeInputToHDDL_given),
                 &(local_args_info.writeInputToHDDL_given), optarg, 0, 0, ARG_FLAG,
                 check_ambiguity, override, 1, 0, "writeInputToHDDL", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* will print the help page for the heuristics.  */
+          else if (strcmp (long_options[option_index].name, "heuristicHelp") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->heuristicHelp_flag), 0, &(args_info->heuristicHelp_given),
+                &(local_args_info.heuristicHelp_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "heuristicHelp", '-',
                 additional_error))
               goto failure;
           
@@ -2023,6 +2175,138 @@ cmdline_parser_internal (
             if (update_arg((void *)&(args_info->noGIcheck_flag), 0, &(args_info->noGIcheck_given),
                 &(local_args_info.noGIcheck_given), optarg, 0, 0, ARG_FLAG,
                 check_ambiguity, override, 1, 0, "noGIcheck", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* path to fast downward executable.  */
+          else if (strcmp (long_options[option_index].name, "downward") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->downward_arg), 
+                 &(args_info->downward_orig), &(args_info->downward_given),
+                &(local_args_info.downward_given), optarg, 0, "none", ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "downward", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* configuration given to fast downward. This has two special values that are expanded to proper configurations. Use ehc-ff() for enforced hill climbing with FF and lazy-cea() for lazy-greedy search with the context enhanced additive heuristic..  */
+          else if (strcmp (long_options[option_index].name, "downwardConf") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->downwardConf_arg), 
+                 &(args_info->downwardConf_orig), &(args_info->downwardConf_given),
+                &(local_args_info.downwardConf_given), optarg, 0, "ehc-ff()", ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "downwardConf", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* type of translation to use.  */
+          else if (strcmp (long_options[option_index].name, "transtype") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->transtype_arg), 
+                 &(args_info->transtype_orig), &(args_info->transtype_given),
+                &(local_args_info.transtype_given), optarg, cmdline_parser_transtype_values, "push", ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "transtype", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* by default, pandaPIengine will switch to a getter encoding if it detects the prerequisites for it in the problem. This flag disables this behaviour and always uses the given encoding..  */
+          else if (strcmp (long_options[option_index].name, "forceTransType") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->forceTransType_flag), 0, &(args_info->forceTransType_given),
+                &(local_args_info.forceTransType_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "forceTransType", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* name of the SAS+ file generated. In planning mode this file will be written and used as a temporary file.  */
+          else if (strcmp (long_options[option_index].name, "sasfile") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->sasfile_arg), 
+                 &(args_info->sasfile_orig), &(args_info->sasfile_given),
+                &(local_args_info.sasfile_given), optarg, 0, "output.sas", ARG_STRING,
+                check_ambiguity, override, 0, 0,
+                "sasfile", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* the initial value of the progression bound. If zero, the minimum progression bound will be computed and used instead. This is the default behaviour!.  */
+          else if (strcmp (long_options[option_index].name, "pgb") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->pgb_arg), 
+                 &(args_info->pgb_orig), &(args_info->pgb_given),
+                &(local_args_info.pgb_given), optarg, 0, "0", ARG_INT,
+                check_ambiguity, override, 0, 0,
+                "pgb", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* step size of the progression bound.  */
+          else if (strcmp (long_options[option_index].name, "pgbsteps") == 0)
+          {
+          
+          
+            if (update_arg( (void *)&(args_info->pgbsteps_arg), 
+                 &(args_info->pgbsteps_orig), &(args_info->pgbsteps_given),
+                &(local_args_info.pgbsteps_given), optarg, 0, "1", ARG_INT,
+                check_ambiguity, override, 0, 0,
+                "pgbsteps", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* only generate the translation and don't solv it. This overrides also iterate.  */
+          else if (strcmp (long_options[option_index].name, "onlyGenerate") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->onlyGenerate_flag), 0, &(args_info->onlyGenerate_given),
+                &(local_args_info.onlyGenerate_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "onlyGenerate", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* if the initial pgb is unsolvable, increase by one and continue.  */
+          else if (strcmp (long_options[option_index].name, "iterate") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->iterate_flag), 0, &(args_info->iterate_given),
+                &(local_args_info.iterate_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "iterate", '-',
+                additional_error))
+              goto failure;
+          
+          }
+          /* if enabled use the actual cost in the encoded model. Default is off, then all operators have unit cost..  */
+          else if (strcmp (long_options[option_index].name, "realCosts") == 0)
+          {
+          
+          
+            if (update_arg((void *)&(args_info->realCosts_flag), 0, &(args_info->realCosts_given),
+                &(local_args_info.realCosts_given), optarg, 0, 0, ARG_FLAG,
+                check_ambiguity, override, 1, 0, "realCosts", '-',
                 additional_error))
               goto failure;
           

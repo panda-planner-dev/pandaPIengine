@@ -50,31 +50,49 @@ struct gengetopt_args_info
   const char *noPlanOutput_help; /**< @brief don't output the plan [default=print plan] help description.  */
   int writeInputToHDDL_flag;	/**< @brief don't run the engine at all. Output the given SAS+ planning problem as HDDL again. (default=off).  */
   const char *writeInputToHDDL_help; /**< @brief don't run the engine at all. Output the given SAS+ planning problem as HDDL again. help description.  */
+  int heuristicHelp_flag;	/**< @brief will print the help page for the heuristics (default=off).  */
+  const char *heuristicHelp_help; /**< @brief will print the help page for the heuristics help description.  */
   const char *progression_help; /**< @brief progression search help description.  */
   const char *sat_help; /**< @brief translation to SAT help description.  */
   const char *bdd_help; /**< @brief symbolic search help description.  */
+  const char *translation_help; /**< @brief translation-based planner help description.  */
   const char *interactive_help; /**< @brief interactive search help description.  */
-  char ** heuristic_arg;	/**< @brief specify a heuristic (default='rc2(ff)').  */
-  char ** heuristic_orig;	/**< @brief specify a heuristic original value given at command line.  */
-  unsigned int heuristic_min; /**< @brief specify a heuristic's minimum occurreces */
-  unsigned int heuristic_max; /**< @brief specify a heuristic's maximum occurreces */
-  const char *heuristic_help; /**< @brief specify a heuristic help description.  */
-  int astarweight_arg;	/**< @brief weight of the heuristic for A* (default='1').  */
-  char * astarweight_orig;	/**< @brief weight of the heuristic for A* original value given at command line.  */
-  const char *astarweight_help; /**< @brief weight of the heuristic for A* help description.  */
-  char * gValue_arg;	/**< @brief g value (default='path').  */
-  char * gValue_orig;	/**< @brief g value original value given at command line.  */
-  const char *gValue_help; /**< @brief g value help description.  */
+  char ** heuristic_arg;	/**< @brief specify heuristics. If you want to know how to specify a heuristic, use --heuristicHelp. The first heuristic in the list is the one used for search. Starting from the second, all other heuristics are used as tie-breakers. If you specify the same heuristic twice, it will only be computed once. If all tie-breakers are equal, a random number selected per search node is used as the final tie-breaker. (default='rc2(ff)').  */
+  char ** heuristic_orig;	/**< @brief specify heuristics. If you want to know how to specify a heuristic, use --heuristicHelp. The first heuristic in the list is the one used for search. Starting from the second, all other heuristics are used as tie-breakers. If you specify the same heuristic twice, it will only be computed once. If all tie-breakers are equal, a random number selected per search node is used as the final tie-breaker. original value given at command line.  */
+  unsigned int heuristic_min; /**< @brief specify heuristics. If you want to know how to specify a heuristic, use --heuristicHelp. The first heuristic in the list is the one used for search. Starting from the second, all other heuristics are used as tie-breakers. If you specify the same heuristic twice, it will only be computed once. If all tie-breakers are equal, a random number selected per search node is used as the final tie-breaker.'s minimum occurreces */
+  unsigned int heuristic_max; /**< @brief specify heuristics. If you want to know how to specify a heuristic, use --heuristicHelp. The first heuristic in the list is the one used for search. Starting from the second, all other heuristics are used as tie-breakers. If you specify the same heuristic twice, it will only be computed once. If all tie-breakers are equal, a random number selected per search node is used as the final tie-breaker.'s maximum occurreces */
+  const char *heuristic_help; /**< @brief specify heuristics. If you want to know how to specify a heuristic, use --heuristicHelp. The first heuristic in the list is the one used for search. Starting from the second, all other heuristics are used as tie-breakers. If you specify the same heuristic twice, it will only be computed once. If all tie-breakers are equal, a random number selected per search node is used as the final tie-breaker. help description.  */
+  int astarweight_arg;	/**< @brief weight of the heuristic for weighted A* (also called greedy-A*). The default is 1, which yields the standard A* algorithm. (default='1').  */
+  char * astarweight_orig;	/**< @brief weight of the heuristic for weighted A* (also called greedy-A*). The default is 1, which yields the standard A* algorithm. original value given at command line.  */
+  const char *astarweight_help; /**< @brief weight of the heuristic for weighted A* (also called greedy-A*). The default is 1, which yields the standard A* algorithm. help description.  */
+  char * gValue_arg;	/**< @brief g value. You can select
+  path: one for each applied action and performed decomposition
+  mixed: summed cost of the applied actions plus 1 for every applied decomposition
+  action: summed cost of the applied actions
+  none: constant zero.
+ (default='path').  */
+  char * gValue_orig;	/**< @brief g value. You can select
+  path: one for each applied action and performed decomposition
+  mixed: summed cost of the applied actions plus 1 for every applied decomposition
+  action: summed cost of the applied actions
+  none: constant zero.
+ original value given at command line.  */
+  const char *gValue_help; /**< @brief g value. You can select
+  path: one for each applied action and performed decomposition
+  mixed: summed cost of the applied actions plus 1 for every applied decomposition
+  action: summed cost of the applied actions
+  none: constant zero.
+ help description.  */
   int suboptimal_flag;	/**< @brief suboptimal search (early goal test and visited lists ignores costs) (default=off).  */
   const char *suboptimal_help; /**< @brief suboptimal search (early goal test and visited lists ignores costs) help description.  */
   int noVisitedList_flag;	/**< @brief disable visited lists [default=with lists] (default=off).  */
   const char *noVisitedList_help; /**< @brief disable visited lists [default=with lists] help description.  */
-  int taskHash_flag;	/**< @brief disable task hashing [default=with task hash] (default=on).  */
-  const char *taskHash_help; /**< @brief disable task hashing [default=with task hash] help description.  */
-  int taskSequenceHash_flag;	/**< @brief disable task sequence hashing [default=with task sequence hash] (default=on).  */
-  const char *taskSequenceHash_help; /**< @brief disable task sequence hashing [default=with task sequence hash] help description.  */
-  int topologicalOrdering_flag;	/**< @brief disable visited checking with task sequences, this makes totally-ordered visited lists incomplete [default=with order] (default=on).  */
-  const char *topologicalOrdering_help; /**< @brief disable visited checking with task sequences, this makes totally-ordered visited lists incomplete [default=with order] help description.  */
+  int noTaskHash_flag;	/**< @brief disable task hashing [default=with task hash] (default=on).  */
+  const char *noTaskHash_help; /**< @brief disable task hashing [default=with task hash] help description.  */
+  int noTaskSequenceHash_flag;	/**< @brief disable task sequence hashing [default=with task sequence hash] (default=on).  */
+  const char *noTaskSequenceHash_help; /**< @brief disable task sequence hashing [default=with task sequence hash] help description.  */
+  int noTopologicalOrdering_flag;	/**< @brief disable visited checking with task sequences, this makes totally-ordered visited lists incomplete [default=with order] (default=on).  */
+  const char *noTopologicalOrdering_help; /**< @brief disable visited checking with task sequences, this makes totally-ordered visited lists incomplete [default=with order] help description.  */
   int noLayers_flag;	/**< @brief disable layer hashing [default=with layer hash] (default=on).  */
   const char *noLayers_help; /**< @brief disable layer hashing [default=with layer hash] help description.  */
   int noOrderPairs_flag;	/**< @brief disable order pairs hashing [default=with order pairs hash] (default=on).  */
@@ -83,15 +101,43 @@ struct gengetopt_args_info
   const char *noParallelSequences_help; /**< @brief disable optimisation for parallel sequences [default=with optimisation] help description.  */
   int noGIcheck_flag;	/**< @brief disable GI-complete equivalence checking for partially ordered task networks [default=with GI-complete checking] (default=on).  */
   const char *noGIcheck_help; /**< @brief disable GI-complete equivalence checking for partially ordered task networks [default=with GI-complete checking] help description.  */
-  int blockcompression_flag;	/**< @brief apply block (default=on).  */
-  const char *blockcompression_help; /**< @brief apply block help description.  */
+  int blockcompression_flag;	/**< @brief apply block compression (default=on).  */
+  const char *blockcompression_help; /**< @brief apply block compression help description.  */
   int satmutexes_flag;	/**< @brief encode SAT mutexes (default=on).  */
   const char *satmutexes_help; /**< @brief encode SAT mutexes help description.  */
   char * pruning_arg;	/**< @brief pruning mode (default='ff').  */
   char * pruning_orig;	/**< @brief pruning mode original value given at command line.  */
   const char *pruning_help; /**< @brief pruning mode help description.  */
-  int methodPreconditionsInSeparateLeafs_flag;	/**< @brief if in partial order mode, but method precondition actions into extra leafs. This allows for better encoding of executability, but may increase the size of the PDT (default=off).  */
-  const char *methodPreconditionsInSeparateLeafs_help; /**< @brief if in partial order mode, but method precondition actions into extra leafs. This allows for better encoding of executability, but may increase the size of the PDT help description.  */
+  int methodPreconditionsInSeparateLeafs_flag;	/**< @brief if in partial order mode, put method precondition actions into extra leafs. This allows for better encoding of executability, but may increase the size of the PDT (default=off).  */
+  const char *methodPreconditionsInSeparateLeafs_help; /**< @brief if in partial order mode, put method precondition actions into extra leafs. This allows for better encoding of executability, but may increase the size of the PDT help description.  */
+  int optimisation_flag;	/**< @brief after finding the first plan, continue search to find plans of lower cost (default=on).  */
+  const char *optimisation_help; /**< @brief after finding the first plan, continue search to find plans of lower cost help description.  */
+  char * downward_arg;	/**< @brief path to fast downward executable (default='none').  */
+  char * downward_orig;	/**< @brief path to fast downward executable original value given at command line.  */
+  const char *downward_help; /**< @brief path to fast downward executable help description.  */
+  char * downwardConf_arg;	/**< @brief configuration given to fast downward. This has two special values that are expanded to proper configurations. Use ehc-ff() for enforced hill climbing with FF and lazy-cea() for lazy-greedy search with the context enhanced additive heuristic. (default='ehc-ff()').  */
+  char * downwardConf_orig;	/**< @brief configuration given to fast downward. This has two special values that are expanded to proper configurations. Use ehc-ff() for enforced hill climbing with FF and lazy-cea() for lazy-greedy search with the context enhanced additive heuristic. original value given at command line.  */
+  const char *downwardConf_help; /**< @brief configuration given to fast downward. This has two special values that are expanded to proper configurations. Use ehc-ff() for enforced hill climbing with FF and lazy-cea() for lazy-greedy search with the context enhanced additive heuristic. help description.  */
+  char * transtype_arg;	/**< @brief type of translation to use (default='push').  */
+  char * transtype_orig;	/**< @brief type of translation to use original value given at command line.  */
+  const char *transtype_help; /**< @brief type of translation to use help description.  */
+  int forceTransType_flag;	/**< @brief by default, pandaPIengine will switch to a getter encoding if it detects the prerequisites for it in the problem. This flag disables this behaviour and always uses the given encoding. (default=off).  */
+  const char *forceTransType_help; /**< @brief by default, pandaPIengine will switch to a getter encoding if it detects the prerequisites for it in the problem. This flag disables this behaviour and always uses the given encoding. help description.  */
+  char * sasfile_arg;	/**< @brief name of the SAS+ file generated. In planning mode this file will be written and used as a temporary file (default='output.sas').  */
+  char * sasfile_orig;	/**< @brief name of the SAS+ file generated. In planning mode this file will be written and used as a temporary file original value given at command line.  */
+  const char *sasfile_help; /**< @brief name of the SAS+ file generated. In planning mode this file will be written and used as a temporary file help description.  */
+  int pgb_arg;	/**< @brief the initial value of the progression bound. If zero, the minimum progression bound will be computed and used instead. This is the default behaviour! (default='0').  */
+  char * pgb_orig;	/**< @brief the initial value of the progression bound. If zero, the minimum progression bound will be computed and used instead. This is the default behaviour! original value given at command line.  */
+  const char *pgb_help; /**< @brief the initial value of the progression bound. If zero, the minimum progression bound will be computed and used instead. This is the default behaviour! help description.  */
+  int pgbsteps_arg;	/**< @brief step size of the progression bound (default='1').  */
+  char * pgbsteps_orig;	/**< @brief step size of the progression bound original value given at command line.  */
+  const char *pgbsteps_help; /**< @brief step size of the progression bound help description.  */
+  int onlyGenerate_flag;	/**< @brief only generate the translation and don't solv it. This overrides also iterate (default=off).  */
+  const char *onlyGenerate_help; /**< @brief only generate the translation and don't solv it. This overrides also iterate help description.  */
+  int iterate_flag;	/**< @brief if the initial pgb is unsolvable, increase by one and continue (default=off).  */
+  const char *iterate_help; /**< @brief if the initial pgb is unsolvable, increase by one and continue help description.  */
+  int realCosts_flag;	/**< @brief if enabled use the actual cost in the encoded model. Default is off, then all operators have unit cost. (default=off).  */
+  const char *realCosts_help; /**< @brief if enabled use the actual cost in the encoded model. Default is off, then all operators have unit cost. help description.  */
   
   unsigned int help_given ;	/**< @brief Whether help was given.  */
   unsigned int version_given ;	/**< @brief Whether version was given.  */
@@ -100,18 +146,20 @@ struct gengetopt_args_info
   unsigned int timelimit_given ;	/**< @brief Whether timelimit was given.  */
   unsigned int noPlanOutput_given ;	/**< @brief Whether noPlanOutput was given.  */
   unsigned int writeInputToHDDL_given ;	/**< @brief Whether writeInputToHDDL was given.  */
+  unsigned int heuristicHelp_given ;	/**< @brief Whether heuristicHelp was given.  */
   unsigned int progression_given ;	/**< @brief Whether progression was given.  */
   unsigned int sat_given ;	/**< @brief Whether sat was given.  */
   unsigned int bdd_given ;	/**< @brief Whether bdd was given.  */
+  unsigned int translation_given ;	/**< @brief Whether translation was given.  */
   unsigned int interactive_given ;	/**< @brief Whether interactive was given.  */
   unsigned int heuristic_given ;	/**< @brief Whether heuristic was given.  */
   unsigned int astarweight_given ;	/**< @brief Whether astarweight was given.  */
   unsigned int gValue_given ;	/**< @brief Whether gValue was given.  */
   unsigned int suboptimal_given ;	/**< @brief Whether suboptimal was given.  */
   unsigned int noVisitedList_given ;	/**< @brief Whether noVisitedList was given.  */
-  unsigned int taskHash_given ;	/**< @brief Whether taskHash was given.  */
-  unsigned int taskSequenceHash_given ;	/**< @brief Whether taskSequenceHash was given.  */
-  unsigned int topologicalOrdering_given ;	/**< @brief Whether topologicalOrdering was given.  */
+  unsigned int noTaskHash_given ;	/**< @brief Whether noTaskHash was given.  */
+  unsigned int noTaskSequenceHash_given ;	/**< @brief Whether noTaskSequenceHash was given.  */
+  unsigned int noTopologicalOrdering_given ;	/**< @brief Whether noTopologicalOrdering was given.  */
   unsigned int noLayers_given ;	/**< @brief Whether noLayers was given.  */
   unsigned int noOrderPairs_given ;	/**< @brief Whether noOrderPairs was given.  */
   unsigned int noParallelSequences_given ;	/**< @brief Whether noParallelSequences was given.  */
@@ -120,6 +168,17 @@ struct gengetopt_args_info
   unsigned int satmutexes_given ;	/**< @brief Whether satmutexes was given.  */
   unsigned int pruning_given ;	/**< @brief Whether pruning was given.  */
   unsigned int methodPreconditionsInSeparateLeafs_given ;	/**< @brief Whether methodPreconditionsInSeparateLeafs was given.  */
+  unsigned int optimisation_given ;	/**< @brief Whether optimisation was given.  */
+  unsigned int downward_given ;	/**< @brief Whether downward was given.  */
+  unsigned int downwardConf_given ;	/**< @brief Whether downwardConf was given.  */
+  unsigned int transtype_given ;	/**< @brief Whether transtype was given.  */
+  unsigned int forceTransType_given ;	/**< @brief Whether forceTransType was given.  */
+  unsigned int sasfile_given ;	/**< @brief Whether sasfile was given.  */
+  unsigned int pgb_given ;	/**< @brief Whether pgb was given.  */
+  unsigned int pgbsteps_given ;	/**< @brief Whether pgbsteps was given.  */
+  unsigned int onlyGenerate_given ;	/**< @brief Whether onlyGenerate was given.  */
+  unsigned int iterate_given ;	/**< @brief Whether iterate was given.  */
+  unsigned int realCosts_given ;	/**< @brief Whether realCosts was given.  */
 
   char **inputs ; /**< @brief unnamed options (options without names) */
   unsigned inputs_num ; /**< @brief unnamed options number */
@@ -287,6 +346,7 @@ int cmdline_parser_required (struct gengetopt_args_info *args_info,
 
 extern const char *cmdline_parser_gValue_values[];  /**< @brief Possible values for gValue. */
 extern const char *cmdline_parser_pruning_values[];  /**< @brief Possible values for pruning. */
+extern const char *cmdline_parser_transtype_values[];  /**< @brief Possible values for transtype. */
 
 
 #ifdef __cplusplus
