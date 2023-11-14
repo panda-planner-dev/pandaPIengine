@@ -706,6 +706,11 @@ void optimise_with_sat_planner_linear_bound_increase(Model * htn, bool block_com
 			double solver_time_in_ms = 1000.0 * (solver_end-solver_start) / CLOCKS_PER_SEC;
 			cout << "Solver time: " << fixed << solver_time_in_ms << "ms" << endl;
 			
+
+			if (state != 10 && state != 20){
+				cout << "SAT Solver returned the state " << state << " for which we don't know what to do. Exiting." << endl;
+				exit(2);
+			}
 			
 			cout << "Solver state: " << color((state==10?Color::GREEN:Color::RED), (state==10?"SAT":"UNSAT")) << endl;
 			//if (depth == 3) exit(0);
@@ -770,7 +775,11 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn, bool block_compre
 			double solver_time_in_ms = 1000.0 * (solver_end-solver_start) / CLOCKS_PER_SEC;
 			cout << "Solver time: " << fixed << solver_time_in_ms << "ms" << endl;
 			
-			
+			if (state != 10 && state != 20){
+				cout << "SAT Solver returned the state " << state << " for which we don't know what to do. Exiting." << endl;
+				exit(2);
+			}
+	
 			cout << "Solver state: " << color((state==10?Color::GREEN:Color::RED), (state==10?"SAT":"UNSAT")) << endl;
 			//if (depth == 3) exit(0);
 		} else {
@@ -859,6 +868,10 @@ void* run_sat_planner_for_depth(void * param){
 		printSolution(ret->solver, ret->htn, ret->pdt, matching);
 		ipasir_release(ret->solver);
 		exit(0);
+	}
+	if (ret->state != 20){
+		cout << "SAT Solver returned the state " << ret->state << " for which we don't know what to do. Exiting." << endl;
+		exit(2);
 	}
 	// nothing to return;
 	ret->done = true;
