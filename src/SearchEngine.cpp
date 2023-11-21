@@ -483,12 +483,13 @@ int main(int argc, char *argv[]) {
     if (string(args_info.transtype_arg) == "postrips") type = BaseStrips;
     if (string(args_info.transtype_arg) == "pocond") type = BaseCondEffects;
 
-    searchReas = runTranslationPlanner(htn,type, args_info.forceTransType_flag, args_info.pgb_arg, args_info.pgbsteps_arg,
+    searchRes = runTranslationPlanner(htn,type, args_info.forceTransType_flag, args_info.pgb_arg, args_info.pgbsteps_arg,
                           string(args_info.downward_arg), string(args_info.downwardConf_arg), string(args_info.sasfile_arg),
                           args_info.iterate_flag, args_info.onlyGenerate_flag,
                           args_info.realCosts_flag);
     if (searchRes != 0) {
       searchRes = 2; // search failed
+    }
   }
 
   delete htn;

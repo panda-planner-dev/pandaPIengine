@@ -117,7 +117,7 @@ int runFD(string sasfile, string solver, string downwardConf, string & planFileN
 	return error_code;
 }
 
-void runTranslationPlanner(Model* htn, TranslationType transtype, bool forceTransType,
+int runTranslationPlanner(Model* htn, TranslationType transtype, bool forceTransType,
 		int pgb, int pgbsteps, string downward, string downwardConf, string sasfile,
 		bool iterate,
 		bool onlyGenerate,
@@ -238,14 +238,14 @@ void runTranslationPlanner(Model* htn, TranslationType transtype, bool forceTran
 		if (error_code == 3072 || error_code == 2816 || error_code == 512 || error_code == 1280 || error_code > 10){
 			if (!iterate){
     			cout << "- Configuration states not to iterate. Stopping. In order to iterate over the bound use --iterate" << endl;
-				exit(1);
+				return 1; //exit(1);
 			}
     		
 			for (int i = 0; i < parallel; i++){
     			pgbList[i] += pgbsteps;
 				if (pgbList[i] > maxpgb){
 		  			cout << "Reached max PGB. Aborting.";
-    	  			exit(-1);
+    	  			return 2; //exit(-1);
 				}
 			}
     	  
@@ -255,13 +255,15 @@ void runTranslationPlanner(Model* htn, TranslationType transtype, bool forceTran
 			cout << endl;
     	} else {
     		cout << "- FD produced unknown error code: " << error_code << endl;
-    		exit(-1);
+                return 3;
+    		// exit(-1);
     	}
 	}
 
 	translation->planToHddl(planFileName, "stdout");
 
 	// we don't correctly clean up after ourselves -- yet
-	exit(0);
+        return 0;
+	// exit(0);
 }
 
