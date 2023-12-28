@@ -220,7 +220,7 @@ int main(int argc, char *argv[]) {
   //
 
   bool useTaskHash = true;
-  int searchRes; // collect the result of runTranslationPlanner
+  int searchRes = 0; // collect the result of runTranslationPlanner
 
 
 
@@ -496,6 +496,7 @@ int main(int argc, char *argv[]) {
     
   return searchRes;
 }
+
 
 
 
