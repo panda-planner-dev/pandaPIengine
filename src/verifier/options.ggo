@@ -1,0 +1,12 @@
+package "planVerifier"
+version "0.1"
+purpose "Plan Verification"
+usage "./runVerifier [options]"
+description "<description>"
+versiontext "<versiontext>"
+
+args "--string-parser -u"
+
+option "htn" h "the path to the input HTN problem file" string required
+option "plan" p "the path to the input plan file" string required
+option "optimizeDepth" o "calculating optimal depth" flag off

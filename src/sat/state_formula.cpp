@@ -1,6 +1,6 @@
 #include "state_formula.h"
 #include "ipasir.h"
-#include "../Invariants.h"
+#include "Invariants.h"
 #include <cassert>
 #include <iomanip>
 

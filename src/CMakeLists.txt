@@ -115,3 +115,6 @@ endif (SAT)
 
 ## must be added *after* SAT due to the use of the printMemory function, which is currently defined in the SAT module ... this is probably not a good idea.
 target_link_libraries(pandaPIengine PUBLIC intDataStructures)
+
+# add plan verifiers
+add_subdirectory(verifier)
