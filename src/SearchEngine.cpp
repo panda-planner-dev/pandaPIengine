@@ -160,339 +160,343 @@ void printHeuristicHelp(){
 
 
 int main(int argc, char *argv[]) {
-	//speed_test();
-	//return 42;
+  //speed_test();
+  //return 42;
 #ifndef NDEBUG
-    cout
-            << "You have compiled the search engine without setting the NDEBUG flag. This will make it slow and should only be done for debug."
-            << endl;
+  cout
+    << "You have compiled the search engine without setting the NDEBUG flag. This will make it slow and should only be done for debug."
+    << endl;
 #endif
 
-	gengetopt_args_info args_info;
-	if (cmdline_parser(argc, argv, &args_info) != 0) return 1;
-	if (args_info.heuristicHelp_given){
-		printHeuristicHelp();
-		return 0;
-	}
+  gengetopt_args_info args_info;
+  if (cmdline_parser(argc, argv, &args_info) != 0) return 1;
+  if (args_info.heuristicHelp_given){
+    printHeuristicHelp();
+    return 0;
+  }
 
-	// set debug mode
-	if (args_info.debug_given) setDebugMode(true);
+  // set debug mode
+  if (args_info.debug_given) setDebugMode(true);
 
-	int seed = args_info.seed_arg; // has default value
-	cout << "Random seed: " << seed << endl;
-	srand(seed);
+  int seed = args_info.seed_arg; // has default value
+  cout << "Random seed: " << seed << endl;
+  srand(seed);
     
-	int timeL = args_info.timelimit_arg;
-    cout << "Time limit: " << timeL << " seconds" << endl;
+  int timeL = args_info.timelimit_arg;
+  cout << "Time limit: " << timeL << " seconds" << endl;
 
-	// get input files
-	std::vector<std::string> inputFiles;
-	for ( unsigned i = 0 ; i < args_info.inputs_num ; ++i )
-    	inputFiles.push_back(args_info.inputs[i]);
+  // get input files
+  std::vector<std::string> inputFiles;
+  for ( unsigned i = 0 ; i < args_info.inputs_num ; ++i )
+    inputFiles.push_back(args_info.inputs[i]);
 
-	std::string inputFilename = "-";
+  std::string inputFilename = "-";
 
-	if (inputFiles.size() > 1){
-		std::cerr << "You may specify at most one file as input: the SAS+ problem description" << std::endl;
-		return 1;
-	} else {
-		if (inputFiles.size())
-			inputFilename = inputFiles[0];
-	}
+  if (inputFiles.size() > 1){
+    std::cerr << "You may specify at most one file as input: the SAS+ problem description" << std::endl;
+    return 1;
+  } else {
+    if (inputFiles.size())
+      inputFilename = inputFiles[0];
+  }
 
-	std::istream * inputStream;
-	if (inputFilename == "-") {
-		std::cout << "Reading input from standard input." << std::endl;
-		inputStream = &std::cin;
-	} else {
-		std::cout << "Reading input from " << inputFilename << "." << std::endl;
+  std::istream * inputStream;
+  if (inputFilename == "-") {
+    std::cout << "Reading input from standard input." << std::endl;
+    inputStream = &std::cin;
+  } else {
+    std::cout << "Reading input from " << inputFilename << "." << std::endl;
 
-		std::ifstream * fileInput = new std::ifstream(inputFilename);
-		if (!fileInput->good())
-		{
-			std::cerr << "Unable to open input file " << inputFilename << ": " << strerror (errno) << std::endl;
-			return 1;
-		}
+    std::ifstream * fileInput = new std::ifstream(inputFilename);
+    if (!fileInput->good())
+      {
+        std::cerr << "Unable to open input file " << inputFilename << ": " << strerror (errno) << std::endl;
+        return 1;
+      }
 
-		inputStream = fileInput;
-	}
+    inputStream = fileInput;
+  }
 
-	//
+  //
 
-	bool useTaskHash = true;
+  bool useTaskHash = true;
+  int searchRes = 0; // collect the result of runTranslationPlanner
 
 
 
-    /* Read model */
-    // todo: the correct value of maintainTaskRechability depends on the heuristic
-    eMaintainTaskReachability reachability = mtrACTIONS;
-	bool trackContainedTasks = useTaskHash;
-    Model* htn = new Model(trackContainedTasks, reachability, true, true);
-	htn->filename = inputFilename;
-	if (args_info.satmutexes_flag) htn->rintanenInvariants = true;
-	htn->read(inputStream);
-	assert(htn->isHtnModel);
-	searchNode* tnI = htn->prepareTNi(htn);
+  /* Read model */
+  // todo: the correct value of maintainTaskRechability depends on the heuristic
+  eMaintainTaskReachability reachability = mtrACTIONS;
+  bool trackContainedTasks = useTaskHash;
+  Model* htn = new Model(trackContainedTasks, reachability, true, true);
+  htn->filename = inputFilename;
+  if (args_info.satmutexes_flag) htn->rintanenInvariants = true;
+  htn->read(inputStream);
+  assert(htn->isHtnModel);
+  searchNode* tnI = htn->prepareTNi(htn);
 			
-	if (inputFilename != "-") ((ifstream*) inputStream)->close();
+  if (inputFilename != "-") ((ifstream*) inputStream)->close();
 
 
-	if (args_info.writeInputToHDDL_given){
-		cout << "writing input problem to file" << endl;
-		if (inputFilename == "-"){
-			cout << "Cannot determine proper file names when reading from stdin" << endl;
-			return 1;
-		}
-		string dName = inputFilename + ".d.hddl";
-		string pName = inputFilename + ".p.hddl";
-		htn->buildOrderingDatastructures();
-		htn->writeToPDDL(dName,pName);
+  if (args_info.writeInputToHDDL_given){
+    cout << "writing input problem to file" << endl;
+    if (inputFilename == "-"){
+      cout << "Cannot determine proper file names when reading from stdin" << endl;
+      return 1;
+    }
+    string dName = inputFilename + ".d.hddl";
+    string pName = inputFilename + ".p.hddl";
+    htn->buildOrderingDatastructures();
+    htn->writeToPDDL(dName,pName);
 
-		return 0;
-	}
+    return 0;
+  }
 
 
 	
-    if(reachability != mtrNO) {
-        htn->calcSCCs();
-        htn->calcSCCGraph();
+  if(reachability != mtrNO) {
+    htn->calcSCCs();
+    htn->calcSCCGraph();
 
-        // add reachability information to initial task network
-        htn->updateReachability(tnI);
+    // add reachability information to initial task network
+    htn->updateReachability(tnI);
+  }
+
+  //    Heuristic *hLMC = new hhLMCount(htn, 0, tnI, lmfFD);
+
+  planningAlgorithm algo = PROGRESSION;
+  if (args_info.progression_given) algo = PROGRESSION;
+  if (args_info.sat_given) algo = SAT;
+  if (args_info.bdd_given) algo = BDD;
+  if (args_info.interactive_given) algo = INTERACTIVE;
+  if (args_info.translation_given) algo = TRANSLATION;
+
+
+  if (algo == INTERACTIVE){
+    cout << "Selected Planning Algorihtm: interactive";
+    interactivePlanner(htn,tnI);
+  } else if (algo == PROGRESSION){
+    cout << "Selected Planning Algorithm: progression search";
+	
+    int hLength = args_info.heuristic_given;
+    cout << "Parsing heuristics ..." << endl;
+    cout << "Number of specified heuristics: " << hLength << endl;
+    if (hLength == 0){
+      cout << "No heuristics given, setting default ... " << endl;
+      hLength = 1;
+    }
+    Heuristic **heuristics = new Heuristic *[hLength];
+    map<pair<string,map<string,string>>, int> heuristics_so_far;
+    for (int i = 0; i < hLength; i++){
+      auto [hName, args] = parse_heuristic_with_arguments_from_braced_expression(args_info.heuristic_arg[i]);
+			
+      if (heuristics_so_far.count({hName, args})){
+        heuristics[i] = heuristics[heuristics_so_far[{hName, args}]];
+        cout << "\tHeuristic duplicate: Nr. " << i << " is the same as " << heuristics_so_far[{hName, args}] << endl;
+        continue;
+      }
+      heuristics_so_far[{hName, args}] = i;
+
+      if (hName == "zero"){
+        heuristics[i] = new hhZero(htn, i);
+      } else if (hName == "modDepth"){
+        string invertString = (args.count("invert"))?args["invert"]:args["arg1"];
+        bool invert = false;
+        if (invertString == "true" || invertString == "invert") invert = true;
+
+        heuristics[i] = new hhModDepth(htn, i, invert);
+      } else if (hName == "mixedModDepth"){
+        string invertString = (args.count("invert"))?args["invert"]:args["arg1"];
+        bool invert = false;
+        if (invertString == "true" || invertString == "invert") invert = true;
+
+        heuristics[i] = new hhMixedModDepth(htn, i, invert);
+      } else if (hName == "cost"){
+        string invertString = (args.count("invert"))?args["invert"]:args["arg1"];
+        bool invert = false;
+        if (invertString == "true" || invertString == "invert") invert = true;
+
+        heuristics[i] = new hhCost(htn, i, invert);
+      } else if (hName == "rc2"){
+        string subName = (args.count("h"))?args["h"]:args["arg1"];
+			
+        string estimate_string = (args.count("est"))?args["est"]:args["arg2"];
+        eEstimate estimate = estDISTANCE;
+        if (estimate_string == "cost")
+          estimate = estCOSTS;
+        if (estimate_string == "mixed")
+          estimate = estMIXED;
+				
+        string correct_task_count_string = (args.count("taskcount"))?args["taskcount"]:args["arg3"];
+        bool correctTaskCount = true;
+        if (correct_task_count_string == "no")
+          correctTaskCount = false;
+
+        if (subName == "lmc")
+          heuristics[i] = new hhRC2<hsLmCut>(htn, i, estimate, correctTaskCount);
+        else if (subName == "add"){
+          heuristics[i] = new hhRC2<hsAddFF>(htn, i, estimate, correctTaskCount);
+          ((hhRC2<hsAddFF>*)heuristics[i])->sasH->heuristic = sasAdd;
+        } else if (subName == "ff"){
+          heuristics[i] = new hhRC2<hsAddFF>(htn, i, estimate, correctTaskCount);
+          ((hhRC2<hsAddFF>*)heuristics[i])->sasH->heuristic = sasFF;
+        } else if (subName == "filter")
+          heuristics[i] = new hhRC2<hsFilter>(htn, i, estimate, correctTaskCount);
+        else {
+          cout << "No inner heuristic specified for RC. Using FF" << endl;
+          heuristics[i] = new hhRC2<hsAddFF>(htn, i, estimate, correctTaskCount);
+          ((hhRC2<hsAddFF>*)heuristics[i])->sasH->heuristic = sasFF;
+        }
+      } else if (hName == "dof"){
+#ifndef CMAKE_NO_ILP
+        string type_string = (args.count("type"))?args["type"]:args["arg1"];
+        IloNumVar::Type intType = IloNumVar::Int;
+        IloNumVar::Type boolType = IloNumVar::Bool;
+        if (type_string == "lp"){
+          intType = IloNumVar::Float;
+          boolType = IloNumVar::Float;
+        }
+
+        string mode_string = (args.count("mode"))?args["mode"]:args["arg2"];
+        csSetting mode = cSatisficing;
+        if (mode_string == "optimal")
+          mode = cOptimal;
+
+        string tdg_string = (args.count("tdg"))?args["tdg"]:args["arg3"];
+        csTdg tdg = cTdgAllowUC;
+        if (tdg_string == "uc")
+          tdg = cTdgFull;
+        else if (tdg_string == "none")
+          tdg = cTdgNone;
+			
+        string pg_string = (args.count("pg"))?args["pg"]:args["arg4"];
+        csPg pg = cPgNone;
+        if (pg_string == "full")
+          pg = cPgFull;
+        else if (tdg_string == "relaxed")
+          pg = cPgTimeRelaxed;
+
+        string andorLM_string = (args.count("andOrLM"))?args["andOrLM"]:args["arg5"];
+        csAndOrLms andOrLM = cAndOrLmsNone;
+        if (andorLM_string == "full")
+          andOrLM = cAndOrLmsFull;
+        else if (andorLM_string == "onlyTNi")
+          andOrLM = cAndOrLmsOnlyTnI;
+
+        string externalLM_string = (args.count("externalLM"))?args["externalLM"]:args["arg6"];
+        csAddExternalLms externalLM = cAddExternalLmsNo;
+        if (externalLM_string == "none")
+          externalLM = cAddExternalLmsYes;
+
+        string lmclms_string = (args.count("lmclmc"))?args["lmclmc"]:args["arg7"];
+        csLmcLms lmclms = cLmcLmsFull;
+        if (lmclms_string == "none")
+          lmclms = cLmcLmsNone;
+
+        string netchange_string = (args.count("netchange"))?args["netchange"]:args["arg8"];
+        csNetChange netchange = cNetChangeFull;
+        if (netchange_string == "none")
+          netchange = cNetChangeNone;
+
+
+        heuristics[i] = new hhDOfree(htn,tnI,i,intType,boolType,mode,tdg,pg,andOrLM,lmclms,netchange,externalLM);
+#else
+        cout << "Planner compiled without CPLEX support" << endl;
+        return 1;
+#endif
+      } else {
+        cout << "Heuristic type \"" << hName << "\" is unknown." << endl;
+        return 1;
+      }
+
+      cout << "Heuristic #" << i << " = " << heuristics[i]->getDescription() << endl; 
     }
 
-//    Heuristic *hLMC = new hhLMCount(htn, 0, tnI, lmfFD);
-
-	planningAlgorithm algo = PROGRESSION;
-	if (args_info.progression_given) algo = PROGRESSION;
-	if (args_info.sat_given) algo = SAT;
-	if (args_info.bdd_given) algo = BDD;
-	if (args_info.interactive_given) algo = INTERACTIVE;
-	if (args_info.translation_given) algo = TRANSLATION;
-
-
-	if (algo == INTERACTIVE){
-		cout << "Selected Planning Algorihtm: interactive";
-		interactivePlanner(htn,tnI);
-	} else if (algo == PROGRESSION){
-		cout << "Selected Planning Algorithm: progression search";
+    int aStarWeight = args_info.astarweight_arg;
+    aStar aStarType = gValNone;
+    if (string(args_info.gValue_arg) == "path") aStarType = gValPathCosts;
+    if (string(args_info.gValue_arg) == "action") aStarType = gValActionCosts;
+    if (string(args_info.gValue_arg) == "mixed") aStarType = gValActionPathCosts;
+    if (string(args_info.gValue_arg) == "none") aStarType = gValNone;
 	
-		int hLength = args_info.heuristic_given;
-		cout << "Parsing heuristics ..." << endl;
-		cout << "Number of specified heuristics: " << hLength << endl;
-		if (hLength == 0){
-			cout << "No heuristics given, setting default ... " << endl;
-			hLength = 1;
-		}
-    	Heuristic **heuristics = new Heuristic *[hLength];
-		map<pair<string,map<string,string>>, int> heuristics_so_far;
-		for (int i = 0; i < hLength; i++){
-			auto [hName, args] = parse_heuristic_with_arguments_from_braced_expression(args_info.heuristic_arg[i]);
-			
-			if (heuristics_so_far.count({hName, args})){
-				heuristics[i] = heuristics[heuristics_so_far[{hName, args}]];
-				cout << "\tHeuristic duplicate: Nr. " << i << " is the same as " << heuristics_so_far[{hName, args}] << endl;
-				continue;
-			}
-			heuristics_so_far[{hName, args}] = i;
+    bool suboptimalSearch = args_info.suboptimal_flag;
 
-			if (hName == "zero"){
-    			heuristics[i] = new hhZero(htn, i);
-			} else if (hName == "modDepth"){
-				string invertString = (args.count("invert"))?args["invert"]:args["arg1"];
-				bool invert = false;
-				if (invertString == "true" || invertString == "invert") invert = true;
-
-    			heuristics[i] = new hhModDepth(htn, i, invert);
-			} else if (hName == "mixedModDepth"){
-				string invertString = (args.count("invert"))?args["invert"]:args["arg1"];
-				bool invert = false;
-				if (invertString == "true" || invertString == "invert") invert = true;
-
-    			heuristics[i] = new hhMixedModDepth(htn, i, invert);
-			} else if (hName == "cost"){
-				string invertString = (args.count("invert"))?args["invert"]:args["arg1"];
-				bool invert = false;
-				if (invertString == "true" || invertString == "invert") invert = true;
-
-    			heuristics[i] = new hhCost(htn, i, invert);
-			} else if (hName == "rc2"){
-				string subName = (args.count("h"))?args["h"]:args["arg1"];
-			
-				string estimate_string = (args.count("est"))?args["est"]:args["arg2"];
-				eEstimate estimate = estDISTANCE;
-				if (estimate_string == "cost")
-					estimate = estCOSTS;
-				if (estimate_string == "mixed")
-					estimate = estMIXED;
-				
-				string correct_task_count_string = (args.count("taskcount"))?args["taskcount"]:args["arg3"];
-				bool correctTaskCount = true;
-				if (correct_task_count_string == "no")
-					correctTaskCount = false;
-
-				if (subName == "lmc")
-		    		heuristics[i] = new hhRC2<hsLmCut>(htn, i, estimate, correctTaskCount);
-				else if (subName == "add"){
-		    		heuristics[i] = new hhRC2<hsAddFF>(htn, i, estimate, correctTaskCount);
-					((hhRC2<hsAddFF>*)heuristics[i])->sasH->heuristic = sasAdd;
-				} else if (subName == "ff"){
-		    		heuristics[i] = new hhRC2<hsAddFF>(htn, i, estimate, correctTaskCount);
-					((hhRC2<hsAddFF>*)heuristics[i])->sasH->heuristic = sasFF;
-				} else if (subName == "filter")
-		    		heuristics[i] = new hhRC2<hsFilter>(htn, i, estimate, correctTaskCount);
-				else {
-					cout << "No inner heuristic specified for RC. Using FF" << endl;
-		    		heuristics[i] = new hhRC2<hsAddFF>(htn, i, estimate, correctTaskCount);
-					((hhRC2<hsAddFF>*)heuristics[i])->sasH->heuristic = sasFF;
-				}
-			} else if (hName == "dof"){
-#ifndef CMAKE_NO_ILP
-				string type_string = (args.count("type"))?args["type"]:args["arg1"];
-				IloNumVar::Type intType = IloNumVar::Int;
-				IloNumVar::Type boolType = IloNumVar::Bool;
-				if (type_string == "lp"){
-					intType = IloNumVar::Float;
-					boolType = IloNumVar::Float;
-				}
-
-				string mode_string = (args.count("mode"))?args["mode"]:args["arg2"];
-				csSetting mode = cSatisficing;
-				if (mode_string == "optimal")
-					mode = cOptimal;
-
-				string tdg_string = (args.count("tdg"))?args["tdg"]:args["arg3"];
-				csTdg tdg = cTdgAllowUC;
-				if (tdg_string == "uc")
-					tdg = cTdgFull;
-				else if (tdg_string == "none")
-					tdg = cTdgNone;
-			
-				string pg_string = (args.count("pg"))?args["pg"]:args["arg4"];
-				csPg pg = cPgNone;
-				if (pg_string == "full")
-					pg = cPgFull;
-				else if (tdg_string == "relaxed")
-					pg = cPgTimeRelaxed;
-
-				string andorLM_string = (args.count("andOrLM"))?args["andOrLM"]:args["arg5"];
-				csAndOrLms andOrLM = cAndOrLmsNone;
-				if (andorLM_string == "full")
-					andOrLM = cAndOrLmsFull;
-				else if (andorLM_string == "onlyTNi")
-					andOrLM = cAndOrLmsOnlyTnI;
-
-				string externalLM_string = (args.count("externalLM"))?args["externalLM"]:args["arg6"];
-				csAddExternalLms externalLM = cAddExternalLmsNo;
-				if (externalLM_string == "none")
-					externalLM = cAddExternalLmsYes;
-
-				string lmclms_string = (args.count("lmclmc"))?args["lmclmc"]:args["arg7"];
-				csLmcLms lmclms = cLmcLmsFull;
-				if (lmclms_string == "none")
-					lmclms = cLmcLmsNone;
-
-				string netchange_string = (args.count("netchange"))?args["netchange"]:args["arg8"];
-				csNetChange netchange = cNetChangeFull;
-				if (netchange_string == "none")
-					netchange = cNetChangeNone;
+    cout << "Search config:" << endl;
+    cout << " - type: ";
+    switch (aStarType){
+    case gValNone: cout << "greedy"; break;
+    case gValActionCosts: cout << "cost optimal"; break;
+    case gValPathCosts: cout << "path cost"; break;
+    case gValActionPathCosts: cout << "action cost + decomposition cost"; break;
+    }
+    cout << endl;
+    cout << " - weight: " << aStarWeight << endl;
+    cout << " - suboptimal: " << (suboptimalSearch?"true":"false") << endl;
 
 
-				heuristics[i] = new hhDOfree(htn,tnI,i,intType,boolType,mode,tdg,pg,andOrLM,lmclms,netchange,externalLM);
-#else
-				cout << "Planner compiled without CPLEX support" << endl;
-				return 1;
-#endif
-			} else {
-				cout << "Heuristic type \"" << hName << "\" is unknown." << endl;
-				return 1;
-			}
-
-			cout << "Heuristic #" << i << " = " << heuristics[i]->getDescription() << endl; 
-		}
-
-		int aStarWeight = args_info.astarweight_arg;
-    	aStar aStarType = gValNone;
-    	if (string(args_info.gValue_arg) == "path") aStarType = gValPathCosts;
-    	if (string(args_info.gValue_arg) == "action") aStarType = gValActionCosts;
-    	if (string(args_info.gValue_arg) == "mixed") aStarType = gValActionPathCosts;
-    	if (string(args_info.gValue_arg) == "none") aStarType = gValNone;
-	
-		bool suboptimalSearch = args_info.suboptimal_flag;
-
-		cout << "Search config:" << endl;
-		cout << " - type: ";
-		switch (aStarType){
-			case gValNone: cout << "greedy"; break;
-			case gValActionCosts: cout << "cost optimal"; break;
-			case gValPathCosts: cout << "path cost"; break;
-			case gValActionPathCosts: cout << "action cost + decomposition cost"; break;
-		}
-		cout << endl;
-		cout << " - weight: " << aStarWeight << endl;
-		cout << " - suboptimal: " << (suboptimalSearch?"true":"false") << endl;
-
-
-		bool noVisitedList = args_info.noVisitedList_flag;
-		bool allowGIcheck = args_info.noGIcheck_flag;
-		bool taskHash = args_info.noTaskHash_flag;
-		bool taskSequenceHash = args_info.noTaskSequenceHash_flag;
-		bool topologicalOrdering = args_info.noTopologicalOrdering_flag;
-		bool orderPairsHash = args_info.noOrderPairs_flag;
-		bool layerHash = args_info.noLayers_flag;
-		bool allowParalleSequencesMode = args_info.noParallelSequences_flag;
+    bool noVisitedList = args_info.noVisitedList_flag;
+    bool allowGIcheck = args_info.noGIcheck_flag;
+    bool taskHash = args_info.noTaskHash_flag;
+    bool taskSequenceHash = args_info.noTaskSequenceHash_flag;
+    bool topologicalOrdering = args_info.noTopologicalOrdering_flag;
+    bool orderPairsHash = args_info.noOrderPairs_flag;
+    bool layerHash = args_info.noLayers_flag;
+    bool allowParalleSequencesMode = args_info.noParallelSequences_flag;
     	
-		VisitedList visi(htn,noVisitedList, suboptimalSearch, taskHash, taskSequenceHash, topologicalOrdering, orderPairsHash, layerHash, allowGIcheck, allowParalleSequencesMode);
-    	PriorityQueueSearch search;
-    	OneQueueWAStarFringe fringe(aStarType, aStarWeight, hLength);
+    VisitedList visi(htn,noVisitedList, suboptimalSearch, taskHash, taskSequenceHash, topologicalOrdering, orderPairsHash, layerHash, allowGIcheck, allowParalleSequencesMode);
+    PriorityQueueSearch search;
+    OneQueueWAStarFringe fringe(aStarType, aStarWeight, hLength);
 
 
-		bool printPlan = !args_info.noPlanOutput_flag;
-    	search.search(htn, tnI, timeL, suboptimalSearch, printPlan, heuristics, hLength, visi, fringe);
-	} else if (algo == SAT){
+    bool printPlan = !args_info.noPlanOutput_flag;
+    search.search(htn, tnI, timeL, suboptimalSearch, printPlan, heuristics, hLength, visi, fringe);
+  } else if (algo == SAT){
 #ifndef CMAKE_NO_SAT
-		bool block_compression = args_info.blockcompression_flag;
-		bool sat_mutexes = args_info.satmutexes_flag;
-		bool effectLessActionsInSeparateLeaf = args_info.methodPreconditionsInSeparateLeafs_given;
-		bool optimisingMode = args_info.optimisation_given;
+    bool block_compression = args_info.blockcompression_flag;
+    bool sat_mutexes = args_info.satmutexes_flag;
+    bool effectLessActionsInSeparateLeaf = args_info.methodPreconditionsInSeparateLeafs_given;
+    bool optimisingMode = args_info.optimisation_given;
 
-    	sat_pruning pruningMode = SAT_FF;
-    	if (string(args_info.pruning_arg) == "none") pruningMode = SAT_NONE;
-    	if (string(args_info.pruning_arg) == "ff") pruningMode = SAT_FF;
-    	if (string(args_info.pruning_arg) == "h2") pruningMode = SAT_H2;
+    sat_pruning pruningMode = SAT_FF;
+    if (string(args_info.pruning_arg) == "none") pruningMode = SAT_NONE;
+    if (string(args_info.pruning_arg) == "ff") pruningMode = SAT_FF;
+    if (string(args_info.pruning_arg) == "h2") pruningMode = SAT_H2;
 
-		extract_invariants_from_parsed_model(htn);
-		if (sat_mutexes) compute_Rintanen_Invariants(htn);
+    extract_invariants_from_parsed_model(htn);
+    if (sat_mutexes) compute_Rintanen_Invariants(htn);
 
-		solve_with_sat_planner(htn, block_compression, sat_mutexes, pruningMode, effectLessActionsInSeparateLeaf, optimisingMode);
+    solve_with_sat_planner(htn, block_compression, sat_mutexes, pruningMode, effectLessActionsInSeparateLeaf, optimisingMode);
 #else
-		cout << "Planner compiled without SAT planner support" << endl;
+    cout << "Planner compiled without SAT planner support" << endl;
 #endif
-	} else if (algo == BDD){
+  } else if (algo == BDD){
 #ifndef CMAKE_NO_BDD
-		build_automaton(htn);
+    build_automaton(htn);
 #else
-		cout << "Planner compiled without symbolic planner support" << endl;
+    cout << "Planner compiled without symbolic planner support" << endl;
 #endif
-	} else if (algo == TRANSLATION){
-		TranslationType type;
-		if (string(args_info.transtype_arg) == "push") type = Push; 
-		if (string(args_info.transtype_arg) == "parallelseq") type = ParallelSeq;
-		if (string(args_info.transtype_arg) == "to") type = TO;
-		if (string(args_info.transtype_arg) == "postrips") type = BaseStrips;
-		if (string(args_info.transtype_arg) == "pocond") type = BaseCondEffects;
+  } else if (algo == TRANSLATION){
+    TranslationType type;
+    if (string(args_info.transtype_arg) == "push") type = Push; 
+    if (string(args_info.transtype_arg) == "parallelseq") type = ParallelSeq;
+    if (string(args_info.transtype_arg) == "to") type = TO;
+    if (string(args_info.transtype_arg) == "postrips") type = BaseStrips;
+    if (string(args_info.transtype_arg) == "pocond") type = BaseCondEffects;
 
-		runTranslationPlanner(htn,type, args_info.forceTransType_flag, args_info.pgb_arg, args_info.pgbsteps_arg,
-				string(args_info.downward_arg), string(args_info.downwardConf_arg), string(args_info.sasfile_arg),
-				args_info.iterate_flag, args_info.onlyGenerate_flag,
-				args_info.realCosts_flag);
-	}
+    searchRes = runTranslationPlanner(htn,type, args_info.forceTransType_flag, args_info.pgb_arg, args_info.pgbsteps_arg,
+                          string(args_info.downward_arg), string(args_info.downwardConf_arg), string(args_info.sasfile_arg),
+                          args_info.iterate_flag, args_info.onlyGenerate_flag,
+                          args_info.realCosts_flag);
+    if (searchRes != 0) {
+      searchRes = 2; // search failed
+    }
+  }
 
-    delete htn;
+  delete htn;
     
-	
-	return 0;
+  return searchRes;
 }
+
 
 
 

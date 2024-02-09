@@ -8,7 +8,7 @@
 #include "../Util.h"
 #include "../Invariants.h"
 #include <cassert>
-#include <thread> 
+#include <thread>
 #include <chrono>
 #include <pthread.h>
 #include <signal.h>
@@ -41,7 +41,7 @@ pair<int,int> printSolution(void * solver, Model * htn, PDT* pdt, MatchingData &
 
 	//	for (int v = 0; v < htn->numVars; v++){
 	//		if (htn->firstIndex[v] == htn->lastIndex[v]) continue; // STRIPS
-	//		
+	//
 	//		std::set<int> tru;
 	//		for (int f = htn->firstIndex[v]; f <= htn->lastIndex[v]; f++)
 	//			if (ipasir_val(solver,timeBase + f) > 0)
@@ -54,21 +54,21 @@ pair<int,int> printSolution(void * solver, Model * htn, PDT* pdt, MatchingData &
 	//			for (int f : tru)
 	//				cout << " " << f << " " << htn->factStrs[f];
 	//			cout << endl;
-	//			
+	//
 	//			exit(0);
 	//		}
 	//	}
 	//}
 
 
-	
+
 	int currentID = 0;
 	int solutionCost = 0;
 	int trueSolutionCost = 0;
-	
+
 	cout << "==>" << endl;
 	/// extract the primitive plan
-	
+
 	if (htn->isTotallyOrdered){
 		for (PDT* & leaf : leafs){
 			for (size_t pIndex = 0; pIndex < leaf->possiblePrimitives.size(); pIndex++){
@@ -90,7 +90,7 @@ pair<int,int> printSolution(void * solver, Model * htn, PDT* pdt, MatchingData &
 
 	// assign numbers to decompositions
 	pdt->assignOutputNumbers(solver,currentID, htn);
-	
+
 	// if po output the primitive plan now
 	if (!htn->isTotallyOrdered){
 		for (int p = 0; p < matching.matchingPerPosition.size(); p++){
@@ -106,13 +106,13 @@ pair<int,int> printSolution(void * solver, Model * htn, PDT* pdt, MatchingData &
 							cout << "PUP" << endl;
 						}
 					}
-					
+
 				}
 			}
 		}
 	}
-	
-		
+
+
 	cout << "root " << pdt->outputID << endl;
 
 	// out decompositions
@@ -125,7 +125,7 @@ pair<int,int> printSolution(void * solver, Model * htn, PDT* pdt, MatchingData &
 void printVariableTruth(void* solver, Model * htn, sat_capsule & capsule){
 	for (int v = 1; v <= capsule.number_of_variables; v++){
 		int val = ipasir_val(solver,v);
-	
+
 		std::string s = std::to_string(v);
 		int x = 4 - s.size();
 		while (x-- && x > 0) std::cout << " ";
@@ -133,7 +133,7 @@ void printVariableTruth(void* solver, Model * htn, sat_capsule & capsule){
 		if (val > 0) std::cout << "    ";
 		else         std::cout << "not ";
 #ifndef NDEBUG
-		std::cout << capsule.variableNames[v] << endl; 
+		std::cout << capsule.variableNames[v] << endl;
 #else
 		std::cout << v << endl;
 #endif
@@ -198,15 +198,15 @@ void insert_invariant(Model * htn, unordered_set<int> * invariants, int a, int b
 bool filter_leafs_Rintanen(vector<PDT*> & leafs, Model * htn, unordered_set<int>* & after_leaf_invariants, int & additionalInvariants){
 	//std::clock_t invariant_start = std::clock();
 	//cout << endl << "Computing invariants [Rintanen]" << endl;
-	
+
 	vector<pair<int,int>> v0;
 	bool * toDelete;
 	vector<vector<int>> posInvarsPerPredicate;
 	vector<vector<int>> negInvarsPerPredicate;
 
 	compute_Rintanen_initial_invariants(htn,v0,toDelete,posInvarsPerPredicate,negInvarsPerPredicate);
-	
-	
+
+
 	int executablePrimitives = 0;
 	int prunedPrimitives = 0;
 	for (unsigned int l = 0; l < leafs.size(); l++){
@@ -221,7 +221,7 @@ bool filter_leafs_Rintanen(vector<PDT*> & leafs, Model * htn, unordered_set<int>
 			bool * posInferredPreconditions = new bool[htn->numStateBits];
 			bool * negInferredPreconditions = new bool[htn->numStateBits];
 
-			bool isExecutable = 
+			bool isExecutable =
 				compute_Rintanten_action_applicable(htn,prim,v0,toDelete, posInvarsPerPredicate, negInvarsPerPredicate, posInferredPreconditions, negInferredPreconditions);
 
 
@@ -247,10 +247,10 @@ bool filter_leafs_Rintanen(vector<PDT*> & leafs, Model * htn, unordered_set<int>
 
 			compute_Rintanten_action_effect(htn,prim,v0,toDelete, posInvarsPerPredicate, negInvarsPerPredicate, posInferredPreconditions, negInferredPreconditions);
 		}
-		// reduce data structures	
+		// reduce data structures
 		compute_Rintanen_reduce_invariants(htn, v0, toDelete, posInvarsPerPredicate, negInvarsPerPredicate);
 	}
-	
+
 	// old invariants are always ok, so don't clear, just add
 	for (auto [a,b] : v0)
 		insert_invariant(htn,after_leaf_invariants,a,b);
@@ -282,7 +282,7 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 		leafsog = pdt->getLeafSOG();
 		cout << "done" << endl;
 	}
-	
+
 	/*
 	ofstream dfile;
 	dfile.open ("leafsog.dot");
@@ -299,8 +299,8 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	pdt->printDot(htn,dfile);
 	dfile << "}" << endl;
 	dfile.close();*/
-	
-	
+
+
 	//printMemory();
 	cout << "Clear pruning tables ...";
 	pdt->resetPruning(htn); // clear tables in whole tree
@@ -316,7 +316,7 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 		for (PDT* l : leafs)
 			for (size_t a = 0; a < l->prunedAbstracts.size(); a++)
 				l->prunedAbstracts[a] = true;
-		
+
 		for (PDT* leaf : leafs) leaf->propagatePruning(htn);
 
 
@@ -348,10 +348,10 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 			leaf->countPruning(overallAssignments, prunedAssignments, true);
 		cout << "Leaf Primitive Pruning: " << prunedAssignments << " of " << overallAssignments << endl;
 
-		// if we have pruned the initial abstract task, return ...	
+		// if we have pruned the initial abstract task, return ...
 		if (pdt->prunedAbstracts[0]) return false;
-		
-		cout << "Pruning gave " << additionalInvariants << " new invariants" << endl;	
+
+		cout << "Pruning gave " << additionalInvariants << " new invariants" << endl;
 		//printMemory();
 	}
 
@@ -365,7 +365,7 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	cout << " done. " << (capsule.number_of_variables - numVarsBefore) << " new variables." << endl;
 	//printMemory();
 	DEBUG(capsule.printVariables());
-	
+
 	//exit(0);
 
 	int beforeDecomp = get_number_of_clauses();
@@ -375,11 +375,11 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	assertYes(solver,pdt->abstractVariable[0]);
 	if (!htn->isTotallyOrdered)
 		no_abstract_in_leaf(solver,leafs,htn);
-	cout << "Decomposition Clauses generated." << endl;	
-	
+	cout << "Decomposition Clauses generated." << endl;
+
 	pdt->addPrunedClauses(solver);
 	//for (PDT* leaf : leafs) leaf->addPrunedClauses(solver); // add assertNo for pruned things
-	cout << "Pruned clauses." << endl;	
+	cout << "Pruned clauses." << endl;
 	//printMemory();
 
 	vector<vector<int>> blocks;
@@ -402,20 +402,20 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 		}
 #endif
 	}
-	
+
 	cout << "Decomp formula generated" << endl;
 	//printMemory();
 
 	// generate primitive executability formula
 	vector<vector<pair<int,int>>> vars;
-	
-	
+
+
 	if (htn->isTotallyOrdered){
 		get_linear_state_atoms(capsule, leafs, vars);
 	} else {
 		get_partial_state_atoms(capsule, htn, leafsog, vars, effectLessActionsInSeparateLeaf);
 	}
-	
+
 	cout << "State atoms" << endl;
 
 	vector<int> block_base_variables;
@@ -424,7 +424,7 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 		generate_state_transition_formula(solver, capsule, vars, block_base_variables, blocks, htn);
 	else
 		generate_state_transition_formula(solver, capsule, vars, block_base_variables, htn);
-	
+
 	int afterState = get_number_of_clauses();
 	cout << "State formula" << endl;
 
@@ -442,7 +442,7 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 		else
 			generate_mutex_formula(solver, capsule, block_base_variables, after_leaf_invariants, htn);
 	}
-	
+
 	int afterMutex = get_number_of_clauses();
 
 	cout << color(Color::BLUE,"Formula: ") << (afterDecomp - beforeDecomp) << " decomposition " << (afterState - afterDecomp) << " state "  << (afterMutex - afterState) << " mutex" << endl;
@@ -486,7 +486,7 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 	//for (int i = 0; i < htn->numActions; i++)
 	//	names[i] = htn->taskNames[i];
 
-/*	
+/*
 	map<int,string> style;
 	for (int prim : leafs[0]->possiblePrimitives)
 		style[prim] = "style=filled,fillcolor=green";
@@ -497,7 +497,7 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 		else
 			style[prim] = "style=filled,fillcolor=blue";
 	}
-	
+
 	for (int prim : leafs[2]->possiblePrimitives){
 		if (style.count(prim))
 			style[prim] = "style=filled,fillcolor=red";
@@ -510,28 +510,28 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 		else
 			style[prim] = "style=filled,fillcolor=orange";
 	}
-	
+
 	for (int prim : leafs[4]->possiblePrimitives){
 		if (style.count(prim))
 			style[prim] = "style=filled,fillcolor=red";
 		else
 			style[prim] = "style=filled,fillcolor=brown";
 	}
-	
+
 	for (int prim : leafs[5]->possiblePrimitives){
 		if (style.count(prim))
 			style[prim] = "style=filled,fillcolor=red";
 		else
 			style[prim] = "style=filled,fillcolor=gray";
 	}*/
-	
+
 	/*ofstream out("dg.dot");
     out << dg->dot_string(names);
     //out << dg->dot_string(names,style);
     out.close();
 	system("dot -Tpdf dg.dot > dg.pdf");*/
 
-	return true;	
+	return true;
 }
 
 namespace std {
@@ -556,7 +556,7 @@ void bdfs(Model * htn, PDT * cur, PDT * source, vector<pair<int,int>> possibleAs
 	if (cur->expanded){
 		// we know that for cur the possibleAssignments are possible
 		// the assignments are pairs of present task and applied method
-		
+
 		// determine what this can imply for all the children
 		vector<unordered_set<pair<int,int>>> childrenPossibleAssignments (cur->children.size());
 
@@ -570,7 +570,7 @@ void bdfs(Model * htn, PDT * cur, PDT * source, vector<pair<int,int>> possibleAs
 					if (!cur->getListIndexOfChildrenForMethods(tIndex,mIndex,child)->present) continue;
 					bool isPrimitive = cur->getListIndexOfChildrenForMethods(tIndex,mIndex,child)->isPrimitive;
 					int subIndex = cur->getListIndexOfChildrenForMethods(tIndex,mIndex,child)->taskIndex;
-					
+
 					if (isPrimitive)
 						childrenPossibleAssignments[child].insert(make_pair(-1, subIndex));
 					else{
@@ -608,7 +608,7 @@ void bdfs(Model * htn, PDT * cur, PDT * source, vector<pair<int,int>> possibleAs
 					pair<int,int> pp;
 					pp.first = cur->getCauseForAbstract(tIndex,c)->taskIndex;
 					pp.second = cur->getCauseForAbstract(tIndex,c)->methodIndex;
-					
+
 					possibleMotherAssignments.insert(pp);
 				}
 			} else {
@@ -616,12 +616,12 @@ void bdfs(Model * htn, PDT * cur, PDT * source, vector<pair<int,int>> possibleAs
 					pair<int,int> pp;
 					pp.first = cur->getCauseForAbstract(mIndex,c)->taskIndex;
 					pp.second = cur->getCauseForAbstract(mIndex,c)->methodIndex;
-					
+
 					possibleMotherAssignments.insert(pp);
 				}
 			}
 		}
-		
+
 		// push to mother
 		vector<pair<int,int>> vec;
 		for (auto & p : possibleMotherAssignments)
@@ -641,13 +641,13 @@ void temp(Model * htn, PDT * pdt){
 			int p = l->possiblePrimitives[pI];
 			cout << "Leaf " << l << " " << p << endl;
 			map<PDT*,vector<pair<int,int>>> overallAssignments;
-			
-			
+
+
 			vector<pair<int,int>> possibleAssignments;
 			for (int c = 0; c < l->numberOfCausesPerPrimitive[pI]; c++){
 				pair<int,int> pp;
-				pp.first = l->getCauseForPrimitive(pI,c)->taskIndex;	
-				pp.second = l->getCauseForPrimitive(pI,c)->methodIndex;	
+				pp.first = l->getCauseForPrimitive(pI,c)->taskIndex;
+				pp.second = l->getCauseForPrimitive(pI,c)->methodIndex;
 			}
 
 
@@ -697,8 +697,8 @@ void optimise_with_sat_planner_linear_bound_increase(Model * htn, bool block_com
 			double formula_time_in_ms = 1000.0 * (formula_end-formula_start) / CLOCKS_PER_SEC;
 			cout << "Formula has " << capsule.number_of_variables << " vars and " << get_number_of_clauses() << " clauses." << endl;
 			cout << "Formula time: " << fixed << formula_time_in_ms << "ms" << endl;
-			
-			
+
+
 			cout << "Starting solver" << endl;
 			std::clock_t solver_start = std::clock();
 			state = ipasir_solve(solver);
@@ -747,13 +747,14 @@ void optimise_with_sat_planner_linear_bound_increase(Model * htn, bool block_com
 
 
 
-void solve_with_sat_planner_linear_bound_increase(Model * htn, bool block_compression, bool sat_mutexes, sat_pruning pruningMode, bool effectLessActionsInSeparateLeaf){
+int solve_with_sat_planner_linear_bound_increase(Model * htn, bool block_compression, bool sat_mutexes, sat_pruning pruningMode, bool effectLessActionsInSeparateLeaf){
 	PDT* pdt = new PDT(htn);
 	//graph * dg = compute_disabling_graph(htn, true);
 	sat_capsule capsule;
 	reset_number_of_clauses();
 
 	int depth = 1;
+        int retval = 0;
 	while (true){
 		void* solver = ipasir_init();
 		cout << endl << endl << color(Color::YELLOW, "Generating formula for depth " + to_string(depth)) << endl;
@@ -766,8 +767,8 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn, bool block_compre
 			double formula_time_in_ms = 1000.0 * (formula_end-formula_start) / CLOCKS_PER_SEC;
 			cout << "Formula has " << capsule.number_of_variables << " vars and " << get_number_of_clauses() << " clauses." << endl;
 			cout << "Formula time: " << fixed << formula_time_in_ms << "ms" << endl;
-			
-			
+
+
 			cout << "Starting solver" << endl;
 			std::clock_t solver_start = std::clock();
 			state = ipasir_solve(solver);
@@ -786,7 +787,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn, bool block_compre
 			cout << "Initial abstract task is pruned: " <<  color(Color::RED,"UNSAT") << endl;
 		}
 		//temp(htn,pdt);
-	
+
 		if (state == 10){
 #ifndef NDEBUG
 			printVariableTruth(solver, htn, capsule);
@@ -795,14 +796,15 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn, bool block_compre
 			ipasir_release(solver);
 			if (optimisePlan)
 				optimise_with_sat_planner_linear_bound_increase(htn, block_compression, sat_mutexes, pruningMode, effectLessActionsInSeparateLeaf, capsule, pdt, depth, apparentCost);
-			return;
+			return 0; // success
 		} else {
-			depth++;
+			depth++; // repeat
 			//return;
 		}
-		// release the solver	
+		// release the solver
 		ipasir_release(solver);
 	}
+        return 1; // failed
 }
 
 #define THREAD_PREFIX "\t\t\t\t\t\t\t\t\t"
@@ -819,10 +821,10 @@ struct thread_returns{
 	//graph * dg;
 	void* solver;
 	int state;
-	
+
 	bool done;
 
-// threading	
+// threading
 	int signal;
 	pthread_t tid;
 };
@@ -833,11 +835,11 @@ bool current_done;
 void* run_sat_planner_for_depth(void * param){
 	thread_returns * ret = (thread_returns*) param;
 	cout << THREAD_PREFIX << "Starting Thread for depth " << ret->depth << " @ signal " << ret->signal << endl;
-	
-	// set this thread to handle the 
+
+	// set this thread to handle the
 	sigset_t sigmask;
 	sigemptyset(&sigmask);
-	sigaddset(&sigmask, signalBase + ret->signal);  
+	sigaddset(&sigmask, signalBase + ret->signal);
 	pthread_sigmask(SIG_UNBLOCK, &sigmask, (sigset_t *)0);
 	cout << THREAD_PREFIX << "I am handled by " << signalBase + ret->signal << endl;
 
@@ -851,7 +853,7 @@ void* run_sat_planner_for_depth(void * param){
 	MatchingData matching;
 	createFormulaForDepth(ret->solver,ret->pdt,ret->htn,capsule,matching,ret->depth,ret->block_compression,ret->sat_mutexes, ret->pruningMode, ret->effectLessActionsInSeparateLeaf);
 	cout << "Formula has " << capsule.number_of_variables << " vars and " << get_number_of_clauses() << " clauses." << endl;
-	
+
 	cout << "Starting solver" << endl;
 	std::clock_t solver_start = std::clock();
 	ret->state = ipasir_solve(ret->solver);
@@ -914,7 +916,7 @@ void solve_with_sat_planner_time_interleave(Model * htn, bool block_compression,
 	/* Alle Bits auf null setzen */
 	sigemptyset(&sigmask);
 	/* Signal SIGUSR1 nicht blockieren ... */
-	sigaddset(&sigmask, SIGINT);  
+	sigaddset(&sigmask, SIGINT);
 	pthread_sigmask(SIG_UNBLOCK, &sigmask, (sigset_t *)0);
 
    /* Setup Signal-Handler für SIGINT & SIGUSR1 */
@@ -939,7 +941,7 @@ void solve_with_sat_planner_time_interleave(Model * htn, bool block_compression,
 			std::this_thread::sleep_for(1ms);
    			pthread_kill(runs[positionOnRuns]->tid, signalBase + runningSingal);
 			std::this_thread::sleep_for(10ms);
-		}	
+		}
 
 		cout << THREAD_PREFIX << "Switching to next task " << endl;
 		do {
@@ -963,7 +965,7 @@ void solve_with_sat_planner_time_interleave(Model * htn, bool block_compression,
 						firstFreeSignal = i;
 						break;
 					}
-		
+
 				thread_returns* ret = new thread_returns();
 				ret->htn = htn;
 				ret->depth = depth++;
@@ -974,13 +976,13 @@ void solve_with_sat_planner_time_interleave(Model * htn, bool block_compression,
 				ret->pruningMode = pruningMode;
 				ret->effectLessActionsInSeparateLeaf = effectLessActionsInSeparateLeaf;
 				runs.push_back(ret);
-				
+
 				//void *t1(void *);
-				pthread_attr_t attr_obj; 
+				pthread_attr_t attr_obj;
 				pthread_attr_init(&attr_obj);
 				pthread_create(&ret->tid, &attr_obj, run_sat_planner_for_depth, (void *)ret);
 				cout << THREAD_PREFIX << "Starting worker: " << ret->tid << " @ " << firstFreeSignal << endl;
-				
+
 				// get this thread started
 				sleep_until_solver_finished(1000ms);
 				runningSingal = firstFreeSignal;
@@ -997,7 +999,7 @@ void solve_with_sat_planner_time_interleave(Model * htn, bool block_compression,
 				cout << THREAD_PREFIX << "Not possible to start a new run, next non-finished task is " << positionOnRuns << endl;
 			}
 		}
-		
+
 		runningSingal = runs[positionOnRuns]->signal;
 		cout << THREAD_PREFIX << "Letting " << positionOnRuns << " work @ " << runningSingal << endl;
 		signal_to_release = signalBase + runningSingal;
@@ -1013,15 +1015,15 @@ void solve_with_sat_planner(Model * htn, bool block_compression, bool sat_mutexe
 	htn->calcSCCs();
 	htn->constructSCCGraph();
 	htn->analyseSCCcyclicity();
-	
+
 	optimisePlan = optimise;
-	
+
 	// start actual planner
 	cout << endl << endl;
 	// start by determining whether this model is totally ordered
 	cout << "Instance is totally ordered: " << (htn->isTotallyOrdered?"yes":"no") << endl;
 	//htn->writeToPDDL("foo-d.hddl", "foo-p.hddl");
-	
+
 	cout << color(Color::YELLOW,"Starting SAT-based planner") << endl;
 	cout << "Using SAT solver: " << ipasir_signature() << endl;
 	cout << "Encode Mutexes:    " << (sat_mutexes?"yes":"no") << endl;
@@ -1035,12 +1037,12 @@ void solve_with_sat_planner(Model * htn, bool block_compression, bool sat_mutexe
 	cout << "Optimise Plan Cost: " << (optimisePlan?"yes":"no") << endl;
 
 	cout << endl << endl;
-	
+
 	// compute transitive closures of all methods
 	htn->computeTransitiveClosureOfMethodOrderings();
 	htn->buildOrderingDatastructures();
 
-	
+
 	originalActionCosts = new int[htn->numActions];
 	for (int i = 0; i < htn->numActions; i++) originalActionCosts[i] = htn->actionCosts[i];
 
@@ -1063,11 +1065,11 @@ void sat_solver_call(){
 	ipasir_add(solver,-1);
 	ipasir_add(solver,-2);
 	ipasir_add(solver,0);
-	
+
 	ipasir_add(solver,-3);
 	ipasir_add(solver,2);
 	ipasir_add(solver,0);
-	
+
 	ipasir_add(solver,3);
 	ipasir_add(solver,0);
 
@@ -1075,6 +1077,6 @@ void sat_solver_call(){
 	cout << state << endl;
 	if (state == 10){
 		for (int v = 1; v <= 3; v++)
-			cout  << "V " << v << ": " << ipasir_val(solver,v) << endl; 
+			cout  << "V " << v << ": " << ipasir_val(solver,v) << endl;
 	}
 }
