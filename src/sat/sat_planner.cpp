@@ -15,6 +15,8 @@
 #include <fstream>
 #include <iomanip>
 #include <cmath>
+#include <ranges>
+#include <iterator>
 
 #include <sys/sysinfo.h>
 #include "stdlib.h"
@@ -29,6 +31,15 @@ int costFactor = 1000;
 bool useLogCostsForOptimisation = true;
 
 int* originalActionCosts;
+
+std::ostream& operator<< (std::ostream& out, const vector<int>& v) {
+    if ( !v.empty() ) {
+        out << '[';
+        std::ranges::copy(v, std::ostream_iterator<int>(out, ", "));
+        out << "\b\b]"; // use two ANSI backspace characters '\b' to overwrite final ", "
+    }
+    return out;
+}
 
 
 pair<int,int> printSolution(void * solver, Model * htn, PDT* pdt, MatchingData & matching){
@@ -262,6 +273,72 @@ bool filter_leafs_Rintanen(vector<PDT*> & leafs, Model * htn, unordered_set<int>
 
 
 
+void fill_leafs_implicits(Model * htn, PDT * leaf, set<int> & allAdding, set<int> & allDeleting){
+	PDT* current = leaf;
+	while (current->mother != nullptr){
+		// I am not the last child of my parent, so I can't use its effects ...
+		if (current->mother->children.back() != current) break;
+		
+		current = current->mother;
+		
+		bool first = true;
+		set<int> adding;
+		set<int> deleting;
+	
+		for (int i = 0; i < current->possiblePrimitives.size(); i++){
+			if (current->prunedPrimitives[i]) continue;
+			int prim = current->possiblePrimitives[i];
+
+			if (first){
+				first = false;
+				for (int add = 0; add < htn->numAdds[prim]; add++) adding.insert(htn->addLists[prim][add]);
+				for (int del = 0; del < htn->numDels[prim]; del++) deleting.insert(htn->delLists[prim][del]);
+			} else {
+				set<int> addingNew;
+				set<int> deletingNew;
+				for (int add = 0; add < htn->numAdds[prim]; add++)
+					if (adding.count(htn->addLists[prim][add])) adding.insert(htn->addLists[prim][add]);
+				for (int del = 0; del < htn->numDels[prim]; del++)
+					if (deleting.count(htn->delLists[prim][del])) deleting.insert(htn->delLists[prim][del]);
+	
+				adding = addingNew;
+				deleting = deletingNew;
+			}
+		}
+	
+		for (int i = 0; i < current->possibleAbstracts.size(); i++){
+			if (current->prunedAbstracts[i]) continue;
+			int abs = current->possibleAbstracts[i];
+			abs -= htn->numActions;
+	
+			//cout << "Pos Effects:" << htn->eff_positive[abs].size() << " " << htn->eff_positive[abs] << endl;
+			//cout << "Neg Effects:" << htn->eff_negative[abs].size() << " " << htn->eff_negative[abs] << endl;
+	
+			if (first){
+				first = false;
+				for (int j : htn->eff_positive[abs]) adding.insert(j);
+				for (int j : htn->eff_negative[abs]) deleting.insert(j);
+			} else {
+				set<int> addingNew;
+				set<int> deletingNew;
+				for (int j : htn->eff_positive[abs]) if (adding.count(j)) addingNew.insert(j);
+				for (int j : htn->eff_negative[abs]) if (deleting.count(j)) deletingNew.insert(j);
+	
+				adding = addingNew;
+				deleting = deletingNew;
+			}
+		}
+	
+		if (adding.size() + deleting.size()){
+			//cout << "Result adding " << adding.size() << " deleting " << deleting.size() << endl;
+			for (int a : adding) allAdding.insert(a);
+			for (int d : deleting) allDeleting.insert(d);
+		}
+	}
+}
+
+
+
 bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & capsule, MatchingData & matching, int depth,
 		bool block_compression, bool sat_mutexes, sat_pruning pruningMode, bool effectLessActionsInSeparateLeaf)  {
 	std::clock_t beforePDT = std::clock();
@@ -353,6 +430,68 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 		
 		cout << "Pruning gave " << additionalInvariants << " new invariants" << endl;	
 		//printMemory();
+		
+
+
+
+		bool * reachableFacts = new bool[htn->numStateBits];
+		for (int i = 0; i < htn->numStateBits; i++)
+			reachableFacts[i] = false;
+		for (int s0Index = 0; s0Index < htn->s0Size; s0Index++)
+			reachableFacts[htn->s0List[s0Index]] = true;
+
+
+		int executablePrimitives = 0;
+		int prunedPrimitives = 0;
+		for (unsigned int l = 0; l < leafs.size(); l++){
+			PDT* leaf = leafs[l];
+
+			vector<int> executable;
+			for (unsigned int primI = 0; primI < leaf->possiblePrimitives.size(); primI++){
+				if (leaf->prunedPrimitives[primI]) continue; // is already pruned
+				int prim = leaf->possiblePrimitives[primI];
+				bool isExecutable = true;
+				for (int prec = 0; isExecutable && prec < htn->numPrecs[prim]; prec++)
+					isExecutable = reachableFacts[htn->precLists[prim][prec]];
+
+				if (isExecutable) {
+					executable.push_back(prim);
+					executablePrimitives++;
+					cout << "    Executable at " << l << " prim: " << prim << " " << htn->taskNames[prim] << endl;
+				} else {
+					leaf->prunedPrimitives[primI] = true;
+					prunedPrimitives++;
+					cout << "Not executable at " << l << " prim: " << prim << " " << htn->taskNames[prim] << endl;
+				}
+			}
+
+
+			for (int prim : executable)
+				for (int add = 0; add < htn->numAdds[prim]; add++)
+					reachableFacts[htn->addLists[prim][add]] = true;
+
+			// get leaf implications
+			set<int> allAdding;
+			set<int> allDeleting;
+			fill_leafs_implicits(htn, leaf, allAdding, allDeleting);
+			cout << endl << "Leaf " << endl;
+			for (int d : allDeleting){
+				if (reachableFacts[d]){
+					cout << "Currently reachable fact " << d << " " << htn->factStrs[d] << " is known to be unreachable by the HTN" << endl;
+					reachableFacts[d] = false;
+				} else {
+					cout << "Currently false fact " << d << " " << htn->factStrs[d] << endl;
+				}
+			}
+
+			for (int a : allAdding){
+				cout << "Currently true fact " << a << " " << htn->factStrs[a] << endl;
+			}
+
+		}
+
+		cout << "FF Pruning: removed " << prunedPrimitives << " of " << (prunedPrimitives + executablePrimitives) << endl;
+		for (PDT* leaf : leafs) leaf->propagatePruning(htn);
 	}
 
 #ifndef NDEBUG
@@ -753,7 +892,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn, bool block_compre
 	sat_capsule capsule;
 	reset_number_of_clauses();
 
-	int depth = 1;
+	int depth = 17;
 	while (true){
 		void* solver = ipasir_init();
 		cout << endl << endl << color(Color::YELLOW, "Generating formula for depth " + to_string(depth)) << endl;
@@ -798,7 +937,7 @@ void solve_with_sat_planner_linear_bound_increase(Model * htn, bool block_compre
 			return;
 		} else {
 			depth++;
-			//return;
+			return;
 		}
 		// release the solver	
 		ipasir_release(solver);

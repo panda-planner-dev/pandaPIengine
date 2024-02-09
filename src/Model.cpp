@@ -22,6 +22,7 @@
 #include <stack>
 #include <sys/time.h>
 #include "intDataStructures/IntPairHeap.h"
+#include "PrecsEffs.h"
 
 using namespace std;
 
@@ -2091,7 +2092,35 @@ newlyReachedMLMs = new noDelIntSet();
 		}
         if(rintanenInvariants) {
             generateVectorRepresentation();
+		}
+
+		// BEGIN: Inference of preconditions and effects of methods
+        if (isTotallyOrdered) {
+            cout << "Calculating preconditions and effects of compound tasks... " << endl;
+            int amount_compound_tasks = 0;
+            for (size_t index = 0; index < this->numTasks; index++) {
+                if (!this->isPrimitive[index]) amount_compound_tasks++;
+            }
+
+            this->poss_eff_positive = new vector<int>[amount_compound_tasks];
+            this->poss_eff_negative = new vector<int>[amount_compound_tasks];
+            this->eff_positive = new vector<int>[amount_compound_tasks];
+            this->eff_negative = new vector<int>[amount_compound_tasks];
+            this->preconditions = new vector<int>[amount_compound_tasks];
+
+            this->poss_pos_m = new vector<int>[this->numMethods];
+            this->poss_neg_m = new vector<int>[this->numMethods];
+            this->eff_pos_m = new vector<int>[this->numMethods];
+            this->eff_neg_m = new vector<int>[this->numMethods];
+            this->prec_m = new vector<int>[this->numMethods];
+
+            computeEffectsAndPreconditions(this, poss_eff_positive, poss_eff_negative, eff_positive, eff_negative, preconditions, amount_compound_tasks);
+        } else {
+            cout << "Preconditions and effects of compound tasks and their methods cannot be calculated because methods are not totally ordered." << endl;
         }
+        // END: Inference of precs/effs
+
+
 
 #if DLEVEL == 5
 		printActions();
