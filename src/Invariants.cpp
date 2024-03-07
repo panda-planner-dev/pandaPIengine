@@ -230,11 +230,23 @@ void compute_Rintanen_initial_invariants(Model * htn,
 			}
 		}
 	}
-	
+	int diffInvarEnd = v0.size();
 	// create delete list
-	toDelete = new bool[v0.size()];
-	for (size_t i = 0; i < v0.size(); i++)
+	toDelete = new bool[diffInvarEnd + 2*htn->numStateBits];
+	for (size_t i = 0; i < diffInvarEnd; i++)
 	toDelete[i] = false;
+
+	for (int p = 0; p < htn->numStateBits; p++){
+		int invarNum = v0.size();
+		posInvarsPerPredicate[p].push_back(invarNum);
+		v0.push_back(make_pair(p,p));
+		negInvarsPerPredicate[p].push_back(invarNum+1);
+		v0.push_back(make_pair(-p-1,-p-1));
+
+		toDelete[diffInvarEnd + 2*p    ] = !s0Vector[p];
+		toDelete[diffInvarEnd + 2*p + 1] = s0Vector[p];
+	}
+	
 }
 
 void compute_Rintanen_reduce_invariants(Model * htn,
@@ -291,7 +303,7 @@ bool compute_Rintanten_action_applicable(Model * htn,
 		bool * & toDelete,
 		vector<vector<int>> & posInvarsPerPredicate,
 		vector<vector<int>> & negInvarsPerPredicate,
-		bool * & posInferredPreconditions,
+		bool * & posInferredPreconditions, // these two parameters are return values, that are needed when computing the action's effects
 		bool * & negInferredPreconditions
 	){
 	
