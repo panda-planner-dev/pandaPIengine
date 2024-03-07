@@ -206,72 +206,6 @@ void insert_invariant(Model * htn, unordered_set<int> * invariants, int a, int b
 }
 
 
-bool filter_leafs_Rintanen(vector<PDT*> & leafs, Model * htn, unordered_set<int>* & after_leaf_invariants, int & additionalInvariants){
-	//std::clock_t invariant_start = std::clock();
-	//cout << endl << "Computing invariants [Rintanen]" << endl;
-	
-	vector<pair<int,int>> v0;
-	bool * toDelete;
-	vector<vector<int>> posInvarsPerPredicate;
-	vector<vector<int>> negInvarsPerPredicate;
-
-	compute_Rintanen_initial_invariants(htn,v0,toDelete,posInvarsPerPredicate,negInvarsPerPredicate);
-	
-	
-	int executablePrimitives = 0;
-	int prunedPrimitives = 0;
-	for (unsigned int l = 0; l < leafs.size(); l++){
-		PDT* leaf = leafs[l];
-
-		vector<int> executable;
-		vector<pair<bool*,bool*>> inferredPreconditions;
-		for (unsigned int primI = 0; primI < leaf->possiblePrimitives.size(); primI++){
-			if (leaf->prunedPrimitives[primI]) continue; // is already pruned
-			int prim = leaf->possiblePrimitives[primI];
-
-			bool * posInferredPreconditions = new bool[htn->numStateBits];
-			bool * negInferredPreconditions = new bool[htn->numStateBits];
-
-			bool isExecutable = 
-				compute_Rintanten_action_applicable(htn,prim,v0,toDelete, posInvarsPerPredicate, negInvarsPerPredicate, posInferredPreconditions, negInferredPreconditions);
-
-
-			if (isExecutable) {
-				executable.push_back(prim);
-				inferredPreconditions.push_back(make_pair(posInferredPreconditions,negInferredPreconditions));
-				executablePrimitives++;
-				//cout << "    Executable at " << l << " prim: " << prim << " " << htn->taskNames[prim] << endl;
-			} else {
-				leaf->prunedPrimitives[primI] = true;
-				delete[] posInferredPreconditions;
-				delete[] negInferredPreconditions;
-				prunedPrimitives++;
-				//cout << "Not executable at " << l << " prim: " << prim << " " << htn->taskNames[prim] << endl;
-			}
-		}
-
-
-		for (size_t i = 0; i < executable.size(); i++){
-			int prim = executable[i];
-			bool * posInferredPreconditions = inferredPreconditions[i].first;
-			bool * negInferredPreconditions = inferredPreconditions[i].second;
-
-			compute_Rintanten_action_effect(htn,prim,v0,toDelete, posInvarsPerPredicate, negInvarsPerPredicate, posInferredPreconditions, negInferredPreconditions);
-		}
-		// reduce data structures	
-		compute_Rintanen_reduce_invariants(htn, v0, toDelete, posInvarsPerPredicate, negInvarsPerPredicate);
-	}
-	
-	// old invariants are always ok, so don't clear, just add
-	for (auto [a,b] : v0)
-		insert_invariant(htn,after_leaf_invariants,a,b);
-
-	additionalInvariants = v0.size();
-	cout << "Rintanen Pruning: removed " << prunedPrimitives << " of " << (prunedPrimitives + executablePrimitives) << endl;
-	return prunedPrimitives != 0;
-}
-
-
 
 void fill_leafs_implicits(Model * htn, PDT * leaf, set<int> & allAdding, set<int> & allDeleting){
 	PDT* current = leaf;
@@ -335,6 +269,191 @@ void fill_leafs_implicits(Model * htn, PDT * leaf, set<int> & allAdding, set<int
 			for (int d : deleting) allDeleting.insert(d);
 		}
 	}
+}
+
+
+
+bool filter_leafs_Rintanen(vector<PDT*> & leafs, Model * htn, unordered_set<int>* & after_leaf_invariants, int & additionalInvariants, bool useInferredPreconditionsAndEffects){
+	//std::clock_t invariant_start = std::clock();
+	//cout << endl << "Computing invariants [Rintanen]" << endl;
+
+	vector<pair<int,int>> v0;
+	bool * toDelete;
+	vector<vector<int>> posInvarsPerPredicate;
+	vector<vector<int>> negInvarsPerPredicate;
+
+	compute_Rintanen_initial_invariants(htn,v0,toDelete,posInvarsPerPredicate,negInvarsPerPredicate);
+
+
+	for (auto [a,b] : v0){
+		bool pa = true; if (a < 0) pa = false, a = -a-1;
+		bool pb = true; if (b < 0) pb = false, b = -b-1;
+		//cout << "Inv " << (pa?"+":"-") << " " << htn->factStrs[a] << " "  << (pb?"+":"-") << " " << htn->factStrs[b] << endl; 
+	}
+
+
+	
+	int executablePrimitives = 0;
+	int prunedPrimitives = 0;
+	for (unsigned int l = 0; l < leafs.size(); l++){
+		PDT* leaf = leafs[l];
+
+
+		if (useInferredPreconditionsAndEffects){
+			PDT* innerNode = leaf;
+
+			while (innerNode->mother != nullptr){
+				// if I am not the first task of my mother, I can't check anything
+				if (innerNode->mother->children.front() != innerNode) break;
+				innerNode = innerNode->mother;
+
+				if (innerNode->expanded)
+				for (int i = 0; i < innerNode->possibleAbstracts.size(); i++){
+					if (innerNode->prunedAbstracts[i]) continue;
+					int abs = innerNode->possibleAbstracts[i];
+					//abs -= htn->numActions;
+					
+					for (int j = 0; j < htn->numMethodsForTask[abs]; j++){
+						if (innerNode->prunedMethods[i][j]) continue;
+						int m = htn->taskToMethods[abs][j];
+
+						bool posInferredPreconditions[htn->numStateBits];
+						bool negInferredPreconditions[htn->numStateBits];
+						// infer additional preconditions and effects
+						for (int p1 = 0; p1 < htn->numStateBits; p1++){
+							posInferredPreconditions[p1] = false;
+							negInferredPreconditions[p1] = false;
+						}
+				
+						bool inapplicable = false;
+						for (int p : htn->prec_m[m]){
+							posInferredPreconditions[p] = true;
+
+							// look only at the invariants that are possibly matching this precondition
+							for (size_t invarListIndex = 0; invarListIndex < negInvarsPerPredicate[p].size(); invarListIndex++){
+								int invar = negInvarsPerPredicate[p][invarListIndex];
+								if (toDelete[invar]) continue;
+								if (v0[invar].first < 0 && p == -v0[invar].first-1){
+									if (v0[invar].second < 0){
+										negInferredPreconditions[-v0[invar].second - 1] = true;
+										if (posInferredPreconditions[-v0[invar].second - 1]) {inapplicable = true; break;}
+									} else {
+										posInferredPreconditions[ v0[invar].second] = true;
+										if (negInferredPreconditions[v0[invar].second]) {inapplicable = true; break;}
+									}
+								}
+								if (v0[invar].second < 0 && p == -v0[invar].second-1){
+									if (v0[invar].first < 0){
+										negInferredPreconditions[-v0[invar].first - 1] = true;
+										if (posInferredPreconditions[-v0[invar].first - 1]) {inapplicable = true; break;}
+									} else {
+										posInferredPreconditions[ v0[invar].first] = true;
+										if (negInferredPreconditions[v0[invar].first]) {inapplicable = true; break;}
+									}
+								}
+							}
+						}
+
+						if (inapplicable) {
+							cout << "\t\t=========== INAPP METHOD" << endl;
+							if (innerNode->expanded)
+								innerNode->prunedMethods[i][j] = true;
+						}
+						else              cout << "\t\t===========   APP METHOD" << endl;
+					}
+				}
+			}
+		}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		vector<int> executable;
+		vector<pair<bool*,bool*>> inferredPreconditions;
+		for (unsigned int primI = 0; primI < leaf->possiblePrimitives.size(); primI++){
+			if (leaf->prunedPrimitives[primI]) continue; // is already pruned
+			int prim = leaf->possiblePrimitives[primI];
+
+			bool * posInferredPreconditions = new bool[htn->numStateBits];
+			bool * negInferredPreconditions = new bool[htn->numStateBits];
+
+			bool isExecutable = 
+				compute_Rintanten_action_applicable(htn,prim,v0,toDelete, posInvarsPerPredicate, negInvarsPerPredicate, posInferredPreconditions, negInferredPreconditions);
+
+
+			if (isExecutable) {
+				executable.push_back(prim);
+				inferredPreconditions.push_back(make_pair(posInferredPreconditions,negInferredPreconditions));
+				executablePrimitives++;
+				//cout << "    Executable at " << l << " prim: " << prim << " " << htn->taskNames[prim] << endl;
+			} else {
+				leaf->prunedPrimitives[primI] = true;
+				delete[] posInferredPreconditions;
+				delete[] negInferredPreconditions;
+				prunedPrimitives++;
+				//cout << "Not executable at " << l << " prim: " << prim << " " << htn->taskNames[prim] << endl;
+			}
+		}
+
+
+		for (size_t i = 0; i < executable.size(); i++){
+			int prim = executable[i];
+			bool * posInferredPreconditions = inferredPreconditions[i].first;
+			bool * negInferredPreconditions = inferredPreconditions[i].second;
+
+			compute_Rintanten_action_effect(htn,prim,v0,toDelete, posInvarsPerPredicate, negInvarsPerPredicate, posInferredPreconditions, negInferredPreconditions);
+		}
+		// reduce data structures	
+		//compute_Rintanen_reduce_invariants(htn, v0, toDelete, posInvarsPerPredicate, negInvarsPerPredicate);
+
+
+		if (useInferredPreconditionsAndEffects){
+			set<int> allAdding;
+			set<int> allDeleting;
+			fill_leafs_implicits(htn, leaf, allAdding, allDeleting);
+			//cout << endl << "Leaf " << endl;
+			for (int d : allDeleting){
+				for (int invariantNumber : negInvarsPerPredicate[d])
+					if (toDelete[invariantNumber]){
+						toDelete[invariantNumber] = false;
+						//cout << "Currently false invariant is now true again " << d << " " << htn->factStrs[d] << endl;
+					} //else {cout << "\t DEL still true " << d << " " << htn->factStrs[d] << endl;}
+			}
+			for (int a : allAdding){
+				for (int invariantNumber : posInvarsPerPredicate[a]){
+					if (toDelete[invariantNumber]){
+						toDelete[invariantNumber] = false;
+						//cout << "Currently false invariant is now true again " << a << " " << htn->factStrs[a] << endl;
+					} //else {cout << "\t ADD still true " << a << " " << htn->factStrs[a] << endl;}
+
+					//if (v0[invariantNumber].first == v0[invariantNumber].second)
+					//	cout << "Mono" << endl; 
+				}
+			}
+		}
+	}
+	
+	// old invariants are always ok, so don't clear, just add
+	// If we use precondition and effect inference, the set of computed invariants only holds in the last state of the plan not everywhere.
+	// Thus we can't use them.
+	if (!useInferredPreconditionsAndEffects)
+		for (int i = 0; i < v0.size(); i++)
+			if (!toDelete[i] && v0[i].first != v0[i].second)
+				insert_invariant(htn,after_leaf_invariants,v0[i].first,v0[i].second);
+
+	additionalInvariants = v0.size();
+	cout << "Rintanen Pruning: removed " << prunedPrimitives << " of " << (prunedPrimitives + executablePrimitives) << endl;
+	return prunedPrimitives != 0;
 }
 
 
@@ -409,8 +528,14 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 					else pruningPhase++;
 				}
 			} else if (pruningPhase == 2){
-				if (!filter_leafs_Rintanen(leafs, htn, after_leaf_invariants, additionalInvariants))
+				if (!filter_leafs_Rintanen(leafs, htn, after_leaf_invariants, additionalInvariants, false)){
+					//break;
+					pruningPhase++;
+				}
+			} else if (pruningPhase == 3){
+				if (!filter_leafs_Rintanen(leafs, htn, after_leaf_invariants, additionalInvariants, true)){
 					break;
+				}
 			}
 		}
 		for (PDT* leaf : leafs) leaf->propagatePruning(htn);
@@ -430,9 +555,9 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 		
 		cout << "Pruning gave " << additionalInvariants << " new invariants" << endl;	
 		//printMemory();
-		
+	
 
-
+		///// Pruning using the inferred preconditions and effects of tasks	
 
 		bool * reachableFacts = new bool[htn->numStateBits];
 		for (int i = 0; i < htn->numStateBits; i++)
@@ -457,11 +582,11 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 				if (isExecutable) {
 					executable.push_back(prim);
 					executablePrimitives++;
-					cout << "    Executable at " << l << " prim: " << prim << " " << htn->taskNames[prim] << endl;
+					//cout << "    Executable at " << l << " prim: " << prim << " " << htn->taskNames[prim] << endl;
 				} else {
 					leaf->prunedPrimitives[primI] = true;
 					prunedPrimitives++;
-					cout << "Not executable at " << l << " prim: " << prim << " " << htn->taskNames[prim] << endl;
+					//cout << "Not executable at " << l << " prim: " << prim << " " << htn->taskNames[prim] << endl;
 				}
 			}
 
@@ -474,19 +599,19 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 			set<int> allAdding;
 			set<int> allDeleting;
 			fill_leafs_implicits(htn, leaf, allAdding, allDeleting);
-			cout << endl << "Leaf " << endl;
+			//cout << endl << "Leaf " << endl;
 			for (int d : allDeleting){
 				if (reachableFacts[d]){
-					cout << "Currently reachable fact " << d << " " << htn->factStrs[d] << " is known to be unreachable by the HTN" << endl;
+					//cout << "Currently reachable fact " << d << " " << htn->factStrs[d] << " is known to be unreachable by the HTN" << endl;
 					reachableFacts[d] = false;
 				} else {
-					cout << "Currently false fact " << d << " " << htn->factStrs[d] << endl;
+					//cout << "Currently false fact " << d << " " << htn->factStrs[d] << endl;
 				}
 			}
 
-			for (int a : allAdding){
-				cout << "Currently true fact " << a << " " << htn->factStrs[a] << endl;
-			}
+			//for (int a : allAdding){
+			//	cout << "Currently true fact " << a << " " << htn->factStrs[a] << endl;
+			//}
 
 		}
 
