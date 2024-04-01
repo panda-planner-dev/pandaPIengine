@@ -11,7 +11,12 @@ pandaPIengine is a versatile HTN planning engine. To use the engine, you first n
 
 ### Compiling pandaPIengine
 
-To compile pandaPIengine, you need to have gengetopt (tested with version 2.23) install. To compile pandaPIengine, you need to perform the following commands:
+To compile pandaPIengine, you need to have gengetopt (tested with version 2.23) install.
+By default pandaPIengine is build **without** support for ILP-based heuristics, the SAT planner, and the BDD planner.
+For the latter two, you can pass the arguments `-DSAT=ON` or `-DBDD=ON` to the `cmake` call.
+For the ILP-based heuristics, you additionally need an installation of IBM CPLEX and need to specify it through `-DCPLEX_SOURCE_DIR=PATH_TO_YOUR_CPLEX`.
+
+To compile pandaPIengine, you need to perform the following commands:
 
 ```
 mkdir build
@@ -19,8 +24,6 @@ cd build
 cmake ../src
 make -j
 ```
-By default pandaPIengine is build **without** support for ILP-based heuristics, the SAT planner, and the BDD planner.
-For the latter two, you can pass the arguments `-DSAT=ON` or `-DBDD=ON`. For the ILP-based heuristics, you need an installation of IBM CPLEX and need to specify it through `-DCPLEX_SOURCE_DIR=PATH_TO_YOUR_CPLEX`.
 
 ### Using pandaPIengine
 
