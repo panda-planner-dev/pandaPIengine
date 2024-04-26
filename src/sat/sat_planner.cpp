@@ -23,6 +23,7 @@
 
 
 bool optimisePlan = false;
+bool outputSOGOrder = false;
 bool costMode = false;
 int currentMaximumCost;
 int costFactor = 1000;
@@ -68,7 +69,8 @@ pair<int,int> printSolution(void * solver, Model * htn, PDT* pdt, MatchingData &
 	
 	cout << "==>" << endl;
 	/// extract the primitive plan
-	
+
+	vector<pair<PDT*,int>> leafsWithTask;	
 	if (htn->isTotallyOrdered){
 		for (PDT* & leaf : leafs){
 			for (size_t pIndex = 0; pIndex < leaf->possiblePrimitives.size(); pIndex++){
@@ -77,6 +79,7 @@ pair<int,int> printSolution(void * solver, Model * htn, PDT* pdt, MatchingData &
 				if (ipasir_val(solver,prim) > 0){
 					assert(leaf->outputID == -1);
 					leaf->outputID = currentID++;
+					leafsWithTask.push_back({leaf,0});
 					std::cout << leaf->outputID << " " << htn->taskNames[leaf->possiblePrimitives[pIndex]] << endl;
 					solutionCost += htn->actionCosts[leaf->possiblePrimitives[pIndex]];
 					trueSolutionCost += originalActionCosts[leaf->possiblePrimitives[pIndex]];
@@ -102,11 +105,10 @@ pair<int,int> printSolution(void * solver, Model * htn, PDT* pdt, MatchingData &
 								&& matching.leafSOG->leafOfNode[l]->outputTask == prim){
 							// get the output number of that leaf
 							PDT * leaf = matching.leafSOG->leafOfNode[l];
-							std::cout << p << "@" << l << " | " << leaf->outputID << " " << htn->taskNames[prim] << endl;
-							cout << "PUP" << endl;
+							leafsWithTask.push_back({leaf,l});
+							std::cout << leaf->outputID << " " << htn->taskNames[prim] << endl;
 						}
 					}
-					
 				}
 			}
 		}
@@ -118,6 +120,34 @@ pair<int,int> printSolution(void * solver, Model * htn, PDT* pdt, MatchingData &
 	// out decompositions
 	pdt->printDecomposition(htn);
 	cout << "<==" << endl;
+	if (outputSOGOrder){
+		if (htn->isTotallyOrdered){
+			for (unsigned int l = 0; l < leafsWithTask.size(); l++){
+				std::cout << leafsWithTask[l].first->outputID << " " << leafsWithTask.size() - l - 1;
+
+				for (unsigned int ll = l+1; ll< leafsWithTask.size(); ll++)
+					std::cout << " " << leafsWithTask[ll].first->outputID ;
+				
+				std::cout << std::endl;
+			}
+		} else {
+			for (auto [leaf,leafID] : leafsWithTask){
+				vector<PDT*> presentSuccessors;
+				for (auto s : matching.leafSOG->successorSet[leafID]){
+					PDT * l = matching.leafSOG->leafOfNode[s];
+					if (l != leaf && l->outputID != -1)
+						presentSuccessors.push_back(l);
+				}
+				std::cout << leaf->outputID << " " << presentSuccessors.size();
+				for (PDT * succ : presentSuccessors)
+					std::cout << " " << succ->outputID;
+				std::cout << std::endl;
+			}
+		}
+	}
+
+
+
 	cout << "Total cost of solution: " << solutionCost << " true cost: " << trueSolutionCost << endl;
 	return {solutionCost,trueSolutionCost};
 }
@@ -1008,13 +1038,14 @@ void solve_with_sat_planner_time_interleave(Model * htn, bool block_compression,
 
 
 
-void solve_with_sat_planner(Model * htn, bool block_compression, bool sat_mutexes, sat_pruning pruningMode, bool effectLessActionsInSeparateLeaf, bool optimise){
+void solve_with_sat_planner(Model * htn, bool block_compression, bool sat_mutexes, sat_pruning pruningMode, bool effectLessActionsInSeparateLeaf, bool optimise, bool outputOrder){
 	// prepare helper data structured (used for SOG)
 	htn->calcSCCs();
 	htn->constructSCCGraph();
 	htn->analyseSCCcyclicity();
 	
 	optimisePlan = optimise;
+	outputSOGOrder = outputOrder;
 	
 	// start actual planner
 	cout << endl << endl;
@@ -1023,16 +1054,17 @@ void solve_with_sat_planner(Model * htn, bool block_compression, bool sat_mutexe
 	//htn->writeToPDDL("foo-d.hddl", "foo-p.hddl");
 	
 	cout << color(Color::YELLOW,"Starting SAT-based planner") << endl;
-	cout << "Using SAT solver: " << ipasir_signature() << endl;
-	cout << "Encode Mutexes:    " << (sat_mutexes?"yes":"no") << endl;
-	cout << "Block Compression: " << (block_compression?"yes":"no") << endl;
-	cout << "Pruning:           ";
+	cout << "Using SAT solver:   " << ipasir_signature() << endl;
+	cout << "Encode Mutexes:      " << (sat_mutexes?"yes":"no") << endl;
+	cout << "Block Compression:   " << (block_compression?"yes":"no") << endl;
+	cout << "Pruning:             ";
 	switch (pruningMode){
 		case SAT_NONE: cout << "none" << endl; break;
 		case SAT_FF: cout << "ff" << endl; break;
 		case SAT_H2: cout << "h2" << endl; break;
 	}
-	cout << "Optimise Plan Cost: " << (optimisePlan?"yes":"no") << endl;
+	cout << "Optimise Plan Cost:   " << (optimisePlan?"yes":"no") << endl;
+	cout << "Output implied Order: " << (outputOrder?"yes":"no") << endl;
 
 	cout << endl << endl;
 	
