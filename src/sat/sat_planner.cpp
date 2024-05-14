@@ -105,6 +105,8 @@ pair<int,int> printSolution(void * solver, Model * htn, PDT* pdt, MatchingData &
 								&& matching.leafSOG->leafOfNode[l]->outputTask == prim){
 							// get the output number of that leaf
 							PDT * leaf = matching.leafSOG->leafOfNode[l];
+							solutionCost += htn->actionCosts[prim];
+							trueSolutionCost += originalActionCosts[prim];
 							leafsWithTask.push_back({leaf,l});
 							std::cout << leaf->outputID << " " << htn->taskNames[prim] << endl;
 						}
