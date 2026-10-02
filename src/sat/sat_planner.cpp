@@ -8,6 +8,7 @@
 #include "../Util.h"
 #include "../Invariants.h"
 #include <cassert>
+#include <algorithm>
 #include <thread> 
 #include <chrono>
 #include <pthread.h>
@@ -97,21 +98,29 @@ pair<int,int> printSolution(void * solver, Model * htn, PDT* pdt, MatchingData &
 	// if po output the primitive plan now
 	if (!htn->isTotallyOrdered){
 		for (int p = 0; p < matching.matchingPerPosition.size(); p++){
+			// actions without effects share their position with the one with effects and are checked before it,
+			// so output them first, in the order of the SOG (fewer predecessors first)
+			vector<tuple<bool,int,int,int>> atPosition; // has effects, #predecessors, leaf, primitive
 			for (auto [pvar, prim] : matching.vars[p]){
 				if (ipasir_val(solver,pvar) > 0){
 					// find the if of the matched leaf
 					for (int l = 0; l < matching.matchingPerPosition[p].size(); l++){
 						if (ipasir_val(solver,matching.matchingPerPosition[p][l]) > 0
 								&& matching.leafSOG->leafOfNode[l]->outputTask == prim){
-							// get the output number of that leaf
-							PDT * leaf = matching.leafSOG->leafOfNode[l];
-							solutionCost += htn->actionCosts[prim];
-							trueSolutionCost += originalActionCosts[prim];
-							leafsWithTask.push_back({leaf,l});
-							std::cout << leaf->outputID << " " << htn->taskNames[prim] << endl;
+							bool effect = htn->numAdds[prim] != 0 || htn->numDels[prim] != 0;
+							atPosition.push_back({effect, matching.leafSOG->predecessorSet[l].size(), l, prim});
 						}
 					}
 				}
+			}
+			sort(atPosition.begin(), atPosition.end());
+			for (auto [effect, numPred, l, prim] : atPosition){
+				// get the output number of that leaf
+				PDT * leaf = matching.leafSOG->leafOfNode[l];
+				solutionCost += htn->actionCosts[prim];
+				trueSolutionCost += originalActionCosts[prim];
+				leafsWithTask.push_back({leaf,l});
+				std::cout << leaf->outputID << " " << htn->taskNames[prim] << endl;
 			}
 		}
 	}

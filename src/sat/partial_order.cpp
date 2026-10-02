@@ -152,11 +152,15 @@ void generate_matching_formula(void* solver, sat_capsule & capsule, Model * htn,
 
 
 	// if leaf l @ position p, then any successor of l is forbidden at p-1
+	// and at p if l can contain an action with effects: the preconditions of all actions at p are checked before p
 	for (int l = 0; l < leafSOG->numberOfVertices; l++){
 		for (int lSucc : leafSOG->adj[l]){
 			for (int p = 1; p < vars.size(); p++){
 				implies(solver,matching.matchingPerLeaf[l][p],forbiddenPerLeaf[lSucc][p-1]);
 			}
+			if (leafSOG->leafContainsEffectAction[l])
+				for (int p = 0; p < vars.size(); p++)
+					implies(solver,matching.matchingPerLeaf[l][p],forbiddenPerLeaf[lSucc][p]);
 		}
 	}
 
