@@ -151,14 +151,49 @@ void generate_matching_formula(void* solver, sat_capsule & capsule, Model * htn,
 	}
 
 
+	// preconditions of the actions of each leaf without actions with effects
+	vector<unordered_set<int>> effectLessLeafPreconditions (leafSOG->numberOfVertices);
+	for (int l = 0; l < leafSOG->numberOfVertices; l++){
+		if (leafSOG->leafContainsEffectAction[l]) continue;
+		for (int prim : leafSOG->leafOfNode[l]->possiblePrimitives)
+			for (int i = 0; i < htn->numPrecs[prim]; i++)
+				effectLessLeafPreconditions[l].insert(htn->precLists[prim][i]);
+	}
+
 	// if leaf l @ position p, then any successor of l is forbidden at p-1
-	// and at p if l can contain an action with effects: the preconditions of all actions at p are checked before p
+	// and at p if l can contain an action with effects: the preconditions of all actions at p are checked before p.
+	// A successor without effects may still be at p if l deletes none of its preconditions, as it is output after l.
+	// The same must hold for all successors that can follow it at p, so its successors are checked against l as well.
 	for (int l = 0; l < leafSOG->numberOfVertices; l++){
 		for (int lSucc : leafSOG->adj[l]){
 			for (int p = 1; p < vars.size(); p++){
 				implies(solver,matching.matchingPerLeaf[l][p],forbiddenPerLeaf[lSucc][p-1]);
 			}
-			if (leafSOG->leafContainsEffectAction[l])
+		}
+		if (!leafSOG->leafContainsEffectAction[l]) continue;
+
+		unordered_set<int> deleted;
+		for (int prim : leafSOG->leafOfNode[l]->possiblePrimitives)
+			for (int i = 0; i < htn->numDels[prim]; i++)
+				deleted.insert(htn->delLists[prim][i]);
+
+		vector<int> successors (leafSOG->adj[l].begin(), leafSOG->adj[l].end());
+		unordered_set<int> seen (successors.begin(), successors.end());
+		while (successors.size()){
+			int lSucc = successors.back();
+			successors.pop_back();
+
+			bool sameTime = !leafSOG->leafContainsEffectAction[lSucc];
+			for (int prec : effectLessLeafPreconditions[lSucc])
+				if (deleted.count(prec)){
+					sameTime = false;
+					break;
+				}
+
+			if (sameTime){
+				for (int next : leafSOG->adj[lSucc])
+					if (seen.insert(next).second) successors.push_back(next);
+			} else
 				for (int p = 0; p < vars.size(); p++)
 					implies(solver,matching.matchingPerLeaf[l][p],forbiddenPerLeaf[lSucc][p]);
 		}
