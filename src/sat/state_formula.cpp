@@ -275,7 +275,8 @@ void get_partial_state_atoms(sat_capsule & capsule, Model * htn, SOG* sog, vecto
 		sog->leafContainsEffectAction[t] = actualAction;
 	}
 	int numberOfTimeSteps = sog->numberOfVertices - leafsWithoutActualActions;
-	numberOfTimeSteps = numberOfTimeSteps;
+	// one more time step for actions without effects that follow the last action with effects
+	if (leafsWithoutActualActions) numberOfTimeSteps++;
 	if (numberOfTimeSteps == 0) numberOfTimeSteps = 1;
 	
 	cout << "Total Leafs: " << sog->numberOfVertices << " of that without effect-actions " << leafsWithoutActualActions << " remaining: " << numberOfTimeSteps << endl;
