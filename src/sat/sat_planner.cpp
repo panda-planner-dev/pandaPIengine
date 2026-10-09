@@ -499,26 +499,33 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 
 
 	if (costMode){
+		// The cost is counted per leaf of the PDT, as a leaf holds at most one
+		// action. In the totally ordered case the leaves are the time steps, so
+		// this is the same formula as counting per time step. In the partially
+		// ordered case several leaves can be matched to one time step (those
+		// without effects), and leaves with the same action even share its
+		// variable there, so counting per time step costed them only once.
 		vector<int> costVars;
-		for (int t = 0; t < vars.size(); t++){
-			// maximum cost per time step
+		for (size_t l = 0; l < leafs.size(); l++){
+			PDT * leaf = leafs[l];
+			// maximum cost per leaf
 			int maxCost = 0;
-			for (const auto & [varID,taskID] : vars[t])
-				maxCost = max(maxCost,htn->actionCosts[taskID]);
-			//cout << "\tMaximum Cost Time " << t << " is " << maxCost << endl;
+			for (size_t p = 0; p < leaf->possiblePrimitives.size(); p++)
+				if (leaf->primitiveVariable[p] != -1)
+					maxCost = max(maxCost,htn->actionCosts[leaf->possiblePrimitives[p]]);
 
 			maxCost /= costFactor;
 
-			//cout << "\tGenerating cost Implications" << endl;
 			for (int c = 1; c <= maxCost; c++){
-				//cout << "\tC=" << c << endl;
 				int cvar = capsule.new_variable();
-				DEBUG(capsule.registerVariable(cvar,"cost var " + pad_int(c) + " @ " + pad_int(t)));
-				for (const auto & [varID,taskID] : vars[t])
-					if (htn->actionCosts[taskID]/costFactor >= c)
-						implies(solver,varID,cvar);
+				DEBUG(capsule.registerVariable(cvar,"cost var " + pad_int(c) + " @ leaf " + pad_int(l)));
+				for (size_t p = 0; p < leaf->possiblePrimitives.size(); p++){
+					if (leaf->primitiveVariable[p] == -1) continue; // pruned
+					if (htn->actionCosts[leaf->possiblePrimitives[p]]/costFactor >= c)
+						implies(solver,leaf->primitiveVariable[p],cvar);
 					else
-						impliesNot(solver,varID,cvar);
+						impliesNot(solver,leaf->primitiveVariable[p],cvar);
+				}
 
 				costVars.push_back(cvar);
 			}
