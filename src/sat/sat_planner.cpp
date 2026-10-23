@@ -8,6 +8,7 @@
 #include "../Util.h"
 #include "../Invariants.h"
 #include <cassert>
+#include <algorithm>
 #include <thread> 
 #include <chrono>
 #include <pthread.h>
@@ -97,21 +98,38 @@ pair<int,int> printSolution(void * solver, Model * htn, PDT* pdt, MatchingData &
 	// if po output the primitive plan now
 	if (!htn->isTotallyOrdered){
 		for (int p = 0; p < matching.matchingPerPosition.size(); p++){
+			// the leaf at this position that can contain an action with effects (there is at most one)
+			int effectLeaf = -1;
+			for (int l = 0; l < matching.matchingPerPosition[p].size(); l++)
+				if (matching.leafSOG->leafContainsEffectAction[l] && ipasir_val(solver,matching.matchingPerPosition[p][l]) > 0)
+					effectLeaf = l;
+
+			// actions without effects share their position with the one with effects and are checked before it,
+			// so output those that are not its successors first, then it, then its successors (it deletes none of their preconditions),
+			// each in the order of the SOG (fewer predecessors first)
+			vector<tuple<int,int,int,int>> atPosition; // before/is/after the leaf with effects, #predecessors, leaf, primitive
 			for (auto [pvar, prim] : matching.vars[p]){
 				if (ipasir_val(solver,pvar) > 0){
 					// find the if of the matched leaf
 					for (int l = 0; l < matching.matchingPerPosition[p].size(); l++){
 						if (ipasir_val(solver,matching.matchingPerPosition[p][l]) > 0
 								&& matching.leafSOG->leafOfNode[l]->outputTask == prim){
-							// get the output number of that leaf
-							PDT * leaf = matching.leafSOG->leafOfNode[l];
-							solutionCost += htn->actionCosts[prim];
-							trueSolutionCost += originalActionCosts[prim];
-							leafsWithTask.push_back({leaf,l});
-							std::cout << leaf->outputID << " " << htn->taskNames[prim] << endl;
+							int group = 0;
+							if (l == effectLeaf) group = 1;
+							else if (effectLeaf != -1 && matching.leafSOG->successorSet[effectLeaf].count(l)) group = 2;
+							atPosition.push_back({group, matching.leafSOG->predecessorSet[l].size(), l, prim});
 						}
 					}
 				}
+			}
+			sort(atPosition.begin(), atPosition.end());
+			for (auto [group, numPred, l, prim] : atPosition){
+				// get the output number of that leaf
+				PDT * leaf = matching.leafSOG->leafOfNode[l];
+				solutionCost += htn->actionCosts[prim];
+				trueSolutionCost += originalActionCosts[prim];
+				leafsWithTask.push_back({leaf,l});
+				std::cout << leaf->outputID << " " << htn->taskNames[prim] << endl;
 			}
 		}
 	}
@@ -481,26 +499,33 @@ bool createFormulaForDepth(void* solver, PDT* pdt, Model * htn, sat_capsule & ca
 
 
 	if (costMode){
+		// The cost is counted per leaf of the PDT, as a leaf holds at most one
+		// action. In the totally ordered case the leaves are the time steps, so
+		// this is the same formula as counting per time step. In the partially
+		// ordered case several leaves can be matched to one time step (those
+		// without effects), and leaves with the same action even share its
+		// variable there, so counting per time step costed them only once.
 		vector<int> costVars;
-		for (int t = 0; t < vars.size(); t++){
-			// maximum cost per time step
+		for (size_t l = 0; l < leafs.size(); l++){
+			PDT * leaf = leafs[l];
+			// maximum cost per leaf
 			int maxCost = 0;
-			for (const auto & [varID,taskID] : vars[t])
-				maxCost = max(maxCost,htn->actionCosts[taskID]);
-			//cout << "\tMaximum Cost Time " << t << " is " << maxCost << endl;
+			for (size_t p = 0; p < leaf->possiblePrimitives.size(); p++)
+				if (leaf->primitiveVariable[p] != -1)
+					maxCost = max(maxCost,htn->actionCosts[leaf->possiblePrimitives[p]]);
 
 			maxCost /= costFactor;
 
-			//cout << "\tGenerating cost Implications" << endl;
 			for (int c = 1; c <= maxCost; c++){
-				//cout << "\tC=" << c << endl;
 				int cvar = capsule.new_variable();
-				DEBUG(capsule.registerVariable(cvar,"cost var " + pad_int(c) + " @ " + pad_int(t)));
-				for (const auto & [varID,taskID] : vars[t])
-					if (htn->actionCosts[taskID]/costFactor >= c)
-						implies(solver,varID,cvar);
+				DEBUG(capsule.registerVariable(cvar,"cost var " + pad_int(c) + " @ leaf " + pad_int(l)));
+				for (size_t p = 0; p < leaf->possiblePrimitives.size(); p++){
+					if (leaf->primitiveVariable[p] == -1) continue; // pruned
+					if (htn->actionCosts[leaf->possiblePrimitives[p]]/costFactor >= c)
+						implies(solver,leaf->primitiveVariable[p],cvar);
 					else
-						impliesNot(solver,varID,cvar);
+						impliesNot(solver,leaf->primitiveVariable[p],cvar);
+				}
 
 				costVars.push_back(cvar);
 			}
